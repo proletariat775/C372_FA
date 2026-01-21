@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <title>Supermarket App | Shopping</title>
+</head>
+<body>
+  <nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">Supermarket App</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="collapsibleNavbar">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/cart">View Cart</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/orders/history">Purchase History</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <% const totalProducts = products ? products.length : 0; %>
+  <% const totalInStock = products ? products.reduce((sum, p) => sum + p.quantity, 0) : 0; %>
+  <% const freshArrivals = products ? products.slice(0, Math.min(products.length, 3)) : []; %>
+
+  <main class="page-section pt-4 pb-5">
+    <div class="container">
+      <div class="hero-card mb-5">
+        <div class="row g-0 align-items-center">
+          <div class="col-lg-7 hero-body">
+            <p class="text-uppercase text-muted small mb-2">Hello again!</p>
+            <h1 class="mb-3">
+              Welcome back, <span class="text-primary"><%= user.username %></span>
+            </h1>
+            <p class="lead text-muted mb-4">
+              Curated goodies are waiting. Add to your basket, keep an eye on new stocks, and enjoy fast checkout tailored for our <span class="fw-semibold"><%= user.role %></span> shoppers.
+            </p>
+            <div class="hero-cta">
+              <a href="/cart" class="btn btn-primary">Open your cart</a>
+              <% if (freshArrivals.length) { %>
+                <a href="/product/<%= freshArrivals[0].id %>" class="btn btn-outline-secondary">View highlight</a>
+              <% } else { %>
+                <a class="btn btn-outline-secondary disabled" aria-disabled="true" tabindex="-1">View highlight</a>
+              <% } %>
+            </div>
+          </div>
+          <div class="col-lg-5 d-none d-lg-block">
+            <div class="p-4">
+              <div class="rounded-4 bg-gradient" style="background: linear-gradient(140deg, rgba(255,122,89,0.9), rgba(46,197,206,0.85)); min-height: 260px;">
+                <div class="h-100 w-100 d-flex flex-column justify-content-center align-items-start text-white p-4">
+                  <span class="badge bg-light text-dark mb-3 text-uppercase">Quick stats</span>
+                  <h5 class="mb-1">Products live</h5>
+                  <h2 class="fw-semibold mb-3"><%= totalProducts %></h2>
+                  <h6 class="text-white-50 mb-1">Units available</h6>
+                  <p class="fs-4 fw-semibold mb-0"><%= totalInStock %></p>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+    </div>
+
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+          <form class="row gy-3 align-items-end" action="/shopping" method="GET">
+            <div class="col-12 col-md-6 col-lg-4">
+              <label for="category-filter" class="form-label text-muted text-uppercase small mb-1">Filter by section</label>
+              <select id="category-filter" name="category" class="form-select">
+                <option value="">All products</option>
+                <% (categories || []).forEach(function(cat) { %>
+                  <option value="<%= cat %>" <%= activeCategory === cat ? 'selected' : '' %>><%= cat %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <button type="submit" class="btn btn-outline-primary w-100">Apply filters</button>
+            </div>
+            <% if (activeCategory) { %>
+              <div class="col-12 col-lg-4">
+                <a href="/shopping" class="btn btn-link text-decoration-none">Clear filters</a>
+              </div>
+            <% } %>
+          </form>
+        </div>
+      </div>
+
+      <% if (messages && messages.length) { %>
+        <% messages.forEach(function(message) { %>
+          <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+      <% } %>
+
+      <% if (errors && errors.length) { %>
+        <% errors.forEach(function(error) { %>
+          <div class="alert alert-danger"><%= error %></div>
+        <% }); %>
+      <% } %>
+
+      <% if (bestSellers && bestSellers.length) { %>
+        <div class="mb-5">
+          <span class="text-uppercase small text-muted">Best sellers</span>
+          <h3 class="mt-2">Community favourites</h3>
+          <div class="row g-3 mt-3">
+            <% bestSellers.forEach(function(item) { %>
+              <div class="col-12 col-md-6 col-lg-4 col-xxl-3">
+                <div class="card h-100 border-0 shadow-sm">
+                  <% if (item.image) { %>
+                    <img src="/images/<%= item.image %>" class="card-img-top" alt="<%= item.productName %>">
+                  <% } else { %>
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                      <span class="text-muted">Image coming soon</span>
+                    </div>
+                  <% } %>
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <h5 class="card-title mb-0">
+                        <a class="text-decoration-none text-dark" href="/product/<%= item.id %>"><%= item.productName %></a>
+                      </h5>
+                      <span class="badge bg-primary-subtle text-primary">Sold: <%= item.totalSold %></span>
+                    </div>
+                    <% if (item.hasDiscount) { %>
+                      <div class="d-flex flex-column mt-3 mb-2">
+                        <span class="text-muted text-decoration-line-through small">$<%= Number(item.price).toFixed(2) %></span>
+                        <span class="fw-semibold fs-5 text-success">$<%= Number(item.effectivePrice).toFixed(2) %></span>
+                        <span class="badge bg-success-subtle text-success align-self-start mt-1"><%= Number(item.discountPercentage).toFixed(2) %>% off</span>
+                      </div>
+                    <% } else { %>
+                      <p class="mt-3 mb-2 fw-semibold fs-5">$<%= Number(item.price).toFixed(2) %></p>
+                    <% } %>
+                    <% if (item.offerMessage) { %>
+                      <p class="text-muted small mb-3"><%= item.offerMessage %></p>
+                    <% } %>
+                    <a href="/product/<%= item.id %>" class="btn btn-outline-primary w-100">View details</a>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (freshArrivals.length > 1) { %>
+        <div class="mb-4">
+          <span class="text-uppercase small text-muted">Fresh picks for you</span>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <% freshArrivals.forEach(function(item) { %>
+              <a href="/product/<%= item.id %>" class="badge bg-light text-dark border rounded-pill px-3 py-2">
+                <%= item.productName %>
+              </a>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="row g-4">
+        <% if (products && products.length) { %>
+          <% products.forEach(function(product) { %>
+            <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
+              <div class="card h-100">
+                <div class="position-relative">
+                  <% if (product.image) { %>
+                    <img src="/images/<%= product.image %>" class="card-img-top" alt="<%= product.productName %>">
+                  <% } else { %>
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 220px;">
+                      <span class="text-muted">Image coming soon</span>
+                    </div>
+                  <% } %>
+                  <span class="position-absolute top-0 end-0 m-3 badge bg-dark-subtle text-dark">
+                    Stock: <%= product.quantity %>
+                  </span>
+                </div>
+                <div class="card-body d-flex flex-column">
+                  <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div>
+                      <h5 class="card-title mb-1">
+                        <a href="/product/<%= product.id %>" class="text-decoration-none text-dark stretched-link">
+                          <%= product.productName %>
+                        </a>
+                      </h5>
+                      <span class="badge bg-light text-dark"><%= product.category || 'General' %></span>
+                    </div>
+                    <% if (product.hasDiscount) { %>
+                      <div class="text-end">
+                        <div class="text-muted text-decoration-line-through small">$<%= Number(product.price).toFixed(2) %></div>
+                        <div class="fw-semibold fs-5 text-success">$<%= Number(product.effectivePrice).toFixed(2) %></div>
+                      </div>
+                    <% } else { %>
+                      <span class="fw-semibold fs-5 text-primary">$<%= Number(product.price).toFixed(2) %></span>
+                    <% } %>
+                  </div>
+                  <p class="text-muted small mb-4">Hand-picked quality ingredients at your fingertips.</p>
+                  <% if (product.offerMessage) { %>
+                    <div class="alert alert-info py-2 mb-4">
+                      <span class="fw-semibold text-uppercase small">Offer</span>
+                      <div class="small mb-0"><%= product.offerMessage %></div>
+                    </div>
+                  <% } else if (product.hasDiscount) { %>
+                    <div class="alert alert-success py-2 mb-4">
+                      <span class="fw-semibold text-uppercase small">Limited-time deal</span>
+                      <div class="small mb-0"><%= Number(product.discountPercentage).toFixed(2) %>% off</div>
+                    </div>
+                  <% } %>
+
+                  <% if (product.quantity > 0) { %>
+                    <form action="/add-to-cart/<%= product.id %>" method="POST" class="mt-auto">
+                      <label for="quantity-<%= product.id %>" class="form-label small text-uppercase fw-semibold text-muted">Choose quantity</label>
+                      <div class="input-group">
+                        <select class="form-select" id="quantity-<%= product.id %>" name="quantity">
+                          <% const maxQty = Math.min(product.quantity, 10); %>
+                          <% for (let q = 1; q <= maxQty; q++) { %>
+                            <option value="<%= q %>"><%= q %></option>
+                          <% } %>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Add</button>
+                      </div>
+                    </form>
+                  <% } else { %>
+                    <div class="alert alert-warning mt-auto mb-0" role="alert">
+                      Out of stock — we'll restock soon!
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <div class="col-12">
+            <div class="empty-state">
+              <h3>We're restocking the shelves</h3>
+              <p class="text-muted mb-0">Check back shortly for fresh picks tailored to you.</p>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+
