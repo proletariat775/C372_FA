@@ -41,14 +41,14 @@ app.use(session({
     secret: 'secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } 
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
 }));
 
 app.use(flash());
 
 // Routes
 app.get('/', (req, res) => {
-    res.render('index', {user: req.session.user});
+    res.render('index', { user: req.session.user });
 });
 
 app.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);

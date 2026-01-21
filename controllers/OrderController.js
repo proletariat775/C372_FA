@@ -90,6 +90,9 @@ const loadCartFromDb = (req, callback) => {
             const decorated = decorateProduct(item);
             return {
                 productId: item.product_id,
+                product_variant_id: item.product_variant_id,
+                variant_size: item.variant_size,
+                variant_color: item.variant_color,
                 productName: item.productName,
                 price: decorated.effectivePrice,
                 originalPrice: decorated.price,
