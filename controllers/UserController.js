@@ -8,13 +8,28 @@ const showRegister = (req, res) => {
 };
 
 const register = (req, res) => {
-    const { username, email, password, address, contact } = req.body;
+    const {
+        username,
+        email,
+        password,
+        first_name,
+        last_name,
+        address,
+        city,
+        state,
+        zip_code,
+        country,
+        contact
+    } = req.body;
 
-    const formData = { username, email, address, contact };
-    const role = 'user';
-    User.create({ username, email, password, address, contact, role, freeDelivery: false }, (err) => {
+    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, contact };
+    console.log('Register endpoint body:', req.body);
+    const role = 'customer';
+    console.log('Register handler received:', formData);
+
+    User.create({ username, email, password, first_name, last_name, address, city, state, zip_code, country, contact, role }, (err, result) => {
         if (err) {
-            console.error('Error registering user:', err);
+            console.error('Error registering user (db):', err);
             if (err.code === 'ER_DUP_ENTRY') {
                 req.flash('error', 'Email already exists.');
             } else {
@@ -24,6 +39,7 @@ const register = (req, res) => {
             return res.redirect('/register');
         }
 
+        console.log('User.create result:', result);
         req.flash('success', 'Registration successful! Please log in.');
         return res.redirect('/login');
     });
@@ -118,9 +134,9 @@ const editUserForm = (req, res) => {
 
 const updateUserRole = (req, res) => {
     const userId = parseInt(req.params.id, 10);
-    const { username, email, address, contact, role, freeDelivery } = req.body;
+    const { username, email, address, contact, role } = req.body;
 
-    const allowedRoles = ['user', 'admin'];
+    const allowedRoles = ['customer', 'admin', 'staff'];
     const errors = [];
 
     if (Number.isNaN(userId)) {
@@ -157,15 +173,12 @@ const updateUserRole = (req, res) => {
         return res.redirect(`/admin/users/${userId}/edit`);
     }
 
-    const wantsFreeDelivery = freeDelivery === 'on' || freeDelivery === 'true' || freeDelivery === '1';
-
     User.update(userId, {
         username: safeUsername,
         email: safeEmail,
         address: safeAddress,
         contact: safeContact,
-        role,
-        freeDelivery: wantsFreeDelivery
+        role
     }, (err, result) => {
         if (err) {
             console.error('Error updating user:', err);
@@ -186,7 +199,6 @@ const updateUserRole = (req, res) => {
 
         if (req.session.user && req.session.user.id === userId) {
             req.session.user.role = role;
-            req.session.user.free_delivery = wantsFreeDelivery ? 1 : 0;
             req.session.user.username = safeUsername;
             req.session.user.email = safeEmail;
             req.session.user.address = safeAddress;
