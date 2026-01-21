@@ -141,7 +141,7 @@ const checkout = (req, res) => {
 
         const deliveryFee = computeDeliveryFee(req.session.user, deliveryMethod);
 
-        Order.create(req.session.user.id, cartItems, { deliveryMethod, deliveryAddress, deliveryFee }, (error) => {
+        Order.create(req.session.user.id, cartItems, { shipping_address: deliveryAddress, shipping_amount: deliveryFee }, (error) => {
             if (error) {
                 console.error('Error during checkout:', error);
                 req.flash('error', error.message || 'Unable to complete checkout. Please try again.');
@@ -187,9 +187,10 @@ const history = (req, res) => {
 
         const orders = (orderRows || []).map((order) => ({
             ...order,
-            delivery_method: order.delivery_method || 'pickup',
-            delivery_address: order.delivery_address,
-            delivery_fee: Number(order.delivery_fee || 0)
+            delivery_method: order.shipping_address ? 'delivery' : 'pickup',
+            delivery_address: order.shipping_address,
+            delivery_fee: Number(order.shipping_amount || 0),
+            total: Number(order.total_amount || order.total || 0)
         }));
         const orderIds = orders.map(order => order.id);
 
@@ -322,9 +323,8 @@ const updateDeliveryDetails = (req, res) => {
             }
 
             Order.updateDelivery(orderId, {
-                deliveryMethod,
-                deliveryAddress: deliveryMethod === 'delivery' ? requestedAddress : null,
-                deliveryFee
+                shipping_address: deliveryMethod === 'delivery' ? requestedAddress : null,
+                shipping_amount: deliveryFee
             }, (updateErr) => {
                 if (updateErr) {
                     console.error('Error updating delivery details:', updateErr);
@@ -396,8 +396,8 @@ const invoice = (req, res) => {
                 const items = (itemRows || [])
                     .filter((row) => row.order_id === orderId)
                     .map(normaliseOrderItem);
-                const deliveryFee = Number(order.delivery_fee || 0);
-                const subtotal = Number(order.total || 0) - deliveryFee;
+                const deliveryFee = Number(order.shipping_amount || 0);
+                const subtotal = Number(order.subtotal || 0);
 
                 res.render('invoice', {
                     user: sessionUser,
@@ -407,7 +407,7 @@ const invoice = (req, res) => {
                     totals: {
                         subtotal: subtotal < 0 ? 0 : Number(subtotal.toFixed(2)),
                         deliveryFee: deliveryFee > 0 ? Number(deliveryFee.toFixed(2)) : 0,
-                        total: Number(order.total || 0).toFixed(2)
+                        total: Number(order.total_amount || order.total || 0).toFixed(2)
                     }
                 });
             });

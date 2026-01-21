@@ -102,7 +102,7 @@
                                     </small>
                                     <% if (user && user.role==='admin' && order.username) { %>
                                       <span class="badge bg-dark-subtle text-dark me-2">Customer: <%= order.username %>
-                                          </span>
+                                      </span>
                                       <% } %>
                                         <span class="badge bg-primary-subtle text-primary">Total: $<%=
                                             Number(order.total).toFixed(2) %></span>
