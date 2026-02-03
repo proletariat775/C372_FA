@@ -1,7 +1,5 @@
-const Product = require('../models/product');
-
-const findCartItem = (cart, productId) =>
-    cart.find(item => item.productId === productId);
+﻿const Product = require('../models/product');
+const couponService = require('../services/couponService');
 
 const getFlash = (req, type) => {
     if (typeof req.flash !== 'function') {
@@ -18,21 +16,13 @@ const ensureSessionCart = (req) => {
 };
 
 const ensureShopperRole = (req, res) => {
-    const shopperRoles = ['user'];
+    const shopperRoles = ['user', 'customer'];
     if (!req.session.user || !shopperRoles.includes(req.session.user.role)) {
         req.flash('error', 'Access denied.');
-        res.redirect('/inventory');
+        res.redirect('/login');
         return false;
     }
     return true;
-};
-
-const toCurrency = (value) => {
-    const parsed = Number.parseFloat(value);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-        return 0;
-    }
-    return Number(parsed.toFixed(2));
 };
 
 const clampDiscount = (value) => {
@@ -42,6 +32,14 @@ const clampDiscount = (value) => {
     }
     if (parsed > 100) {
         return 100;
+    }
+    return Number(parsed.toFixed(2));
+};
+
+const toCurrency = (value) => {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return 0;
     }
     return Number(parsed.toFixed(2));
 };
@@ -83,6 +81,28 @@ const buildCartItem = (product, quantity) => {
     return cartItem;
 };
 
+const findCartItem = (cart, productId) =>
+    cart.find(item => item.productId === productId);
+
+const clearAppliedCoupon = (cart) => {
+    if (cart && typeof cart === 'object' && cart.appliedCoupon) {
+        delete cart.appliedCoupon;
+    }
+};
+
+const setAppliedCoupon = (cart, coupon) => {
+    if (cart && typeof cart === 'object') {
+        cart.appliedCoupon = coupon;
+    }
+};
+
+const getAppliedCoupon = (cart) => {
+    if (!cart || typeof cart !== 'object') {
+        return null;
+    }
+    return cart.appliedCoupon || null;
+};
+
 const addToCart = (req, res) => {
     if (!ensureShopperRole(req, res)) {
         return;
@@ -96,7 +116,12 @@ const addToCart = (req, res) => {
         return res.redirect('/shopping');
     }
 
-    db.query('SELECT * FROM products WHERE id = ? AND is_deleted = 0', [productId], (error, results) => {
+    if (!Number.isFinite(quantityToAdd) || quantityToAdd <= 0) {
+        req.flash('error', 'Please select a valid quantity.');
+        return res.redirect('/shopping');
+    }
+
+    Product.getById(productId, (error, results) => {
         if (error) {
             console.error('Error fetching product:', error);
             req.flash('error', 'Unable to add product to cart at this time.');
@@ -123,14 +148,11 @@ const addToCart = (req, res) => {
 
         if (desiredTotalQty > stock) {
             desiredTotalQty = stock;
-            req.flash(
-                'error',
-                `Only ${stock} units of "${product.productName}" are available. Cart quantity has been adjusted.`
-            );
+            req.flash('error', `Only ${stock} units of "${product.productName}" are available. Cart quantity adjusted.`);
         }
 
         if (desiredTotalQty <= 0) {
-            req.flash('error', `Unable to add "${product.productName}" – no stock available.`);
+            req.flash('error', `Unable to add "${product.productName}" - no stock available.`);
             return res.redirect('/shopping');
         }
 
@@ -145,18 +167,56 @@ const addToCart = (req, res) => {
     });
 };
 
-const viewCart = (req, res) => {
+const viewCart = async (req, res) => {
     if (!ensureShopperRole(req, res)) {
         return;
     }
 
     const cart = ensureSessionCart(req);
+    if (!cart.length) {
+        clearAppliedCoupon(cart);
+    }
+
+    let appliedCoupon = getAppliedCoupon(cart);
+    const subtotal = couponService.calculateSubtotal(cart);
+    let discountAmount = 0;
+
+    if (appliedCoupon && subtotal > 0) {
+        try {
+            const validation = await couponService.validateCoupon(
+                appliedCoupon.code,
+                req.session.user && req.session.user.id,
+                subtotal
+            );
+
+            if (!validation.valid) {
+                clearAppliedCoupon(cart);
+                appliedCoupon = null;
+                req.flash('error', validation.message || 'Coupon is no longer valid.');
+            } else {
+                discountAmount = validation.discountAmount;
+                appliedCoupon = couponService.buildAppliedCoupon(validation.coupon, discountAmount);
+                setAppliedCoupon(cart, appliedCoupon);
+            }
+        } catch (error) {
+            console.error('Error validating coupon for cart:', error);
+            clearAppliedCoupon(cart);
+            appliedCoupon = null;
+            req.flash('error', 'Unable to validate your coupon right now.');
+        }
+    }
+
+    const finalTotal = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
 
     res.render('cart', {
-        cart: Array.isArray(cart) ? cart : [],
+        cart,
         user: req.session.user,
         messages: getFlash(req, 'success'),
-        errors: getFlash(req, 'error')
+        errors: getFlash(req, 'error'),
+        subtotal,
+        discountAmount,
+        finalTotal,
+        appliedCoupon
     });
 };
 
@@ -202,10 +262,7 @@ const updateCartItem = (req, res) => {
         const stock = Number.parseInt(product.quantity, 10) || 0;
 
         if (quantity > stock) {
-            req.flash(
-                'error',
-                `Cannot set quantity above stock. Only ${stock} units of "${product.productName}" are available.`
-            );
+            req.flash('error', `Cannot set quantity above stock. Only ${stock} units available.`);
             return res.redirect('/cart');
         }
 
@@ -228,15 +285,57 @@ const removeCartItem = (req, res) => {
     }
 
     const cart = ensureSessionCart(req);
-    const existingLength = cart.length;
-    req.session.cart = cart.filter(cartItem => cartItem.productId !== productId);
-
-    if (existingLength === req.session.cart.length) {
+    const nextCart = cart.filter(cartItem => cartItem.productId !== productId);
+    if (nextCart.length === cart.length) {
         req.flash('error', 'Item not found in cart.');
         return res.redirect('/cart');
     }
 
+    req.session.cart = nextCart;
     req.flash('success', 'Item removed from cart.');
+    return res.redirect('/cart');
+};
+
+const applyCoupon = async (req, res) => {
+    if (!ensureShopperRole(req, res)) {
+        return;
+    }
+
+    const code = req.body.coupon || req.body.code || '';
+    const cart = ensureSessionCart(req);
+    const subtotal = couponService.calculateSubtotal(cart);
+
+    if (!cart.length) {
+        req.flash('error', 'Add items to your cart before applying a coupon.');
+        return res.redirect('/cart');
+    }
+
+    try {
+        const validation = await couponService.validateCoupon(code, req.session.user && req.session.user.id, subtotal);
+        if (!validation.valid) {
+            req.flash('error', validation.message || 'Invalid coupon code.');
+            return res.redirect('/cart');
+        }
+
+        const applied = couponService.buildAppliedCoupon(validation.coupon, validation.discountAmount);
+        setAppliedCoupon(cart, applied);
+        req.flash('success', `Coupon "${applied.code}" applied.`);
+        return res.redirect('/cart');
+    } catch (error) {
+        console.error('Error applying coupon:', error);
+        req.flash('error', 'Unable to apply coupon right now.');
+        return res.redirect('/cart');
+    }
+};
+
+const removeCoupon = (req, res) => {
+    if (!ensureShopperRole(req, res)) {
+        return;
+    }
+
+    const cart = ensureSessionCart(req);
+    clearAppliedCoupon(cart);
+    req.flash('success', 'Coupon removed.');
     return res.redirect('/cart');
 };
 
@@ -244,5 +343,7 @@ module.exports = {
     addToCart,
     viewCart,
     updateCartItem,
-    removeCartItem
+    removeCartItem,
+    applyCoupon,
+    removeCoupon
 };

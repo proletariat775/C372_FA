@@ -1,0 +1,140 @@
+const Coupon = require('../models/coupon');
+
+const normalizeMoney = (value) => {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return 0;
+    }
+    return Number(parsed.toFixed(2));
+};
+
+const calculateSubtotal = (cart) => {
+    if (!Array.isArray(cart)) {
+        return 0;
+    }
+    const total = cart.reduce((sum, item) => {
+        const price = Number(item.price);
+        const qty = Number(item.quantity);
+        if (!Number.isFinite(price) || !Number.isFinite(qty)) {
+            return sum;
+        }
+        return sum + (price * qty);
+    }, 0);
+    return Number(total.toFixed(2));
+};
+
+const parseDate = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date;
+};
+
+const calculateDiscount = (coupon, subtotal) => {
+    const type = coupon.discount_type;
+    const value = Number(coupon.discount_value || 0);
+    let discount = 0;
+
+    if (type === 'percentage') {
+        const percentage = Math.min(100, Math.max(0, value));
+        discount = subtotal * (percentage / 100);
+    } else if (type === 'fixed_amount') {
+        discount = Math.max(0, value);
+    }
+
+    if (coupon.max_discount_amount !== null && coupon.max_discount_amount !== undefined) {
+        const cap = Number(coupon.max_discount_amount);
+        if (Number.isFinite(cap) && cap >= 0) {
+            discount = Math.min(discount, cap);
+        }
+    }
+
+    discount = Number(discount.toFixed(2));
+    if (discount > subtotal) {
+        discount = subtotal;
+    }
+
+    return Number(discount.toFixed(2));
+};
+
+const buildAppliedCoupon = (coupon, discountAmount) => ({
+    id: coupon.id,
+    code: coupon.code,
+    discountType: coupon.discount_type,
+    discountValue: Number(coupon.discount_value || 0),
+    minOrderAmount: Number(coupon.min_order_amount || 0),
+    maxDiscountAmount: coupon.max_discount_amount !== null ? Number(coupon.max_discount_amount) : null,
+    discountAmount: Number(discountAmount || 0)
+});
+
+const validateCoupon = async (code, userId, subtotal) => {
+    const trimmed = String(code || '').trim();
+    if (!trimmed) {
+        return { valid: false, message: 'Please enter a coupon code.' };
+    }
+
+    const coupon = await new Promise((resolve, reject) => {
+        Coupon.findByCode(trimmed, (err, row) => {
+            if (err) return reject(err);
+            return resolve(row);
+        });
+    });
+
+    if (!coupon) {
+        return { valid: false, message: 'Coupon code not found.' };
+    }
+
+    if (!coupon.is_active) {
+        return { valid: false, message: 'This coupon is not active.' };
+    }
+
+    const now = new Date();
+    const start = parseDate(coupon.start_date);
+    const end = parseDate(coupon.end_date);
+    if (!start || !end || now < start || now > end) {
+        return { valid: false, message: 'This coupon is not valid at the moment.' };
+    }
+
+    const minAmount = Number(coupon.min_order_amount || 0);
+    if (Number.isFinite(minAmount) && subtotal < minAmount) {
+        return { valid: false, message: `Minimum spend of $${minAmount.toFixed(2)} required for this coupon.` };
+    }
+
+    if (coupon.usage_limit !== null && coupon.usage_limit !== undefined) {
+        const usageLimit = Number(coupon.usage_limit);
+        const usageCount = Number(coupon.usage_count || 0);
+        if (Number.isFinite(usageLimit) && usageCount >= usageLimit) {
+            return { valid: false, message: 'This coupon has reached its usage limit.' };
+        }
+    }
+
+    if (userId) {
+        const userUsageCount = await new Promise((resolve, reject) => {
+            Coupon.getUserUsageCount(coupon.id, userId, (err, count) => {
+                if (err) return reject(err);
+                return resolve(count);
+            });
+        });
+
+        // Per-user limit column does not exist; enforce single redemption per user as a safe default.
+        if (userUsageCount >= 1) {
+            return { valid: false, message: 'You have already used this coupon.' };
+        }
+    }
+
+    const discountAmount = calculateDiscount(coupon, subtotal);
+    if (discountAmount <= 0) {
+        return { valid: false, message: 'This coupon does not provide a discount for your cart.' };
+    }
+
+    return { valid: true, coupon, discountAmount };
+};
+
+module.exports = {
+    normalizeMoney,
+    calculateSubtotal,
+    calculateDiscount,
+    buildAppliedCoupon,
+    validateCoupon
+};

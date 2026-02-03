@@ -15,7 +15,9 @@ const create = (userId, cartItems, options, callback) => {
         shipping_address = null,
         billing_address = null,
         shipping_amount = 0.00,
-        payment_method = 'cod'
+        payment_method = 'cod',
+        discount_amount = 0.00,
+        promo_code = null
     } = options || {};
 
     if (!Array.isArray(cartItems) || cartItems.length === 0) {
@@ -34,15 +36,15 @@ const create = (userId, cartItems, options, callback) => {
         const subtotal = Number(subtotalRaw.toFixed(2));
         const tax_amount = 0.00;
         const shipping_amount_safe = Number.isFinite(shipping_amount) ? Number(shipping_amount) : 0.00;
-        const discount_amount = 0.00;
-        const total_amount = Number((subtotal + tax_amount + shipping_amount_safe - discount_amount).toFixed(2));
+        const discount_amount_safe = Number.isFinite(discount_amount) ? Number(discount_amount) : 0.00;
+        const total_amount = Number((subtotal + tax_amount + shipping_amount_safe - discount_amount_safe).toFixed(2));
 
         const orderSql = `
-            INSERT INTO orders (order_number, user_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, billing_address)
-            VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+            INSERT INTO orders (order_number, user_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, billing_address, promo_code)
+            VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
         `;
 
-        connection.query(orderSql, [generateOrderNumber(), userId, subtotal, tax_amount, shipping_amount_safe, discount_amount, total_amount, payment_method, shipping_address, billing_address], (oErr, oRes) => {
+        connection.query(orderSql, [generateOrderNumber(), userId, subtotal, tax_amount, shipping_amount_safe, discount_amount_safe, total_amount, payment_method, shipping_address, billing_address, promo_code], (oErr, oRes) => {
             if (oErr) return connection.rollback(() => callback(oErr));
             const orderId = oRes.insertId;
 
