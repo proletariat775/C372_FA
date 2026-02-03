@@ -1,6 +1,8 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
 const User = require('../models/user');
+const Coupon = require('../models/coupon');
+const couponService = require('../services/couponService');
 
 const DELIVERY_FEE = 1.5;
 
@@ -200,37 +202,6 @@ const sanitiseDeliveryAddress = (address) => {
     return trimmed.length ? trimmed.slice(0, 255) : null;
 };
 
-const loadCartFromDb = (req, callback) => {
-    if (!req.session.user) {
-        req.session.cart = [];
-        return callback(null, []);
-    }
-
-    Cart.getItemsWithProducts(req.session.user.id, (err, rows) => {
-        if (err) {
-            return callback(err);
-        }
-
-        const cartItems = (rows || []).map((item) => {
-            const decorated = decorateProduct(item);
-            return {
-                productId: item.product_id,
-                productName: item.productName,
-                price: decorated.effectivePrice,
-                originalPrice: decorated.price,
-                discountPercentage: decorated.discountPercentage,
-                offerMessage: decorated.offerMessage,
-                hasDiscount: decorated.hasDiscount,
-                quantity: item.quantity,
-                image: item.image
-            };
-        });
-
-        req.session.cart = cartItems;
-        return callback(null, cartItems);
-    });
-};
-
 /**
  * Handle checkout and order creation.
  */
@@ -266,17 +237,55 @@ const checkout = (req, res) => {
             }
 
             const deliveryFee = computeDeliveryFee(req.session.user, deliveryMethod);
+            const subtotal = couponService.calculateSubtotal(cart);
 
-        Order.create(req.session.user.id, cartItems, { deliveryMethod, deliveryAddress, deliveryFee }, (error) => {
-            if (error) {
-                console.error('Error during checkout:', error);
-                req.flash('error', error.message || 'Unable to complete checkout. Please try again.');
-                return res.redirect('/cart');
+            const cartContainer = ensureSessionCart(req);
+            let appliedCoupon = cartContainer.appliedCoupon || null;
+            let discountAmount = 0;
+            let promoCode = null;
+            let couponId = null;
+
+            if (appliedCoupon && subtotal > 0) {
+                return couponService.validateCoupon(appliedCoupon.code, req.session.user.id, subtotal)
+                    .then((validation) => {
+                        if (!validation.valid) {
+                            delete cartContainer.appliedCoupon;
+                            req.flash('error', validation.message || 'Coupon is no longer valid.');
+                            return res.redirect('/cart');
+                        }
+
+                        discountAmount = validation.discountAmount;
+                        promoCode = validation.coupon.code;
+                        couponId = validation.coupon.id;
+                        cartContainer.appliedCoupon = couponService.buildAppliedCoupon(validation.coupon, discountAmount);
+
+                        return createOrderWithCoupon({
+                            req,
+                            res,
+                            cart,
+                            deliveryAddress,
+                            deliveryFee,
+                            discountAmount,
+                            promoCode,
+                            couponId
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('Error validating coupon during checkout:', error);
+                        req.flash('error', 'Unable to validate your coupon right now.');
+                        return res.redirect('/cart');
+                    });
             }
 
-                req.session.cart = [];
-                req.flash('success', `Thanks for your purchase! ${deliveryMethod === 'delivery' ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}`);
-                return res.redirect('/orders/history');
+            return createOrderWithCoupon({
+                req,
+                res,
+                cart,
+                deliveryAddress,
+                deliveryFee,
+                discountAmount,
+                promoCode,
+                couponId
             });
         })
         .catch((error) => {
@@ -284,6 +293,39 @@ const checkout = (req, res) => {
             req.flash('error', 'Unable to validate your cart right now.');
             return res.redirect('/cart');
         });
+};
+
+const createOrderWithCoupon = ({ req, res, cart, deliveryAddress, deliveryFee, discountAmount, promoCode, couponId }) => {
+    return Order.create(req.session.user.id, cart, {
+        shipping_address: deliveryAddress,
+        shipping_amount: deliveryFee,
+        discount_amount: discountAmount,
+        promo_code: promoCode
+    }, (error, result) => {
+        if (error) {
+            console.error('Error during checkout:', error);
+            req.flash('error', error.message || 'Unable to complete checkout. Please try again.');
+            return res.redirect('/cart');
+        }
+
+        if (couponId && discountAmount > 0) {
+            Coupon.recordUsage(couponId, req.session.user.id, result.orderId, discountAmount, (usageErr) => {
+                if (usageErr) {
+                    console.error('Error recording coupon usage:', usageErr);
+                }
+            });
+
+            Coupon.incrementUsage(couponId, (usageErr) => {
+                if (usageErr) {
+                    console.error('Error incrementing coupon usage count:', usageErr);
+                }
+            });
+        }
+
+        req.session.cart = [];
+        req.flash('success', `Thanks for your purchase! ${deliveryAddress ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}`);
+        return res.redirect('/orders/history');
+    });
 };
 
 /**

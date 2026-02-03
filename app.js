@@ -64,13 +64,15 @@ app.get('/admin/users/:id/edit', checkAuthenticated, checkAdmin, userController.
 app.post('/admin/users/:id', checkAuthenticated, checkAdmin, userController.updateUserRole);
 app.post('/admin/users/:id/delete', checkAuthenticated, checkAdmin, userController.deleteUser);
 
-app.get('/shopping', checkAuthenticated, checkRoles('user'), productController.showShopping);
+app.get('/shopping', checkAuthenticated, checkRoles('user', 'customer'), productController.showShopping);
 
-app.post('/add-to-cart/:id', checkAuthenticated, checkRoles('user'), cartController.addToCart);
-app.get('/cart', checkAuthenticated, checkRoles('user'), cartController.viewCart);
-app.post('/cart/update/:id', checkAuthenticated, checkRoles('user'), cartController.updateCartItem);
-app.post('/cart/remove/:id', checkAuthenticated, checkRoles('user'), cartController.removeCartItem);
-app.post('/checkout', checkAuthenticated, checkRoles('user'), orderController.checkout);
+app.post('/add-to-cart/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.addToCart);
+app.get('/cart', checkAuthenticated, checkRoles('user', 'customer'), cartController.viewCart);
+app.post('/cart/update/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.updateCartItem);
+app.post('/cart/remove/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.removeCartItem);
+app.post('/cart/apply-coupon', checkAuthenticated, checkRoles('user', 'customer'), cartController.applyCoupon);
+app.post('/cart/remove-coupon', checkAuthenticated, checkRoles('user', 'customer'), cartController.removeCoupon);
+app.post('/checkout', checkAuthenticated, checkRoles('user', 'customer'), orderController.checkout);
 app.get('/orders/history', checkAuthenticated, checkRoles('user', 'admin'), orderController.history);
 app.post('/orders/:id/delivery', checkAuthenticated, orderController.updateDeliveryDetails);
 app.get('/orders/:id/invoice', checkAuthenticated, orderController.invoice);
@@ -89,6 +91,7 @@ app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, upload.single('im
 
 app.get('/deleteProduct/:id', checkAuthenticated, checkAdmin, productController.deleteProduct);
 app.get('/admin/deliveries', checkAuthenticated, checkAdmin, orderController.listAllDeliveries);
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
