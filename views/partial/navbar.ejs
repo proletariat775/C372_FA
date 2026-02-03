@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/">Supermarket App</a>
+    <a class="navbar-brand" href="/">Shirt Shop</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -13,36 +13,36 @@
           <li class="nav-item">
             <a class="nav-link" href="/login">Login</a>
           </li>
-        <% } else if (user.role === 'admin') { %>
-          <li class="nav-item">
-            <a class="nav-link" href="/inventory">Inventory</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/addProduct">Add Product</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/admin/deliveries">Deliveries</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/admin/users">Manage Users</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/logout">Logout</a>
-          </li>
-        <% } else { %>
-          <li class="nav-item">
-            <a class="nav-link" href="/shopping">Shop</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/cart">Cart</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/orders/history">Purchase History</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/logout">Logout</a>
-          </li>
-        <% } %>
+          <% } else if (user.role==='admin' ) { %>
+            <li class="nav-item">
+              <a class="nav-link" href="/inventory">Inventory</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/addProduct">Add Product</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/admin/deliveries">Deliveries</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/admin/users">Manage Users</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/logout">Logout</a>
+            </li>
+            <% } else { %>
+              <li class="nav-item">
+                <a class="nav-link" href="/shopping">Shop</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/cart">Cart</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/orders/history">Purchase History</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/logout">Logout</a>
+              </li>
+              <% } %>
       </ul>
     </div>
   </div>

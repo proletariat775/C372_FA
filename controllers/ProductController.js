@@ -44,10 +44,10 @@ const buildProductPayload = (body, image) => {
 
     return {
         name: name ? name.trim() : '',
-        quantity: Math.max(0, Number.parseInt(quantity, 10) || 0),
+        total_quantity: Math.max(0, Number.parseInt(quantity, 10) || 0),
         price: toCurrency(price),
-        discountPercentage: clampDiscount(discount),
-        offerMessage: normaliseOfferMessage(offer),
+        discount_percent: clampDiscount(discount),
+        description: normaliseOfferMessage(offer),
         image: image || null,
         category: category ? category.trim() || 'General' : 'General'
     };
@@ -57,22 +57,26 @@ const enhanceProductRecord = (product) => {
     if (!product) {
         return product;
     }
-
     const basePrice = toCurrency(product.price);
-    const discountPercentage = clampDiscount(product.discountPercentage);
+    const discountPercentage = clampDiscount(product.discount_percent || product.discountPercentage);
     const hasDiscount = discountPercentage > 0;
     const finalPrice = hasDiscount
         ? toCurrency(basePrice * (1 - discountPercentage / 100))
         : basePrice;
 
     return {
-        ...product,
+        id: product.id,
+        productName: product.name || product.productName,
         price: basePrice,
         discountPercentage,
-        offerMessage: normaliseOfferMessage(product.offerMessage),
+        offerMessage: normaliseOfferMessage(product.description || product.offerMessage),
         effectivePrice: finalPrice,
         hasDiscount,
-        category: product.category || 'General'
+        category: product.category_name || product.category || 'General',
+        quantity: Number(product.quantity || product.total_quantity || 0),
+        image: product.image || null,
+        // keep other raw fields available if needed
+        raw: product
     };
 };
 

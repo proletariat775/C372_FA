@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="100%" height="100%" fill="#f6f6f8"/>
+  <g transform="translate(200,120)">
+    <path d="M200 0 L300 0 L360 120 L360 360 L40 360 L40 120 Z" fill="#2b7de9" stroke="#1f5fb8" stroke-width="4"/>
+    <rect x="90" y="70" width="120" height="40" rx="8" fill="#ffffff" opacity="0.12"/>
+  </g>
+  <text x="50%" y="92%" text-anchor="middle" fill="#666" font-family="Arial, Helvetica, sans-serif" font-size="28">Shirt Shop — Sample Tee (Blue)</text>
+</svg>
