@@ -1,11 +1,9 @@
 const connection = require('../db');
 
+const generateOrderNumber = () => 'ORD-' + Date.now().toString(36).toUpperCase();
+
 /**
- * Create a new order for the given user and cart items.
- * Inserts into orders, creates order_items, and deducts inventory within a transaction.
- * @param {number} userId
- * @param {Array<{productId:number, productName:string, quantity:number, price:number}>} cartItems
- * @param {Function} callback Node-style callback(err, result)
+ * Create order using FA.sql schema: orders and order_items (with product_variant_id and variant fields).
  */
 const create = (userId, cartItems, options, callback) => {
     if (typeof options === 'function') {
@@ -14,107 +12,102 @@ const create = (userId, cartItems, options, callback) => {
     }
 
     const {
-        deliveryMethod = 'pickup',
-        deliveryAddress = null,
-        deliveryFee = 0
+        shipping_address = null,
+        billing_address = null,
+        shipping_amount = 0.00,
+        payment_method = 'cod'
     } = options || {};
 
     if (!Array.isArray(cartItems) || cartItems.length === 0) {
-        return callback(new Error('Cart is empty.'));
+        return callback(new Error('Cart is empty'));
     }
 
-    connection.beginTransaction((transactionError) => {
-        if (transactionError) {
-            return callback(transactionError);
-        }
+    connection.beginTransaction((tErr) => {
+        if (tErr) return callback(tErr);
 
-        const totalBeforeRound = cartItems.reduce((sum, item) => {
-            const unitPrice = Number(item.price);
-            const quantity = Number(item.quantity);
-            if (!Number.isFinite(unitPrice) || !Number.isFinite(quantity)) {
-                return sum;
-            }
-            return sum + (unitPrice * quantity);
+        const subtotalRaw = cartItems.reduce((sum, it) => {
+            const u = Number(it.unit_price || it.price || 0);
+            const q = Number(it.quantity || 0);
+            return sum + (u * q);
         }, 0);
 
-        const orderTotal = Number(totalBeforeRound.toFixed(2));
-        const safeDeliveryFee = Number.isFinite(deliveryFee) && deliveryFee > 0
-            ? Number(deliveryFee.toFixed(2))
-            : 0;
-        const finalTotal = Number((orderTotal + safeDeliveryFee).toFixed(2));
+        const subtotal = Number(subtotalRaw.toFixed(2));
+        const tax_amount = 0.00;
+        const shipping_amount_safe = Number.isFinite(shipping_amount) ? Number(shipping_amount) : 0.00;
+        const discount_amount = 0.00;
+        const total_amount = Number((subtotal + tax_amount + shipping_amount_safe - discount_amount).toFixed(2));
 
         const orderSql = `
-            INSERT INTO orders (user_id, total, delivery_method, delivery_address, delivery_fee)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO orders (order_number, user_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, billing_address)
+            VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
         `;
-        connection.query(orderSql, [userId, finalTotal, deliveryMethod, deliveryAddress, safeDeliveryFee], (orderError, orderResult) => {
-            if (orderError) {
-                return connection.rollback(() => callback(orderError));
-            }
 
-            const orderId = orderResult.insertId;
+        connection.query(orderSql, [generateOrderNumber(), userId, subtotal, tax_amount, shipping_amount_safe, discount_amount, total_amount, payment_method, shipping_address, billing_address], (oErr, oRes) => {
+            if (oErr) return connection.rollback(() => callback(oErr));
+            const orderId = oRes.insertId;
 
-            const itemPromises = cartItems.map((item) => new Promise((resolve, reject) => {
-                const quantity = Number(item.quantity);
-                if (!Number.isFinite(quantity) || quantity <= 0) {
-                    return reject(new Error(`Invalid quantity detected for ${item.productName}.`));
+            // process items sequentially to use FOR UPDATE on variants
+            const processNext = () => {
+                const item = cartItems.shift();
+                if (!item) {
+                    return connection.commit((cErr) => {
+                        if (cErr) return connection.rollback(() => callback(cErr));
+                        return callback(null, { orderId, total_amount, shipping_amount: shipping_amount_safe });
+                    });
                 }
 
-                const productSql = 'SELECT quantity, is_deleted FROM products WHERE id = ? FOR UPDATE';
-                connection.query(productSql, [item.productId], (productError, productRows) => {
-                    if (productError) {
-                        return reject(productError);
-                    }
+                const qty = Number(item.quantity || 0);
+                if (!Number.isFinite(qty) || qty <= 0) return connection.rollback(() => callback(new Error('Invalid quantity')));
 
-                    if (productRows.length === 0 || productRows[0].is_deleted) {
-                        return reject(new Error(`${item.productName || 'This product'} is no longer available.`));
-                    }
+                const variantId = item.product_variant_id || null;
 
-                    const availableQuantity = Number(productRows[0].quantity);
-                    if (availableQuantity < quantity) {
-                        return reject(new Error(`Insufficient stock for ${item.productName}.`));
-                    }
+                const workWithVariant = (vid) => {
+                    connection.query('SELECT id, product_id, quantity, size, color, sku FROM product_variants WHERE id = ? FOR UPDATE', [vid], (vErr, vRows) => {
+                        if (vErr) return connection.rollback(() => callback(vErr));
+                        if (!vRows || vRows.length === 0) return connection.rollback(() => callback(new Error('Variant not found')));
 
-                    const unitPrice = Number(item.price);
-                    if (!Number.isFinite(unitPrice)) {
-                        return reject(new Error(`Invalid price detected for ${item.productName}.`));
-                    }
+                        const available = Number(vRows[0].quantity || 0);
+                        if (available < qty) return connection.rollback(() => callback(new Error('Insufficient stock')));
 
-                    const insertItemSql = 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)';
-                    connection.query(insertItemSql, [orderId, item.productId, quantity, unitPrice], (itemError) => {
-                        if (itemError) {
-                            return reject(itemError);
-                        }
+                        const unit_price = Number(item.unit_price || item.price || 0);
+                        const total_price = Number((unit_price * qty).toFixed(2));
 
-                        const updateProductSql = 'UPDATE products SET quantity = quantity - ? WHERE id = ?';
-                        connection.query(updateProductSql, [quantity, item.productId], (updateError) => {
-                            if (updateError) {
-                                return reject(updateError);
-                            }
-                            resolve();
+                        const insertItem = `
+                            INSERT INTO order_items (order_id, product_variant_id, product_name, variant_description, size, color, quantity, unit_price, discount_amount, total_price)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `;
+
+                        const variantDesc = vRows[0].sku || '';
+                        const size = vRows[0].size || '';
+                        const color = vRows[0].color || '';
+
+                        connection.query(insertItem, [orderId, vid, item.product_name || item.productName || '', variantDesc, size, color, qty, unit_price, 0.00, total_price], (insErr) => {
+                            if (insErr) return connection.rollback(() => callback(insErr));
+
+                            connection.query('UPDATE product_variants SET quantity = quantity - ? WHERE id = ?', [qty, vid], (uErr) => {
+                                if (uErr) return connection.rollback(() => callback(uErr));
+                                // decrement product total_quantity
+                                connection.query('UPDATE products SET total_quantity = total_quantity - ? WHERE id = ?', [qty, vRows[0].product_id], (pErr) => {
+                                    if (pErr) return connection.rollback(() => callback(pErr));
+                                    processNext();
+                                });
+                            });
                         });
                     });
-                });
-            }));
+                };
 
-            Promise.all(itemPromises)
-                .then(() => {
-                    connection.commit((commitError) => {
-                        if (commitError) {
-                            return connection.rollback(() => callback(commitError));
-                        }
-                        callback(null, {
-                            orderId,
-                            total: finalTotal,
-                            deliveryMethod,
-                            deliveryAddress,
-                            deliveryFee: safeDeliveryFee
-                        });
+                if (variantId) {
+                    workWithVariant(variantId);
+                } else {
+                    connection.query('SELECT id FROM product_variants WHERE product_id = ? ORDER BY id LIMIT 1 FOR UPDATE', [item.product_id || item.productId], (pvErr, pvRows) => {
+                        if (pvErr) return connection.rollback(() => callback(pvErr));
+                        if (!pvRows || pvRows.length === 0) return connection.rollback(() => callback(new Error('No variant available')));
+                        workWithVariant(pvRows[0].id);
                     });
-                })
-                .catch((error) => {
-                    connection.rollback(() => callback(error));
-                });
+                }
+            };
+
+            processNext();
         });
     });
 };
@@ -126,28 +119,28 @@ const create = (userId, cartItems, options, callback) => {
  */
 const findByUser = (userId, callback) => {
     const sql = `
-        SELECT id, total, created_at, delivery_method, delivery_address, delivery_fee
+        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, created_at
         FROM orders
         WHERE user_id = ?
-        ORDER BY created_at DESC, id DESC
-    `;
+            ORDER BY created_at DESC, id DESC
+                `;
     connection.query(sql, [userId], callback);
 };
 
 const findById = (orderId, callback) => {
     const sql = `
-        SELECT id, user_id, total, created_at, delivery_method, delivery_address, delivery_fee
-        FROM orders
+        SELECT *
+            FROM orders
         WHERE id = ?
-        LIMIT 1
-    `;
+            LIMIT 1
+                `;
     connection.query(sql, [orderId], callback);
 };
 
 const findAllWithUsers = (callback) => {
     const sql = `
         SELECT
-            o.id,
+        o.id,
             o.total,
             o.created_at,
             o.delivery_method,
@@ -157,11 +150,11 @@ const findAllWithUsers = (callback) => {
             u.email,
             u.contact,
             u.address AS account_address,
-            u.free_delivery
+                u.free_delivery
         FROM orders o
         JOIN users u ON u.id = o.user_id
         ORDER BY o.created_at DESC, o.id DESC
-    `;
+            `;
     connection.query(sql, callback);
 };
 
@@ -171,26 +164,26 @@ const findAllWithUsers = (callback) => {
  * @param {Function} callback
  */
 const findItemsByOrderIds = (orderIds, callback) => {
-    if (!Array.isArray(orderIds) || orderIds.length === 0) {
-        return callback(null, []);
-    }
+    if (!Array.isArray(orderIds) || orderIds.length === 0) return callback(null, []);
 
     const sql = `
         SELECT
-            oi.order_id,
-            oi.product_id,
-            oi.quantity,
-            oi.price,
-            COALESCE(p.productName, 'Deleted product') AS productName,
-            p.image,
-            p.discountPercentage,
-            p.offerMessage,
-            p.is_deleted
+        oi.order_id,
+            oi.product_variant_id,
+            oi.product_name AS productName,
+                oi.variant_description,
+                oi.size,
+                oi.color,
+                oi.quantity,
+                oi.unit_price AS price,
+                    oi.total_price,
+                    pv.product_id,
+                    (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = pv.product_id ORDER BY pi.is_primary DESC LIMIT 1) AS image
         FROM order_items oi
-        LEFT JOIN products p ON p.id = oi.product_id
-        WHERE oi.order_id IN (?)
+        LEFT JOIN product_variants pv ON pv.id = oi.product_variant_id
+        WHERE oi.order_id IN(?)
         ORDER BY oi.order_id DESC, productName ASC
-    `;
+        `;
     connection.query(sql, [orderIds], callback);
 };
 
@@ -202,40 +195,44 @@ const findItemsByOrderIds = (orderIds, callback) => {
 const getBestSellers = (limit, callback) => {
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 5;
     const sql = `
-        SELECT
-            p.id,
-            p.productName,
+    SELECT
+    p.id,
+        p.name AS productName,
             p.price,
-            p.image,
-            p.discountPercentage,
-            p.offerMessage,
-            SUM(oi.quantity) AS totalSold
+            (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC LIMIT 1) AS image,
+                p.discount_percent AS discountPercentage,
+                    p.description AS offerMessage,
+                        SUM(oi.quantity) AS totalSold
         FROM order_items oi
-        JOIN products p ON p.id = oi.product_id
-        WHERE p.is_deleted = 0
-        GROUP BY p.id, p.productName, p.price, p.image, p.discountPercentage, p.offerMessage
+        JOIN product_variants pv ON pv.id = oi.product_variant_id
+        JOIN products p ON p.id = pv.product_id
+        WHERE p.is_active = 1
+        GROUP BY p.id, p.name, p.price, p.discount_percent, p.description
         ORDER BY totalSold DESC
-        LIMIT ?
-    `;
+    LIMIT ?
+        `;
     connection.query(sql, [safeLimit], callback);
 };
 
 const updateDelivery = (orderId, deliveryData, callback) => {
-    const {
-        deliveryMethod = 'pickup',
-        deliveryAddress = null,
-        deliveryFee = 0
-    } = deliveryData || {};
+    const { shipping_address = null, shipping_amount = 0 } = deliveryData || {};
 
-    const safeFee = Number.isFinite(deliveryFee) && deliveryFee > 0
-        ? Number(deliveryFee.toFixed(2))
-        : 0;
-    const sql = `
-        UPDATE orders
-        SET delivery_method = ?, delivery_address = ?, delivery_fee = ?, total = total - delivery_fee + ?
-        WHERE id = ?
-    `;
-    connection.query(sql, [deliveryMethod, deliveryAddress, safeFee, safeFee, orderId], callback);
+    // recalc total_amount using subtotal + tax + shipping - discount
+    connection.query('SELECT subtotal, tax_amount, discount_amount FROM orders WHERE id = ? LIMIT 1', [orderId], (err, rows) => {
+        if (err) return callback(err);
+        if (!rows || rows.length === 0) return callback(new Error('Order not found'));
+
+        const subtotal = Number(rows[0].subtotal || 0);
+        const tax = Number(rows[0].tax_amount || 0);
+        const discount = Number(rows[0].discount_amount || 0);
+        const ship = Number.isFinite(shipping_amount) ? Number(shipping_amount) : 0;
+        const total = Number((subtotal + tax + ship - discount).toFixed(2));
+
+        const sql = `
+            UPDATE orders SET shipping_address = ?, shipping_amount = ?, total_amount = ? WHERE id = ?
+        `;
+        connection.query(sql, [shipping_address, ship, total, orderId], callback);
+    });
 };
 
 module.exports = {

@@ -96,12 +96,7 @@ const addToCart = (req, res) => {
         return res.redirect('/shopping');
     }
 
-    if (!Number.isFinite(quantityToAdd) || quantityToAdd < 1) {
-        req.flash('error', 'Please select a valid quantity.');
-        return res.redirect('/shopping');
-    }
-
-    Product.getById(productId, (error, results) => {
+    db.query('SELECT * FROM products WHERE id = ? AND is_deleted = 0', [productId], (error, results) => {
         if (error) {
             console.error('Error fetching product:', error);
             req.flash('error', 'Unable to add product to cart at this time.');
