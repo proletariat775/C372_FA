@@ -1,5 +1,5 @@
-const Cart = require('../models/cart');
 const Order = require('../models/order');
+const Product = require('../models/product');
 const User = require('../models/user');
 
 const DELIVERY_FEE = 1.5;
@@ -36,6 +36,131 @@ const decorateProduct = (product) => {
         effectivePrice,
         hasDiscount
     };
+};
+
+const ensureSessionCart = (req) => {
+    if (!Array.isArray(req.session.cart)) {
+        req.session.cart = [];
+    }
+    return req.session.cart;
+};
+
+const clampDiscount = (value) => {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return 0;
+    }
+    if (parsed > 100) {
+        return 100;
+    }
+    return Number(parsed.toFixed(2));
+};
+
+const normaliseOfferMessage = (message) => {
+    if (!message) {
+        return null;
+    }
+    const trimmed = String(message).trim();
+    if (!trimmed) {
+        return null;
+    }
+    return trimmed.slice(0, 255);
+};
+
+const buildCartItem = (product, quantity) => {
+    const basePrice = normalisePrice(product.price);
+    const discountPercentage = clampDiscount(product.discountPercentage);
+    const hasDiscount = discountPercentage > 0;
+    const finalPrice = hasDiscount
+        ? normalisePrice(basePrice * (1 - discountPercentage / 100))
+        : basePrice;
+
+    const cartItem = {
+        productId: product.id,
+        productName: product.productName,
+        price: finalPrice,
+        quantity,
+        image: product.image || null,
+        hasDiscount
+    };
+
+    if (hasDiscount) {
+        cartItem.originalPrice = basePrice;
+        cartItem.discountPercentage = discountPercentage;
+        cartItem.offerMessage = normaliseOfferMessage(product.offerMessage);
+    }
+
+    return cartItem;
+};
+
+const fetchProductById = (productId) => new Promise((resolve, reject) => {
+    Product.getById(productId, (err, rows) => {
+        if (err) {
+            return reject(err);
+        }
+        return resolve(rows && rows[0]);
+    });
+});
+
+const validateCartForCheckout = async (req) => {
+    const cart = ensureSessionCart(req);
+    if (!cart.length) {
+        return { cart: [], changed: false, issues: [] };
+    }
+
+    const issues = [];
+    const updatedCart = [];
+    let changed = false;
+
+    for (const item of cart) {
+        const productId = Number(item.productId);
+        const requestedQty = Number(item.quantity);
+
+        if (!Number.isFinite(productId)) {
+            issues.push('Invalid product detected in cart. It has been removed.');
+            changed = true;
+            continue;
+        }
+
+        if (!Number.isFinite(requestedQty) || requestedQty <= 0) {
+            issues.push('Invalid quantity detected in cart. The item has been removed.');
+            changed = true;
+            continue;
+        }
+
+        const product = await fetchProductById(productId);
+        if (!product) {
+            issues.push('A product in your cart is no longer available and was removed.');
+            changed = true;
+            continue;
+        }
+
+        const stock = Number.parseInt(product.quantity, 10) || 0;
+        if (stock <= 0) {
+            issues.push(`"${product.productName}" is out of stock and was removed.`);
+            changed = true;
+            continue;
+        }
+
+        let finalQty = requestedQty;
+        if (requestedQty > stock) {
+            finalQty = stock;
+            issues.push(`"${product.productName}" quantity was reduced to available stock (${stock}).`);
+            changed = true;
+        }
+
+        const rebuilt = buildCartItem(product, finalQty);
+        const previousPrice = Number(item.price);
+        if (!Number.isFinite(previousPrice) || Number(previousPrice.toFixed(2)) !== rebuilt.price) {
+            issues.push(`Price updated for "${product.productName}". Please review before checkout.`);
+            changed = true;
+        }
+
+        updatedCart.push(rebuilt);
+    }
+
+    req.session.cart = updatedCart;
+    return { cart: updatedCart, changed, issues };
 };
 
 const normaliseOrderItem = (item) => {
@@ -75,37 +200,6 @@ const sanitiseDeliveryAddress = (address) => {
     return trimmed.length ? trimmed.slice(0, 255) : null;
 };
 
-const loadCartFromDb = (req, callback) => {
-    if (!req.session.user) {
-        req.session.cart = [];
-        return callback(null, []);
-    }
-
-    Cart.getItemsWithProducts(req.session.user.id, (err, rows) => {
-        if (err) {
-            return callback(err);
-        }
-
-        const cartItems = (rows || []).map((item) => {
-            const decorated = decorateProduct(item);
-            return {
-                productId: item.product_id,
-                productName: item.productName,
-                price: decorated.effectivePrice,
-                originalPrice: decorated.price,
-                discountPercentage: decorated.discountPercentage,
-                offerMessage: decorated.offerMessage,
-                hasDiscount: decorated.hasDiscount,
-                quantity: item.quantity,
-                image: item.image
-            };
-        });
-
-        req.session.cart = cartItems;
-        return callback(null, cartItems);
-    });
-};
-
 /**
  * Handle checkout and order creation.
  */
@@ -115,47 +209,50 @@ const checkout = (req, res) => {
         return res.redirect('/cart');
     }
 
-    loadCartFromDb(req, (cartErr, cartItems) => {
-        if (cartErr) {
-            console.error('Error loading cart for checkout:', cartErr);
-            req.flash('error', 'Unable to load your cart right now.');
-            return res.redirect('/cart');
-        }
-
-        if (!cartItems.length) {
-            req.flash('error', 'Your cart is empty.');
-            return res.redirect('/cart');
-        }
-
-        const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
-        const providedAddress = sanitiseDeliveryAddress(req.body.deliveryAddress) || req.session.user.address;
-        const deliveryAddress = deliveryMethod === 'delivery' ? sanitiseDeliveryAddress(providedAddress) : null;
-
-        if (deliveryMethod === 'delivery' && !deliveryAddress) {
-            req.flash('error', 'Please provide a delivery address.');
-            return res.redirect('/cart');
-        }
-
-        const deliveryFee = computeDeliveryFee(req.session.user, deliveryMethod);
-
-        Order.create(req.session.user.id, cartItems, { deliveryMethod, deliveryAddress, deliveryFee }, (error) => {
-            if (error) {
-                console.error('Error during checkout:', error);
-                req.flash('error', error.message || 'Unable to complete checkout. Please try again.');
+    validateCartForCheckout(req)
+        .then(({ cart, changed, issues }) => {
+            if (!cart.length) {
+                req.flash('error', 'Your cart is empty.');
                 return res.redirect('/cart');
             }
 
-            Cart.clear(req.session.user.id, (clearErr) => {
-                if (clearErr) {
-                    console.error('Error clearing cart after checkout:', clearErr);
-                }
-                req.session.cart = [];
-            });
+            if (issues.length) {
+                issues.forEach((issue) => req.flash('error', issue));
+            }
 
-            req.flash('success', `Thanks for your purchase! ${deliveryMethod === 'delivery' ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}`);
-            return res.redirect('/orders/history');
+            if (changed) {
+                req.flash('error', 'We updated your cart based on the latest stock and pricing.');
+                return res.redirect('/cart');
+            }
+
+            const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
+            const providedAddress = sanitiseDeliveryAddress(req.body.deliveryAddress) || req.session.user.address;
+            const deliveryAddress = deliveryMethod === 'delivery' ? sanitiseDeliveryAddress(providedAddress) : null;
+
+            if (deliveryMethod === 'delivery' && !deliveryAddress) {
+                req.flash('error', 'Please provide a delivery address.');
+                return res.redirect('/cart');
+            }
+
+            const deliveryFee = computeDeliveryFee(req.session.user, deliveryMethod);
+
+            Order.create(req.session.user.id, cart, { deliveryMethod, deliveryAddress, deliveryFee }, (error) => {
+                if (error) {
+                    console.error('Error during checkout:', error);
+                    req.flash('error', error.message || 'Unable to complete checkout. Please try again.');
+                    return res.redirect('/cart');
+                }
+
+                req.session.cart = [];
+                req.flash('success', `Thanks for your purchase! ${deliveryMethod === 'delivery' ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}`);
+                return res.redirect('/orders/history');
+            });
+        })
+        .catch((error) => {
+            console.error('Error validating cart for checkout:', error);
+            req.flash('error', 'Unable to validate your cart right now.');
+            return res.redirect('/cart');
         });
-    });
 };
 
 /**
