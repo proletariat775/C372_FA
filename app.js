@@ -9,6 +9,9 @@ const cartController = require('./controllers/CartController');
 const productController = require('./controllers/ProductController');
 const orderController = require('./controllers/OrderController');
 const reviewController = require('./controllers/ReviewController');
+// ZOEY START - Post-purchase management controller
+const postPurchaseController = require('./controllers/PostPurchaseController');
+// ZOEY END - Post-purchase management controller
 const {
     checkAuthenticated,
     checkAdmin,
@@ -76,6 +79,18 @@ app.post('/checkout', checkAuthenticated, checkRoles('user', 'customer'), orderC
 app.get('/orders/history', checkAuthenticated, checkRoles('user', 'admin'), orderController.history);
 app.post('/orders/:id/delivery', checkAuthenticated, orderController.updateDeliveryDetails);
 app.get('/orders/:id/invoice', checkAuthenticated, orderController.invoice);
+// ZOEY START - Post-purchase management routes
+app.get('/orders', checkAuthenticated, checkRoles('user', 'admin'), orderController.history);
+app.get('/order/:id', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.details);
+app.get('/order/:id/track', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.track);
+app.get('/order/:id/review', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.reviewForm);
+app.post('/review/:id/submit', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.submitReview);
+app.get('/order/:id/return', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.returnForm);
+app.post('/return/:id/process', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.processReturn);
+app.get('/wishlist', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.wishlist);
+app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.addWishlist);
+app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.removeWishlist);
+// ZOEY END - Post-purchase management routes
 
 app.get('/logout', userController.logout);
 
