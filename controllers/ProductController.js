@@ -274,6 +274,55 @@ const buildStyleBundles = (products) => {
     return bundles.slice(0, 3);
 };
 
+const escapeMetaAttr = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const buildProductMeta = (product) => {
+    const siteName = 'Shirt Shop';
+    const siteTagline = 'Quality Shirts';
+    const metaTitle = product
+        ? `${product.productName} | ${siteName}`
+        : `${siteName} - ${siteTagline}`;
+    const metaDescription = product
+        ? (product.offerMessage || product.description || `Buy ${product.productName} at ${siteName}`)
+        : `${siteName} - quality shirts for every occasion.`;
+    const metaImage = product && product.image
+        ? `/images/${product.image}`
+        : '/images/shirt-sample-1.svg';
+    const structuredData = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: product ? product.productName : 'Shirt Shop Product',
+        image: [metaImage],
+        description: metaDescription,
+        offers: {
+            '@type': 'Offer',
+            priceCurrency: 'USD',
+            price: product ? Number(product.effectivePrice || product.price).toFixed(2) : '0.00',
+            availability: product && product.quantity > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock'
+        }
+    };
+    const extraHead = [
+        `<meta name="description" content="${escapeMetaAttr(metaDescription)}">`,
+        `<meta property="og:title" content="${escapeMetaAttr(metaTitle)}">`,
+        `<meta property="og:description" content="${escapeMetaAttr(metaDescription)}">`,
+        `<meta property="og:image" content="${escapeMetaAttr(metaImage)}">`,
+        '<meta property="og:type" content="product">',
+        '<meta name="twitter:card" content="summary_large_image">',
+        `<meta name="twitter:title" content="${escapeMetaAttr(metaTitle)}">`,
+        `<meta name="twitter:description" content="${escapeMetaAttr(metaDescription)}">`,
+        `<meta name="twitter:image" content="${escapeMetaAttr(metaImage)}">`,
+        `<script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>`
+    ].join('\n');
+
+    return { metaTitle, extraHead };
+};
+
 const fetchRelatedProducts = (product, callback) => {
     const category = product && product.category ? String(product.category).trim() : '';
     if (!category) {
@@ -653,82 +702,86 @@ const ProductController = {
                         }
 
                         ProductDetails.findByProductId(productId, (detailError, detailResults) => {
-                        if (detailError) {
-                            console.error('Error fetching product details:', detailError);
-                        }
-
-                        const productDetails = detailResults && detailResults.length ? detailResults[0] : null;
-
-                        OrderReview.findByProduct(productId, (orderReviewErr, orderReviewRows) => {
-                            if (orderReviewErr) {
-                                console.error('Error fetching order reviews for product:', orderReviewErr);
+                            if (detailError) {
+                                console.error('Error fetching product details:', detailError);
                             }
 
-                            Review.findByProduct(productId, (reviewError, reviewResults) => {
-                                if (reviewError) {
-                                    console.error('Error fetching reviews for product:', reviewError);
+                            const productDetails = detailResults && detailResults.length ? detailResults[0] : null;
+
+                            OrderReview.findByProduct(productId, (orderReviewErr, orderReviewRows) => {
+                                if (orderReviewErr) {
+                                    console.error('Error fetching order reviews for product:', orderReviewErr);
                                 }
 
-                                const reviews = [...(orderReviewRows || []), ...(reviewResults || [])];
-                                const summary = buildReviewSummary(reviews);
-                                const averageRating = summary.average;
-
-                                const fetchUserOrderReview = (cb) => {
-                                    if (!req.session.user || req.session.user.role !== 'customer') {
-                                        return cb(null, null);
-                                    }
-                                    return OrderReview.findByUserAndProduct(req.session.user.id, Number(productId), (err, rows) => {
-                                        if (err) return cb(err);
-                                        return cb(null, rows && rows.length ? rows[0] : null);
-                                    });
-                                };
-
-                                fetchUserOrderReview((userErr, userReview) => {
-                                    if (userErr) {
-                                        console.error('Error fetching user review for product:', userErr);
+                                Review.findByProduct(productId, (reviewError, reviewResults) => {
+                                    if (reviewError) {
+                                        console.error('Error fetching reviews for product:', reviewError);
                                     }
 
-                                    const checkReviewEligibility = (cb) => {
+                                    const reviews = [...(orderReviewRows || []), ...(reviewResults || [])];
+                                    const summary = buildReviewSummary(reviews);
+                                    const averageRating = summary.average;
+
+                                    const fetchUserOrderReview = (cb) => {
                                         if (!req.session.user || req.session.user.role !== 'customer') {
-                                            return cb(null, false);
+                                            return cb(null, null);
                                         }
-                                        return Order.hasDeliveredProduct(req.session.user.id, Number(productId), cb);
+                                        return OrderReview.findByUserAndProduct(req.session.user.id, Number(productId), (err, rows) => {
+                                            if (err) return cb(err);
+                                            return cb(null, rows && rows.length ? rows[0] : null);
+                                        });
                                     };
 
-                                    checkReviewEligibility((eligErr, canReview) => {
-                                        if (eligErr) {
-                                            console.error('Error checking review eligibility:', eligErr);
+                                    fetchUserOrderReview((userErr, userReview) => {
+                                        if (userErr) {
+                                            console.error('Error fetching user review for product:', userErr);
                                         }
 
-                                        fetchRelatedProducts(product, (relatedError, relatedProducts) => {
-                                            if (relatedError) {
-                                                console.error('Error fetching related products:', relatedError);
+                                        const checkReviewEligibility = (cb) => {
+                                            if (!req.session.user || req.session.user.role !== 'customer') {
+                                                return cb(null, false);
+                                            }
+                                            return Order.hasDeliveredProduct(req.session.user.id, Number(productId), cb);
+                                        };
+
+                                        checkReviewEligibility((eligErr, canReview) => {
+                                            if (eligErr) {
+                                                console.error('Error checking review eligibility:', eligErr);
                                             }
 
-                                            res.render('product', {
-                                                product,
-                                                productDetails,
-                                                productImages: productImages || [],
-                                                productVariants: productVariants || [],
-                                                user: req.session.user,
-                                                reviews,
-                                                relatedProducts: relatedProducts || [],
-                                                averageRating,
-                                                reviewSummary: summary,
-                                                userReview,
-                                                canReview: Boolean(canReview),
-                                                sizeChart: sizeChartService.getSizeChart(),
-                                                cmToIn: sizeChartService.cmToIn,
-                                                sizeGuideDisclaimer: sizeChartService.SIZE_DISCLAIMER,
-                                                messages: req.flash('success'),
-                                                errors: req.flash('error')
+                                            fetchRelatedProducts(product, (relatedError, relatedProducts) => {
+                                                if (relatedError) {
+                                                    console.error('Error fetching related products:', relatedError);
+                                                }
+
+                                                const { metaTitle, extraHead } = buildProductMeta(product);
+
+                                                res.render('product', {
+                                                    product,
+                                                    productDetails,
+                                                    productImages: productImages || [],
+                                                    productVariants: productVariants || [],
+                                                    user: req.session.user,
+                                                    metaTitle,
+                                                    extraHead,
+                                                    reviews,
+                                                    relatedProducts: relatedProducts || [],
+                                                    averageRating,
+                                                    reviewSummary: summary,
+                                                    userReview,
+                                                    canReview: Boolean(canReview),
+                                                    sizeChart: sizeChartService.getSizeChart(),
+                                                    cmToIn: sizeChartService.cmToIn,
+                                                    sizeGuideDisclaimer: sizeChartService.SIZE_DISCLAIMER,
+                                                    messages: req.flash('success'),
+                                                    errors: req.flash('error')
+                                                });
                                             });
                                         });
                                     });
                                 });
                             });
                         });
-                    });
                     });
                 });
             } else {
