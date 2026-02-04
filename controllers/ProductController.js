@@ -55,6 +55,22 @@ const buildProductPayload = (body, image) => {
     };
 };
 
+const resolveCategory = (body) => {
+    const selected = body && body.category ? String(body.category).trim() : '';
+    const custom = body && body.newCategory ? String(body.newCategory).trim() : '';
+    const allowed = ['T-shirt', 'Pants'];
+
+    if (allowed.includes(selected)) {
+        return selected;
+    }
+
+    if (selected === '__new__') {
+        return custom || null;
+    }
+
+    return null;
+};
+
 const enhanceProductRecord = (product) => {
     if (!product) {
         return product;
@@ -149,6 +165,14 @@ const ProductController = {
     // Handle product creation
     addProduct: (req, res) => {
         const image = req.file ? req.file.filename : null;
+        const resolvedCategory = resolveCategory(req.body);
+
+        if (!resolvedCategory) {
+            req.flash('error', 'Please choose T-shirt, Pants, or enter a new category name.');
+            return res.redirect('/addProduct');
+        }
+
+        req.body.category = resolvedCategory;
         const productData = buildProductPayload(req.body, image);
         const detailsData = {
             description: req.body.description,
