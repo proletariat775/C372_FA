@@ -1,417 +1,466 @@
-<!DOCTYPE html>
-<html lang="en">
+<% const metaTitle = product
+  ? (product.productName + ' | Shirt Shop')
+  : 'Shirt Shop - Quality Shirts';
+const metaDescription = product
+  ? (product.offerMessage || product.description || ('Buy ' + product.productName + ' at Shirt Shop'))
+  : 'Shirt Shop - quality shirts for every occasion.';
+const metaImage = product && product.image
+  ? '/images/' + product.image
+  : '/images/shirt-sample-1.svg';
+const escapeAttr = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/"/g, '&quot;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+const structuredData = {
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  name: product ? product.productName : 'Shirt Shop Product',
+  image: [metaImage],
+  description: metaDescription,
+  offers: {
+    "@type": "Offer",
+    priceCurrency: "USD",
+    price: product ? Number(product.effectivePrice || product.price).toFixed(2) : '0.00',
+    availability: product && product.quantity > 0
+      ? 'https://schema.org/InStock'
+      : 'https://schema.org/OutOfStock'
+  }
+};
+const headContent = `
+<meta name="description" content="${escapeAttr(metaDescription)}">
+<meta property="og:title" content="${escapeAttr(metaTitle)}">
+<meta property="og:description" content="${escapeAttr(metaDescription)}">
+<meta property="og:image" content="${escapeAttr(metaImage)}">
+<meta property="og:type" content="product">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeAttr(metaTitle)}">
+<meta name="twitter:description" content="${escapeAttr(metaDescription)}">
+<meta name="twitter:image" content="${escapeAttr(metaImage)}">
+<script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>
+`;
+%>
+<%- include('partial/header', { title: metaTitle, headContent }) %>
+<%- include('partial/navbar', { user: user }) %>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel='stylesheet' href='/css/styles.css'>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <title>
-    <%= product ? product.productName : 'Shirt' %> | Shirt Shop
-  </title>
-  <%# meta helpers: prefer explicit product fields, fallback to site defaults %>
-  <% const metaTitle = product
-    ? (product.productName + ' | Shirt Shop')
-    : 'Shirt Shop - Quality Shirts';
-  const metaDescription = product
-    ? (product.offerMessage || product.description || ('Buy ' + product.productName + ' at Shirt Shop'))
-    : 'Shirt Shop - quality shirts for every occasion.';
-  const metaImage = product && product.image
-    ? '/images/' + product.image
-    : '/images/shirt-sample-1.svg';
-  const metaUrl = (typeof host !== 'undefined') ? host : ''; %>
-    <meta name="description" content="<%= metaDescription %>">
-    <meta property="og:title" content="<%= metaTitle %>">
-    <meta property="og:description" content="<%= metaDescription %>">
-    <meta property="og:image" content="<%= metaImage %>">
-    <meta property="og:type" content="product">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="<%= metaTitle %>">
-    <meta name="twitter:description" content="<%= metaDescription %>">
-    <meta name="twitter:image" content="<%= metaImage %>">
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org/",
-      "@type": "Product",
-      "name": "<%= product ? product.productName : 'Shirt Shop Product' %>",
-      "image": ["<%= metaImage %>"],
-      "description": "<%= metaDescription %>",
-      "offers": {
-        "@type": "Offer",
-        "priceCurrency": "USD",
-        "price": "<%= product ? Number(product.effectivePrice || product.price).toFixed(2) : '0.00' %>",
-        "availability": "<%= product && product.quantity>0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' %>"
-      }
-    }
-  </script>
-</head>
+<section class="page-section product-page">
+  <div class="container">
+    <% if (messages && messages.length) { %>
+      <% messages.forEach(function(message) { %>
+        <div class="alert alert-success">
+          <%= message %>
+        </div>
+        <% }); %>
+          <% } %>
 
-<body>
-  <nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">Shirt Shop</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="collapsibleNavbar">
-        <ul class="navbar-nav ms-auto">
-          <% if (user && user.role==='admin' ) { %>
-            <li class="nav-item">
-              <a class="nav-link" href="/inventory">Inventory</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/addProduct">Add Product</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/admin/users">Manage Users</a>
-            </li>
-            <% } else { %>
-              <li class="nav-item">
-                <a class="nav-link" href="/shopping">Shop</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="/cart">Cart</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="/orders/history">Purchase History</a>
-              </li>
-              <% } %>
-                <li class="nav-item">
-                  <a class="nav-link" href="/logout">Logout</a>
-                </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
+            <% if (errors && errors.length) { %>
+              <% errors.forEach(function(error) { %>
+                <div class="alert alert-danger">
+                  <%= error %>
+                </div>
+                <% }); %>
+                  <% } %>
 
-  <section class="page-section product-page">
-    <div class="container">
-      <% if (messages && messages.length) { %>
-        <% messages.forEach(function(message) { %>
-          <div class="alert alert-success">
-            <%= message %>
-          </div>
-          <% }); %>
-            <% } %>
+                    <% if (product) { %>
+                      <% const detail = productDetails || {}; %>
+                      <% const gallery = (productImages && productImages.length)
+                        ? productImages
+                        : (product.image ? [{ image_url: product.image, is_primary: 1 }] : []); %>
+                      <% const sizeOrder = ['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One-Size']; %>
+                      <% const normalizeSize = (value) => {
+                        if (!value) return '';
+                        const cleaned = String(value).trim().toUpperCase().replace(/_/g, '-');
+                        if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') return 'One-Size';
+                        return cleaned;
+                      }; %>
+                      <% const variantOptions = (productVariants && productVariants.length) ? productVariants : []; %>
+                      <% const sortedVariants = variantOptions.slice().sort((a, b) => {
+                        const aIndex = sizeOrder.indexOf(normalizeSize(a.size));
+                        const bIndex = sizeOrder.indexOf(normalizeSize(b.size));
+                        if (aIndex === -1 && bIndex === -1) return 0;
+                        if (aIndex === -1) return 1;
+                        if (bIndex === -1) return -1;
+                        return aIndex - bIndex;
+                      }); %>
+                      <% const parseSizeRange = (range) => {
+                        if (!range) return null;
+                        const trimmed = String(range).trim();
+                        if (!trimmed) return null;
+                        const normalized = normalizeSize(trimmed);
+                        if (normalized === 'One-Size') return ['One-Size'];
+                        if (trimmed.indexOf(',') !== -1) {
+                          return trimmed.split(',').map(item => normalizeSize(item)).filter(Boolean);
+                        }
+                        if (trimmed.indexOf('-') !== -1) {
+                          const parts = trimmed.split('-').map(item => normalizeSize(item));
+                          if (parts.length >= 2) {
+                            const startIndex = sizeOrder.indexOf(parts[0]);
+                            const endIndex = sizeOrder.indexOf(parts[1]);
+                            if (startIndex !== -1 && endIndex !== -1) {
+                              const from = Math.min(startIndex, endIndex);
+                              const to = Math.max(startIndex, endIndex);
+                              return sizeOrder.slice(from, to + 1);
+                            }
+                          }
+                        }
+                        return null;
+                      }; %>
+                      <% const sizeOptions = parseSizeRange(detail.sizeRange) || []; %>
+                      <% const fallbackSizes = sortedVariants.map(variant => normalizeSize(variant.size)).filter(Boolean); %>
+                      <% const sizesToShow = sizeOptions.length ? sizeOptions : Array.from(new Set(fallbackSizes)); %>
+                      <% const variantSizeList = fallbackSizes.join(', '); %>
 
-              <% if (errors && errors.length) { %>
-                <% errors.forEach(function(error) { %>
-                  <div class="alert alert-danger">
-                    <%= error %>
-                  </div>
-                  <% }); %>
-                    <% } %>
+                      <div class="product-hero-grid">
+                        <div class="product-gallery">
+                          <div class="product-image-grid <%= gallery.length > 1 ? 'two-up' : 'one-up' %>">
+                            <% if (gallery.length) { %>
+                              <% gallery.slice(0, 2).forEach(function(img, index) { %>
+                                <div class="image-tile">
+                                  <img src="/images/<%= img.image_url %>" alt="<%= product.productName %> view <%= index + 1 %>">
+                                  <span class="image-label"><%= index === 0 ? 'Front' : 'Back' %></span>
+                                </div>
+                                <% }); %>
+                              <% } else { %>
+                                <div class="image-tile placeholder">
+                                  <span class="text-muted">No image available</span>
+                                </div>
+                                <% } %>
+                          </div>
 
-                      <% if (product) { %>
-                        <div class="row g-4 align-items-stretch product-top-row">
-                          <div class="col-12 col-lg-6 d-flex">
-                            <div class="card shadow-sm h-100 w-100 product-media-card">
-                              <% if (product.image) { %>
-                                <img src="/images/<%= product.image %>" class="card-img-top product-hero-image"
-                                  alt="<%= product.productName %>">
-                                <% } else { %>
-                                  <div class="card-img-top bg-light d-flex align-items-center justify-content-center product-hero-image">
-                                    <span class="text-muted">No image available</span>
-                                  </div>
-                                  <% } %>
+                          <div class="gallery-detail-block">
+                            <h4 class="mb-2">Product highlights</h4>
+                            <% if (detail.description) { %>
+                              <p class="text-muted mb-3"><%= detail.description %></p>
+                              <% } %>
+                            <div class="row g-3">
+                              <div class="col-6">
+                                <div class="text-muted small">Fit type</div>
+                                <div class="fw-semibold"><%= detail.fitType ? detail.fitType : 'Not specified' %></div>
+                              </div>
+                              <div class="col-6">
+                                <div class="text-muted small">Material</div>
+                                <div class="fw-semibold"><%= detail.material ? detail.material : 'Not specified' %></div>
+                              </div>
+                              <div class="col-6">
+                                <div class="text-muted small">Color</div>
+                                <div class="fw-semibold"><%= detail.color ? detail.color : 'Not specified' %></div>
+                              </div>
+                              <div class="col-6">
+                                <div class="text-muted small">Care</div>
+                                <div class="fw-semibold"><%= detail.care ? detail.care : 'Not specified' %></div>
+                              </div>
+                              <div class="col-12">
+                                <div class="text-muted small">Available sizes</div>
+                                <div class="fw-semibold"><%= variantSizeList || (detail.sizeRange ? detail.sizeRange : 'Not specified') %></div>
+                              </div>
                             </div>
                           </div>
-                          <div class="col-12 col-lg-6 d-flex">
-                            <div class="card shadow-sm h-100 w-100 product-info-card">
-                              <div class="card-body">
-                                <span class="badge bg-primary text-uppercase mb-3">
-                                  <%= user.role %>
-                                </span>
-                                <div class="d-flex align-items-center gap-2 mb-2">
-                                  <h2 class="card-title mb-0">
-                                    <%= product.productName %>
-                                  </h2>
-                                  <span class="badge bg-dark-subtle text-dark">
-                                    <%= product.category || 'General' %>
-                                  </span>
-                                </div>
-                                <p class="text-muted mb-4">Stock available: <strong>
-                                    <%= product.quantity %>
-                                  </strong></p>
-                                <% if (product.hasDiscount) { %>
-                                  <div class="mb-3">
-                                    <div class="text-muted text-decoration-line-through">$<%=
-                                        Number(product.price).toFixed(2) %>
-                                    </div>
-                                    <h3 class="fw-bold text-success mb-0">$<%= Number(product.effectivePrice).toFixed(2)
-                                        %>
-                                    </h3>
-                                    <small class="text-success">You saved <strong>$<%= (Number(product.price) -
-                                          Number(product.effectivePrice)).toFixed(2) %></strong> (<%=
-                                        Number(product.discountPercentage).toFixed(2) %>% off)</small>
-                                  </div>
-                                  <% } else { %>
-                                    <h3 class="fw-bold mb-4">$<%= Number(product.price).toFixed(2) %>
-                                    </h3>
-                                    <% } %>
+                        </div>
 
-                                      <% if (product.offerMessage) { %>
-                                        <div class="alert alert-info py-2">
-                                          <span class="fw-semibold text-uppercase small">Offer</span>
-                                          <div class="mb-0">
-                                            <%= product.offerMessage %>
-                                          </div>
+                        <div class="product-detail-panel">
+                          <div class="product-meta">
+                            <% if (product.brand) { %>
+                              <span class="product-brand"><%= product.brand %></span>
+                              <% } %>
+                            <span class="text-muted">in <%= product.category || 'General' %></span>
+                          </div>
+                          <h1 class="product-title"><%= product.productName %></h1>
+
+                          <div class="price-stack">
+                            <% if (product.hasDiscount) { %>
+                              <span class="price-current text-danger">$<%= Number(product.effectivePrice).toFixed(2) %></span>
+                              <span class="text-muted text-decoration-line-through">$<%= Number(product.price).toFixed(2) %></span>
+                              <% } else { %>
+                                <span class="price-current">$<%= Number(product.price).toFixed(2) %></span>
+                                <% } %>
+                          </div>
+                          <div class="gst-note">GST included</div>
+
+                          <% if (product.offerMessage) { %>
+                            <div class="promo-box">
+                              <strong>Offer</strong>
+                              <p class="mb-0"><%= product.offerMessage %></p>
+                            </div>
+                            <% } %>
+
+                          <div class="product-option">
+                            <span class="option-label">Color</span>
+                            <p class="mb-0"><%= detail.color ? detail.color : 'Not specified' %></p>
+                          </div>
+
+                          <% if (user && user.role === 'customer') { %>
+                            <% if (product.quantity <= 0) { %>
+                              <div class="alert alert-warning mt-3">Out of stock - we will restock soon.</div>
+                            <% } %>
+                              <div class="action-row">
+                                <form action="/add-to-cart/<%= product.id %>" method="POST" class="action-form">
+                                  <div class="product-option">
+                                    <span class="option-label">Size</span>
+                                    <% if (sizesToShow.length) { %>
+                                      <% let requiredAdded = false; %>
+                                      <div class="size-choice-group">
+                                        <% sizesToShow.forEach(function(sizeLabel) { %>
+                                          <% const variant = sortedVariants.find(v => normalizeSize(v.size) === normalizeSize(sizeLabel)); %>
+                                          <% const variantId = variant ? variant.id : null; %>
+                                          <% const stockQty = variant ? Number(variant.quantity || 0) : 0; %>
+                                          <% const inStock = stockQty > 0; %>
+                                          <% const hasVariant = Boolean(variantId); %>
+                                          <input class="btn-check" type="radio" name="variantId"
+                                            id="size-<%= (variantId || sizeLabel).toString().replace(/\\s+/g, '-') %>"
+                                            value="<%= variantId || '' %>" data-qty="<%= stockQty %>"
+                                            <%= hasVariant && !requiredAdded ? 'required' : '' %>
+                                            <%= hasVariant ? '' : 'disabled' %>>
+                                          <label class="size-option <%= hasVariant ? (inStock ? '' : 'out-of-stock') : 'disabled' %>"
+                                            for="size-<%= (variantId || sizeLabel).toString().replace(/\\s+/g, '-') %>">
+                                            <%= sizeLabel %>
+                                          </label>
+                                          <% if (hasVariant && !requiredAdded) { requiredAdded = true; } %>
+                                        <% }); %>
+                                      </div>
+                                      <div id="size-availability" class="text-muted small mt-2">Select a size to see availability.</div>
+                                      <div class="option-links">
+                                        <a href="#size-guide" class="option-link">View size guide</a>
+                                        <span class="dot-sep">|</span>
+                                        <a href="/fit-assistant" class="option-link">Find your size</a>
+                                      </div>
+                                    <% } else { %>
+                                      <p class="text-muted mb-0">Sizes not specified</p>
+                                      <div class="option-links">
+                                        <a href="/fit-assistant" class="option-link">Find your size</a>
+                                      </div>
+                                    <% } %>
+                                  </div>
+                                  <label for="detail-qty" class="form-label">Quantity</label>
+                                  <div class="d-flex gap-2">
+                                    <input type="number" class="form-control" id="detail-qty" name="quantity" min="1"
+                                      max="<%= product.quantity %>" value="1" required>
+                                    <button type="submit" class="btn btn-primary flex-grow-1" id="add-to-bag-button" <%= product.quantity <= 0 ? 'disabled' : '' %>>Add to bag</button>
+                                  </div>
+                                </form>
+                                <form action="/wishlist/<%= product.id %>/add" method="POST" class="wishlist-form">
+                                  <button type="submit" class="btn btn-outline-dark w-100">Add to wish list</button>
+                                </form>
+                              </div>
+                              <% } else { %>
+                                <div class="d-flex gap-2 mt-4">
+                                  <a href="/updateProduct/<%= product.id %>" class="btn btn-primary">Edit product</a>
+                                  <a href="/inventory" class="btn btn-secondary">Back to inventory</a>
+                                </div>
+                                <% } %>
+
+                          <div class="fit-helper">
+                            <div class="d-flex justify-content-between align-items-center">
+                              <h5 class="mb-0">Fit Assistant</h5>
+                              <a href="/fit-assistant" class="small text-decoration-none">Try it</a>
+                            </div>
+                            <% if (typeof recommendedSize !== 'undefined' && recommendedSize) { %>
+                              <p class="mb-1">Recommended size: <strong><%= recommendedSize %></strong></p>
+                              <p class="text-muted mb-0">Confidence: <%= typeof confidence !== 'undefined' ? confidence : '-' %></p>
+                              <% } else { %>
+                                <p class="text-muted mb-0">Get a personalised fit based on your measurements.</p>
+                                <% } %>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="size-guide" id="size-guide">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 mb-3">
+                          <div>
+                            <h3 class="mb-1">Size guide</h3>
+                            <p class="text-muted mb-0">Measurements shown in cm with inches in parentheses.</p>
+                          </div>
+                        </div>
+                        <div class="table-responsive">
+                          <table class="table table-modern align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th scope="col">Size</th>
+                                <th scope="col">Chest width</th>
+                                <th scope="col">Shoulder</th>
+                                <th scope="col">Length</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <% (sizeChart || []).forEach(function(row) { %>
+                                <tr>
+                                  <td class="fw-semibold"><%= row.size %></td>
+                                  <td><%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)</td>
+                                  <td><%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)</td>
+                                  <td><%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)</td>
+                                </tr>
+                              <% }); %>
+                            </tbody>
+                          </table>
+                        </div>
+                        <p class="text-muted small mb-0 mt-2"><%= sizeGuideDisclaimer %></p>
+                      </div>
+
+                      <div class="review-section mt-5">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+                          <div>
+                            <h3 class="mb-1">Customer reviews</h3>
+                            <p class="text-muted mb-0">See what other shoppers say about this style.</p>
+                          </div>
+                        </div>
+
+                        <div class="review-overview">
+                          <% const totalReviews = reviewSummary && reviewSummary.total ? reviewSummary.total : 0; %>
+                          <div class="review-score">
+                            <div class="review-score-value"><%= typeof averageRating === 'number' ? averageRating.toFixed(1) : '0.0' %></div>
+                            <div class="review-stars" aria-label="Average rating">
+                              <% const roundedRating = typeof averageRating === 'number' ? Math.round(averageRating) : 0; %>
+                              <% for (let i = 1; i <= 5; i++) { %>
+                                <span class="star <%= i <= roundedRating ? 'filled' : '' %>">★</span>
+                              <% } %>
+                            </div>
+                            <p class="text-muted mb-0">Based on <%= totalReviews %> reviews</p>
+                          </div>
+
+                          <div class="review-summary-grid">
+                            <% [5,4,3,2,1].forEach(function(score) { %>
+                              <% const count = reviewSummary && reviewSummary.counts ? reviewSummary.counts[score] : 0; %>
+                              <% const percent = totalReviews ? (count / totalReviews) * 100 : 0; %>
+                              <div class="review-bar-row">
+                                <span class="review-label"><%= score %> star</span>
+                                <div class="review-bar">
+                                  <span style="width: <%= percent %>%;"></span>
+                                </div>
+                                <span class="review-count"><%= count %></span>
+                              </div>
+                            <% }); %>
+                          </div>
+                        </div>
+
+                        <div class="mt-4">
+                          <% if (user && user.role === 'customer' && userReview) { %>
+                            <div class="alert alert-light border">
+                              <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>Your review</strong>
+                                <span class="badge bg-warning text-dark"><%= userReview.rating %> / 5</span>
+                              </div>
+                              <p class="mb-0 text-muted"><%= userReview.comment || 'No comments provided.' %></p>
+                            </div>
+                          <% } else if (user && user.role === 'customer') { %>
+                            <div class="alert alert-info">
+                              Submit reviews from Purchase History after your order is completed.
+                            </div>
+                          <% } else { %>
+                            <p class="text-muted">Sign in as a shopper to view or submit reviews.</p>
+                          <% } %>
+                        </div>
+
+                        <% if (reviews && reviews.length) { %>
+                          <div class="review-list">
+                            <% reviews.forEach(function(review) { %>
+                              <div class="review-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                  <strong><%= review.username %></strong>
+                                  <span class="badge bg-warning text-dark"><%= review.rating %> / 5</span>
+                                </div>
+                                <small class="text-muted"><%= new Date(review.created_at).toLocaleString() %></small>
+                                <p class="mb-0 mt-2"><%= review.comment || 'No comments provided.' %></p>
+                              </div>
+                            <% }); %>
+                          </div>
+                        <% } else { %>
+                          <p class="text-muted mb-0">No reviews yet. Be the first to share your experience!</p>
+                        <% } %>
+                      </div>
+
+                      <% if (typeof relatedProducts !== 'undefined' && relatedProducts && relatedProducts.length) { %>
+                        <div class="row g-4 mt-5">
+                          <div class="col-12">
+                            <h3 class="mb-3">You may also like</h3>
+                            <div class="row g-3">
+                              <% relatedProducts.slice(0, 3).forEach(function(item) { %>
+                                <div class="col-12 col-md-6 col-lg-4">
+                                  <div class="card h-100 shadow-sm">
+                                    <% if (item.image) { %>
+                                      <img src="/images/<%= item.image %>" class="card-img-top" alt="<%= item.productName || item.name %>">
+                                      <% } else { %>
+                                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                          <span class="text-muted">No image available</span>
                                         </div>
                                         <% } %>
-
-                                          <div class="border rounded-3 p-3 bg-light mb-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                              <h5 class="mb-0">Fit Assistant</h5>
-                                              <a href="#size-guide" class="small text-decoration-none">View size guide</a>
-                                            </div>
-                                            <% if (typeof recommendedSize !== 'undefined' && recommendedSize) { %>
-                                              <p class="mb-1">Recommended size: <strong><%= recommendedSize %></strong></p>
-                                              <p class="text-muted mb-0">Confidence: <%= typeof confidence !== 'undefined' ? confidence : '-' %></p>
-                                              <% } else { %>
-                                                <p class="text-muted mb-2">Get a personalized size recommendation based on your measurements.</p>
-                                                <a href="/fit-assistant"
-                                                  class="btn btn-outline-primary btn-sm">Enter measurements for size recommendation</a>
-                                                <% } %>
-                                          </div>
-
-                                          <% if (user && user.role === 'customer') { %>
-                                            <form action="/add-to-cart/<%= product.id %>" method="POST"
-                                              class="d-flex flex-column flex-sm-row gap-3">
-                                              <div class="flex-grow-1">
-                                                <label for="detail-qty" class="form-label">Quantity</label>
-                                                <input type="number" class="form-control" id="detail-qty"
-                                                  name="quantity" min="1" max="<%= product.quantity %>" value="1"
-                                                  required>
-                                              </div>
-                                              <div class="align-self-end">
-                                                <button type="submit" class="btn btn-primary">Add to cart</button>
-                                              </div>
-                                            </form>
-                                            <% } else { %>
-                                              <div class="d-flex gap-3">
-                                                <a href="/updateProduct/<%= product.id %>" class="btn btn-primary">Edit
-                                                  product</a>
-                                                <a href="/inventory" class="btn btn-secondary">Back to inventory</a>
-                                              </div>
-                                              <% } %>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="row g-4 mt-4">
-                          <div class="col-12 col-lg-7">
-                            <div class="card shadow-sm h-100">
-                              <div class="card-body">
-                                <% const detail = productDetails || {}; %>
-                                <h3 class="card-title mb-3">About this shirt</h3>
-                                <p class="text-muted mb-3"><%= detail.description ? detail.description : 'Not provided' %></p>
-                                <p class="mb-2"><strong>Fit &amp; material:</strong>
-                                  <%= detail.fitType ? detail.fitType : 'Not provided' %> / <%= detail.material ? detail.material : 'Not provided' %>
-                                </p>
-                                <p class="mb-2"><strong>Available sizes:</strong>
-                                  <%= detail.sizeRange ? detail.sizeRange : 'Not provided' %>
-                                </p>
-                                <p class="mb-3"><strong>Color:</strong>
-                                  <%= detail.color ? detail.color : 'Not provided' %>
-                                </p>
-                                <div class="text-muted">
-                                  <div>Care instructions:</div>
-                                  <% if (detail.care) { %>
-                                    <div><%= detail.care %></div>
-                                    <% } else { %>
-                                      <div>Not provided</div>
-                                      <% } %>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div class="card shadow-sm mt-4" id="size-guide">
-                              <div class="card-body">
-                                <h3 class="card-title mb-3">Size guide</h3>
-                                <p class="text-muted mb-3">Use chest measurement as the most accurate indicator.</p>
-                                <div class="row g-2">
-                                  <div class="col-6 col-md-4">
-                                    <div class="border rounded-3 p-2 text-center">XS - 84 cm</div>
-                                  </div>
-                                  <div class="col-6 col-md-4">
-                                    <div class="border rounded-3 p-2 text-center">S - 84-92 cm</div>
-                                  </div>
-                                  <div class="col-6 col-md-4">
-                                    <div class="border rounded-3 p-2 text-center">M - 92-100 cm</div>
-                                  </div>
-                                  <div class="col-6 col-md-4">
-                                    <div class="border rounded-3 p-2 text-center">L - 100-108 cm</div>
-                                  </div>
-                                  <div class="col-6 col-md-4">
-                                    <div class="border rounded-3 p-2 text-center">XL - 108-116 cm</div>
-                                  </div>
-                                  <div class="col-6 col-md-4">
-                                    <div class="border rounded-3 p-2 text-center">2XL+ - 116 cm+</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div class="col-12 col-lg-5">
-                            <div class="card shadow-sm">
-                              <div class="card-body">
-                                <h3 class="card-title mb-3">Delivery & returns</h3>
-                                <p class="text-muted mb-2">Delivery estimate: 2-4 business days within Singapore.</p>
-                                <p class="text-muted mb-3">Returns accepted within 14 days for unworn items with tags.</p>
-                                <% if (typeof canReturn !== 'undefined' && canReturn && typeof orderId !== 'undefined') { %>
-                                  <a href="/order/<%= orderId %>/return" class="btn btn-outline-primary">Request return/exchange</a>
-                                  <% } %>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <% if (typeof relatedProducts !== 'undefined' && relatedProducts && relatedProducts.length) { %>
-                          <div class="row g-4 mt-4">
-                            <div class="col-12">
-                              <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
-                                <div>
-                                  <h3 class="mb-1">You may also like</h3>
-                                  <p class="text-muted mb-0">More styles curated for your next look.</p>
-                                </div>
-                              </div>
-                              <div class="row g-3">
-                                <% relatedProducts.slice(0, 3).forEach(function(item) { %>
-                                  <div class="col-12 col-md-6 col-lg-4">
-                                    <div class="card h-100 shadow-sm">
-                                      <% if (item.image) { %>
-                                        <img src="/images/<%= item.image %>" class="card-img-top"
-                                          alt="<%= item.productName || item.name %>">
-                                        <% } else { %>
-                                          <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
-                                            style="height: 200px;">
-                                            <span class="text-muted">No image available</span>
-                                          </div>
-                                          <% } %>
-                                      <div class="card-body d-flex flex-column">
-                                        <h5 class="card-title">
-                                          <a href="/product/<%= item.id %>" class="text-decoration-none text-dark">
-                                            <%= item.productName || item.name %>
-                                          </a>
-                                        </h5>
-                                        <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
-                                        <div class="mt-auto">
-                                          <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2) %></span>
-                                          <a href="/product/<%= item.id %>" class="btn btn-outline-primary w-100 mt-2">View product</a>
-                                        </div>
+                                    <div class="card-body d-flex flex-column">
+                                      <h5 class="card-title">
+                                        <a href="/product/<%= item.id %>" class="text-decoration-none text-dark">
+                                          <%= item.productName || item.name %>
+                                        </a>
+                                      </h5>
+                                      <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
+                                      <div class="mt-auto">
+                                        <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2) %></span>
+                                        <a href="/product/<%= item.id %>" class="btn btn-outline-primary w-100 mt-2">View product</a>
                                       </div>
                                     </div>
                                   </div>
-                                  <% }); %>
-                              </div>
-                            </div>
-                          </div>
-                          <% } %>
-
-                        <div class="row g-4 mt-4">
-                          <div class="col-12">
-                            <div class="card shadow-sm">
-                              <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                  <h3 class="card-title mb-0">Customer reviews</h3>
-                                  <% if (typeof averageRating==='number' ) { %>
-                                    <span class="badge bg-warning text-dark">Avg rating: <%= averageRating.toFixed(1) %>
-                                        / 5</span>
-                                    <% } %>
                                 </div>
-
-                                <% if (user && user.role === 'customer') { %>
-                                  <form action="/product/<%= product.id %>/reviews" method="POST" class="mb-3">
-                                    <div class="mb-3">
-                                      <label for="rating" class="form-label">Your Rating</label>
-                                      <select name="rating" id="rating" class="form-select" required>
-                                        <% for (let score=5; score>= 1; score--) { %>
-                                          <option value="<%= score %>" <%=(userReview &&
-                                            Number(userReview.rating)===score) ? 'selected' : '' %>>
-                                            <%= score %> star<%= score> 1 ? 's' : '' %>
-                                          </option>
-                                          <% } %>
-                                      </select>
-                                    </div>
-                                    <div class="mb-3">
-                                      <label for="comment" class="form-label">Your Review</label>
-                                      <textarea name="comment" id="comment" rows="4" class="form-control"
-                                        placeholder="Share your experience"><%= userReview ? userReview.comment : '' %></textarea>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                      <button type="submit" class="btn btn-primary">
-                                        <%= userReview ? 'Update review' : 'Submit review' %>
-                                      </button>
-                                      <% if (userReview) { %>
-                                        <button type="submit" form="delete-review-form"
-                                          class="btn btn-outline-danger">Delete review</button>
-                                        <% } %>
-                                    </div>
-                                  </form>
-                                  <% if (userReview) { %>
-                                    <form id="delete-review-form"
-                                      action="/product/<%= product.id %>/reviews/<%= userReview.id %>/delete"
-                                      method="POST"></form>
-                                    <% } %>
-                                      <% } else { %>
-                                        <p class="text-muted mb-4">Sign in as a shopper to share your thoughts about
-                                          this shirt!</p>
-                                        <% } %>
-
-                                          <% if (reviews && reviews.length) { %>
-                                            <div class="list-group">
-                                              <% reviews.forEach(function(review) { %>
-                                                <div class="list-group-item list-group-item-action">
-                                                  <div class="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                      <strong>
-                                                        <%= review.username %>
-                                                      </strong>
-                                                      <span class="ms-2 badge bg-warning text-dark">
-                                                        <%= review.rating %> / 5
-                                                      </span>
-                                                    </div>
-                                                    <small class="text-muted">
-                                                      <%= new Date(review.created_at).toLocaleString() %>
-                                                    </small>
-                                                  </div>
-                                                  <% if (review.comment) { %>
-                                                    <p class="mb-0 mt-2">
-                                                      <%= review.comment %>
-                                                    </p>
-                                                    <% } else { %>
-                                                      <p class="mb-0 mt-2 text-muted fst-italic">No comments provided.
-                                                      </p>
-                                                      <% } %>
-                                                </div>
-                                                <% }); %>
-                                            </div>
-                                            <% } else { %>
-                                              <p class="text-muted mb-0">No reviews yet. Be the first to share your
-                                                experience!</p>
-                                              <% } %>
-                              </div>
+                                <% }); %>
                             </div>
                           </div>
                         </div>
-                        <% } else { %>
-                          <div class="empty-state">
-                            <h3>Product not found</h3>
-                            <p class="text-muted">The product you are looking for is no longer available.</p>
-                            <a href="/shopping" class="btn btn-primary">Browse shirts</a>
-                          </div>
-                          <% } %>
-    </div>
-  </section>
+                        <% } %>
 
-  <footer class="footer">
-    <div class="container">
-      <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
-    </div>
-  </footer>
-</body>
+                      <% } else { %>
+                        <div class="empty-state">
+                          <h3>Product not found</h3>
+                          <p class="text-muted">The product you are looking for is no longer available.</p>
+                          <a href="/shopping" class="btn btn-primary">Browse shirts</a>
+                        </div>
+                        <% } %>
+  </div>
+</section>
 
-</html>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var availability = document.getElementById('size-availability');
+    var sizeRadios = document.querySelectorAll('input[name="variantId"]');
+    var addButton = document.getElementById('add-to-bag-button');
+    var qtyInput = document.getElementById('detail-qty');
+
+    if (!availability || !sizeRadios.length) {
+      return;
+    }
+
+    var updateAvailability = function (event) {
+      var target = event && event.target ? event.target : document.querySelector('input[name="variantId"]:checked');
+      if (!target) {
+        availability.textContent = 'Select a size to see availability.';
+        if (addButton) {
+          addButton.disabled = true;
+        }
+        return;
+      }
+      var qty = Number(target.getAttribute('data-qty') || 0);
+      if (qty > 0) {
+        availability.textContent = 'Available quantity: ' + qty;
+        if (addButton) {
+          addButton.disabled = false;
+        }
+        if (qtyInput) {
+          qtyInput.max = qty;
+          if (Number(qtyInput.value) > qty) {
+            qtyInput.value = qty;
+          }
+        }
+      } else {
+        availability.textContent = 'Out of stock for this size.';
+        if (addButton) {
+          addButton.disabled = true;
+        }
+        if (qtyInput) {
+          qtyInput.max = 0;
+        }
+      }
+    };
+
+    sizeRadios.forEach(function (radio) {
+      radio.addEventListener('change', updateAvailability);
+    });
+
+    updateAvailability();
+  });
+</script>
+
+<%- include('partial/footer') %>

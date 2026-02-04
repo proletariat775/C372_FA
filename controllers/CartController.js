@@ -55,17 +55,25 @@ const normaliseOfferMessage = (message) => {
     return trimmed.slice(0, 255);
 };
 
-const buildCartItem = (product, quantity) => {
+const buildCartItem = (product, variant, quantity) => {
     const basePrice = toCurrency(product.price);
-    const discountPercentage = clampDiscount(product.discountPercentage);
+    const discountPercentage = clampDiscount(product.discountPercentage || product.discount_percent);
     const hasDiscount = discountPercentage > 0;
     const finalPrice = hasDiscount
         ? toCurrency(basePrice * (1 - discountPercentage / 100))
         : basePrice;
 
+    const variantId = variant && (variant.id || variant.variant_id || variant.variantId)
+        ? Number(variant.id || variant.variant_id || variant.variantId)
+        : null;
+    const size = variant && variant.size ? variant.size : null;
+
     const cartItem = {
         productId: product.id,
-        productName: product.productName,
+        variantId,
+        product_variant_id: variantId,
+        size,
+        productName: product.productName || product.name,
         price: finalPrice,
         quantity,
         image: product.image || null,
@@ -75,14 +83,27 @@ const buildCartItem = (product, quantity) => {
     if (hasDiscount) {
         cartItem.originalPrice = basePrice;
         cartItem.discountPercentage = discountPercentage;
-        cartItem.offerMessage = normaliseOfferMessage(product.offerMessage);
+        cartItem.offerMessage = normaliseOfferMessage(product.offerMessage || product.description);
     }
 
     return cartItem;
 };
 
-const findCartItem = (cart, productId) =>
-    cart.find(item => item.productId === productId);
+const findCartItem = (cart, variantId, productId) => {
+    if (!Array.isArray(cart)) {
+        return null;
+    }
+    if (Number.isFinite(variantId)) {
+        const match = cart.find(item => Number(item.variantId) === Number(variantId));
+        if (match) {
+            return match;
+        }
+    }
+    if (Number.isFinite(productId)) {
+        return cart.find(item => Number(item.productId) === Number(productId));
+    }
+    return null;
+};
 
 const clearAppliedCoupon = (cart) => {
     if (cart && typeof cart === 'object' && cart.appliedCoupon) {
@@ -110,6 +131,7 @@ const addToCart = (req, res) => {
 
     const productId = parseInt(req.params.id, 10);
     const quantityToAdd = parseInt(req.body.quantity, 10);
+    const requestedVariantId = parseInt(req.body.variantId, 10);
 
     if (Number.isNaN(productId)) {
         req.flash('error', 'Invalid product selected.');
@@ -121,49 +143,88 @@ const addToCart = (req, res) => {
         return res.redirect('/shopping');
     }
 
-    Product.getById(productId, (error, results) => {
-        if (error) {
-            console.error('Error fetching product:', error);
-            req.flash('error', 'Unable to add product to cart at this time.');
+    const handleVariant = (variant) => {
+        if (!variant) {
+            req.flash('error', 'Selected size is no longer available.');
             return res.redirect('/shopping');
         }
 
-        if (!results || results.length === 0) {
-            req.flash('error', 'Product not found or is no longer available.');
+        if (Number(variant.product_id) !== Number(productId)) {
+            req.flash('error', 'Invalid size selection for this product.');
             return res.redirect('/shopping');
         }
 
-        const product = results[0];
-        const stock = Number.parseInt(product.quantity, 10) || 0;
-
+        const stock = Number.parseInt(variant.variant_quantity || variant.quantity, 10) || 0;
         if (stock <= 0) {
-            req.flash('error', `Sorry, "${product.productName}" is out of stock.`);
+            req.flash('error', `Sorry, "${variant.name}" is out of stock in that size.`);
             return res.redirect('/shopping');
         }
+
+        const product = {
+            id: variant.product_id,
+            name: variant.name,
+            price: variant.price,
+            discount_percent: variant.discount_percent,
+            description: variant.description,
+            image: variant.image
+        };
 
         const cart = ensureSessionCart(req);
-        const existingItem = findCartItem(cart, productId);
+        const existingItem = findCartItem(cart, Number(variant.variant_id), productId);
         const currentQtyInCart = existingItem ? existingItem.quantity : 0;
         let desiredTotalQty = currentQtyInCart + quantityToAdd;
 
         if (desiredTotalQty > stock) {
             desiredTotalQty = stock;
-            req.flash('error', `Only ${stock} units of "${product.productName}" are available. Cart quantity adjusted.`);
+            req.flash('error', `Only ${stock} units of "${variant.name}" are available in that size. Cart quantity adjusted.`);
         }
 
         if (desiredTotalQty <= 0) {
-            req.flash('error', `Unable to add "${product.productName}" - no stock available.`);
+            req.flash('error', `Unable to add "${variant.name}" - no stock available.`);
             return res.redirect('/shopping');
         }
 
         if (existingItem) {
             existingItem.quantity = desiredTotalQty;
         } else {
-            cart.push(buildCartItem(product, desiredTotalQty));
+            cart.push(buildCartItem(product, variant, desiredTotalQty));
         }
 
         req.flash('success', 'Item added to cart.');
         return res.redirect('/cart');
+    };
+
+    const loadVariantById = (variantId) => {
+        Product.getVariantById(variantId, (variantErr, variantRows) => {
+            if (variantErr) {
+                console.error('Error fetching variant:', variantErr);
+                req.flash('error', 'Unable to add product to cart at this time.');
+                return res.redirect('/shopping');
+            }
+
+            const variant = variantRows && variantRows[0] ? variantRows[0] : null;
+            return handleVariant(variant);
+        });
+    };
+
+    if (Number.isFinite(requestedVariantId)) {
+        return loadVariantById(requestedVariantId);
+    }
+
+    Product.getDefaultVariant(productId, (defaultErr, defaultRows) => {
+        if (defaultErr) {
+            console.error('Error fetching default variant:', defaultErr);
+            req.flash('error', 'Unable to add product to cart at this time.');
+            return res.redirect('/shopping');
+        }
+
+        const defaultVariant = defaultRows && defaultRows[0] ? defaultRows[0] : null;
+        if (!defaultVariant) {
+            req.flash('error', 'No sizes available for this product.');
+            return res.redirect('/shopping');
+        }
+
+        return loadVariantById(defaultVariant.id);
     });
 };
 
@@ -175,6 +236,9 @@ const viewCart = async (req, res) => {
     const cart = ensureSessionCart(req);
     if (!cart.length) {
         clearAppliedCoupon(cart);
+        if (req.session.bundle) {
+            delete req.session.bundle;
+        }
     }
 
     let appliedCoupon = getAppliedCoupon(cart);
@@ -225,28 +289,55 @@ const updateCartItem = (req, res) => {
         return;
     }
 
-    const productId = parseInt(req.params.id, 10);
+    const itemId = parseInt(req.params.id, 10);
     const quantity = parseInt(req.body.quantity, 10);
 
-    if (Number.isNaN(productId)) {
-        req.flash('error', 'Invalid product.');
+    if (Number.isNaN(itemId)) {
+        req.flash('error', 'Invalid item.');
         return res.redirect('/cart');
     }
 
     const cart = ensureSessionCart(req);
-    const item = findCartItem(cart, productId);
+    const item = findCartItem(cart, itemId, itemId);
     if (!item) {
         req.flash('error', 'Item not found in cart.');
         return res.redirect('/cart');
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-        req.session.cart = cart.filter(cartItem => cartItem.productId !== productId);
+        req.session.cart = cart.filter(cartItem => Number(cartItem.variantId || cartItem.productId) !== Number(itemId));
         req.flash('success', 'Item removed from cart.');
         return res.redirect('/cart');
     }
 
-    Product.getById(productId, (err, results) => {
+    if (Number.isFinite(item.variantId)) {
+        Product.getVariantById(item.variantId, (err, rows) => {
+            if (err) {
+                console.error('Error fetching variant:', err);
+                req.flash('error', 'Unable to update cart item at this time.');
+                return res.redirect('/cart');
+            }
+
+            const variant = rows && rows[0] ? rows[0] : null;
+            if (!variant) {
+                req.flash('error', 'Selected size no longer exists.');
+                return res.redirect('/cart');
+            }
+
+            const stock = Number.parseInt(variant.variant_quantity || variant.quantity, 10) || 0;
+            if (quantity > stock) {
+                req.flash('error', `Cannot set quantity above stock. Only ${stock} units available.`);
+                return res.redirect('/cart');
+            }
+
+            item.quantity = quantity;
+            req.flash('success', 'Cart updated successfully.');
+            return res.redirect('/cart');
+        });
+        return;
+    }
+
+    Product.getById(item.productId, (err, results) => {
         if (err) {
             console.error('Error fetching product:', err);
             req.flash('error', 'Unable to update cart item at this time.');
@@ -277,15 +368,15 @@ const removeCartItem = (req, res) => {
         return;
     }
 
-    const productId = parseInt(req.params.id, 10);
+    const itemId = parseInt(req.params.id, 10);
 
-    if (Number.isNaN(productId)) {
-        req.flash('error', 'Invalid product.');
+    if (Number.isNaN(itemId)) {
+        req.flash('error', 'Invalid item.');
         return res.redirect('/cart');
     }
 
     const cart = ensureSessionCart(req);
-    const nextCart = cart.filter(cartItem => cartItem.productId !== productId);
+    const nextCart = cart.filter(cartItem => Number(cartItem.variantId || cartItem.productId) !== Number(itemId));
     if (nextCart.length === cart.length) {
         req.flash('error', 'Item not found in cart.');
         return res.redirect('/cart');

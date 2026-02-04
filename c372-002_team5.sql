@@ -112,8 +112,10 @@ CREATE TABLE products (
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE product_images (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  CREATE TABLE product_images (
+    -- Store multiple rows per product for front/back images. Use is_primary=1 for front,
+    -- and sort_order for ordering additional views.
+    id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
   image_url VARCHAR(500) NOT NULL,
   alt_text VARCHAR(255) NULL,
@@ -172,7 +174,7 @@ CREATE TABLE orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_number VARCHAR(40) NOT NULL,
   user_id INT NOT NULL,
-  status ENUM('pending','processing','shipped','delivered','cancelled','returned') NOT NULL DEFAULT 'pending',
+  status ENUM('pending','packed','shipped','delivered','completed','processing','cancelled','returned') NOT NULL DEFAULT 'pending',
   subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -183,6 +185,9 @@ CREATE TABLE orders (
   shipping_address VARCHAR(255) NULL,
   billing_address VARCHAR(255) NULL,
   promo_code VARCHAR(50) NULL,
+  shipping_provider VARCHAR(120) NULL,
+  tracking_number VARCHAR(80) NULL,
+  est_delivery_date DATE NULL,
   admin_notes TEXT NULL,
   -- Compatibility fields used by older query paths in current controllers
   total DECIMAL(10,2) NULL,

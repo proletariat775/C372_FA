@@ -1,50 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel='stylesheet' href='/css/styles.css'>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <title>Update Shirt | Shirt Shop</title>
-</head>
-
-<body>
-  <nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">Shirt Shop</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="collapsibleNavbar">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="/inventory">Inventory</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/addProduct">Add Product</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/admin/deliveries">Deliveries</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/admin/users">Manage Users</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/logout">Logout</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
+<%- include('partial/header', { title: 'Update Shirt | Shirt Shop' }) %>
+<%- include('partial/adminNavbar', { user: user }) %>
 
   <section class="page-section">
     <div class="container">
       <% if (product) { %>
+        <% const details = productDetails || {}; %>
+        <% const images = productImages || []; %>
+        <% const frontImage = images.find(img => img.is_primary) || images[0]; %>
+        <% const backImage = images.find(img => !img.is_primary && (!frontImage || img.image_url !== frontImage.image_url)); %>
         <div class="form-card">
-          <h2 class="text-center">Update <%= product.productName %>
-          </h2>
+          <h2 class="text-center">Update <%= product.productName %></h2>
           <p class="text-center text-muted mb-4">Keep shirt details (size, colour, style) accurate for shoppers.</p>
 
           <% if (messages && messages.length) { %>
@@ -52,96 +17,317 @@
               <div class="alert alert-success">
                 <%= message %>
               </div>
-              <% }); %>
-                <% } %>
-
-                  <% if (errors && errors.length) { %>
-                    <% errors.forEach(function(error) { %>
-                      <div class="alert alert-danger">
-                        <%= error %>
-                      </div>
-                      <% }); %>
-                        <% } %>
-
-                          <form action="/updateProduct/<%= product.id %>" method="POST" enctype="multipart/form-data">
-                            <div class="mb-3">
-                              <label for="name" class="form-label">Product name</label>
-                              <input type="text" class="form-control" id="name" name="name"
-                                value="<%= product.productName %>" required>
-                            </div>
-
-                            <div class="mb-3">
-                              <label for="quantity" class="form-label">Quantity in stock</label>
-                              <input type="number" class="form-control" id="quantity" name="quantity" min="0" step="1"
-                                value="<%= product.quantity %>" required>
-                            </div>
-
-                            <div class="mb-3">
-                              <label for="price" class="form-label">Price ($)</label>
-                              <input type="number" class="form-control" id="price" name="price" min="0" step="0.01"
-                                value="<%= Number(product.price).toFixed(2) %>" required>
-                            </div>
-
-                            <div class="mb-3">
-                              <label for="discount" class="form-label">Discount (%)</label>
-                              <input type="number" class="form-control" id="discount" name="discount" min="0" max="100"
-                                step="1" value="<%= Math.round(Number(product.discountPercentage || 0)) %>">
-                              <small class="text-muted">Whole numbers only (0 to 100).</small>
-                            </div>
-
-                            <div class="mb-3">
-                              <label for="category" class="form-label">Section / Category</label>
-                              <input type="text" class="form-control" id="category" name="category"
-                                value="<%= product.category || 'General' %>" required>
-                              <small class="text-muted">Example: T-Shirts, Polos, Hoodies.</small>
-                            </div>
-
-                            <div class="mb-3">
-                              <label for="offer" class="form-label">Promotional offer</label>
-                              <textarea class="form-control" id="offer" name="offer" rows="2"
-                                placeholder="E.g. Bundle with milk for 10% off"><%= product.offerMessage || '' %></textarea>
-                              <small class="text-muted">Optional shopper-facing blurb shown alongside discounts.</small>
-                            </div>
-
-                            <div class="mb-3">
-                              <label class="form-label">Current image</label>
-                              <% if (product.image) { %>
-                                <img src="/images/<%= product.image %>" alt="<%= product.productName %>"
-                                  class="img-fluid rounded mb-2" style="max-height: 200px; object-fit: cover;">
-                                <% } else { %>
-                                  <p class="text-muted">No image uploaded.</p>
-                                  <% } %>
-                                    <input type="hidden" name="currentImage" value="<%= product.image %>">
-                            </div>
-
-                            <div class="mb-4">
-                              <label for="image" class="form-label">Replace image</label>
-                              <input class="form-control" type="file" id="image" name="image" accept="image/*">
-                              <small class="text-muted">Leave blank to keep the existing image.</small>
-                            </div>
-
-                            <div class="d-flex gap-2">
-                              <button type="submit" class="btn btn-primary flex-grow-1">Save changes</button>
-                              <a href="/inventory" class="btn btn-secondary">Cancel</a>
-                            </div>
-                          </form>
-        </div>
-        <% } else { %>
-          <div class="empty-state">
-            <h3>Product not found</h3>
-            <p class="text-muted">We couldn't locate that product. Return to inventory to continue managing your
-              catalogue.</p>
-            <a href="/inventory" class="btn btn-primary">Back to inventory</a>
-          </div>
+            <% }); %>
           <% } %>
+
+          <% if (errors && errors.length) { %>
+            <% errors.forEach(function(error) { %>
+              <div class="alert alert-danger">
+                <%= error %>
+              </div>
+            <% }); %>
+          <% } %>
+
+          <form action="/updateProduct/<%= product.id %>" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="name" class="form-label">Product name</label>
+              <input type="text" class="form-control" id="name" name="name" value="<%= product.productName %>" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="brand" class="form-label">Brand</label>
+              <input type="text" class="form-control" id="brand" name="brand" value="<%= product.brand || '' %>" placeholder="e.g. Cult Gaia">
+              <small class="text-muted">Optional, used for brand filters and styling.</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="quantity" class="form-label">Total quantity (auto from sizes)</label>
+              <input type="number" class="form-control" id="quantity" name="quantity" min="0" step="1" value="<%= product.quantity %>" required>
+              <small class="text-muted">This total is calculated from the size quantities below.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Sizes & stock</label>
+              <div id="size-input-grid" class="row g-2"></div>
+              <small class="text-muted">Sizes are generated from “Size range” (e.g. 3XS-3XL, M-L, One-Size).</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="price" class="form-label">Price ($)</label>
+              <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" value="<%= Number(product.price).toFixed(2) %>" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="discount" class="form-label">Discount (%)</label>
+              <input type="number" class="form-control" id="discount" name="discount" min="0" max="100" step="1" value="<%= Math.round(Number(product.discountPercentage || 0)) %>">
+              <small class="text-muted">Whole numbers only (0 to 100).</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="category" class="form-label">Style / Category</label>
+              <select class="form-select" id="category" name="category" required>
+                <option value="">Select category</option>
+                <% (categories || []).forEach(function(cat) { %>
+                  <option value="<%= cat %>" <%= product.category === cat ? 'selected' : '' %>><%= cat %></option>
+                <% }); %>
+                <option value="__new__">Add new category</option>
+              </select>
+              <small class="text-muted">Choose an existing category, or add a new one.</small>
+            </div>
+
+            <div class="mb-3 d-none" id="new-category-wrap">
+              <label for="newCategory" class="form-label">New category name</label>
+              <input type="text" class="form-control" id="newCategory" name="newCategory" placeholder="e.g. Hoodies">
+            </div>
+
+            <div class="mb-3">
+              <label for="offer" class="form-label">Promotional offer</label>
+              <textarea class="form-control" id="offer" name="offer" rows="2" placeholder="E.g. Free delivery with every purchase"><%= product.offerMessage || '' %></textarea>
+              <small class="text-muted">Optional message shown to shoppers alongside any discount.</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="description" class="form-label">Shirt description</label>
+              <textarea class="form-control" id="description" name="description" rows="3" placeholder="Describe the fit, feel, and style of this shirt."><%= details.description || '' %></textarea>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <div class="mb-3">
+                  <label for="fitType" class="form-label">Fit type</label>
+                  <select class="form-select" id="fitType" name="fitType">
+                    <option value="">Select fit</option>
+                    <option value="Regular" <%= details.fitType === 'Regular' ? 'selected' : '' %>>Regular</option>
+                    <option value="Oversized" <%= details.fitType === 'Oversized' ? 'selected' : '' %>>Oversized</option>
+                    <option value="Slim" <%= details.fitType === 'Slim' ? 'selected' : '' %>>Slim</option>
+                    <option value="Relaxed" <%= details.fitType === 'Relaxed' ? 'selected' : '' %>>Relaxed</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="mb-3">
+                  <label for="material" class="form-label">Material</label>
+                  <select class="form-select" id="material" name="material">
+                    <option value="">Select material</option>
+                    <option value="100% Cotton" <%= details.material === '100% Cotton' ? 'selected' : '' %>>100% Cotton</option>
+                    <option value="Cotton Blend" <%= details.material === 'Cotton Blend' ? 'selected' : '' %>>Cotton Blend</option>
+                    <option value="Dry-fit" <%= details.material === 'Dry-fit' ? 'selected' : '' %>>Dry-fit</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <div class="mb-3">
+                  <label for="color" class="form-label">Color</label>
+                  <input type="text" class="form-control" id="color" name="color" value="<%= details.color || '' %>" placeholder="e.g. Midnight Navy">
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="mb-3">
+                  <label for="sizeRange" class="form-label">Size range</label>
+                  <input type="text" class="form-control" id="sizeRange" name="sizeRange" value="<%= details.sizeRange || '' %>" placeholder="e.g. XS-3XL">
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="care" class="form-label">Care instructions</label>
+              <input type="text" class="form-control" id="care" name="care" value="<%= details.care || '' %>" placeholder="e.g. Machine wash cold, tumble dry low">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Current front image</label>
+              <% if (frontImage && frontImage.image_url) { %>
+                <img src="/images/<%= frontImage.image_url %>" alt="<%= product.productName %> front" class="img-fluid rounded mb-2" style="max-height: 200px; object-fit: cover;">
+              <% } else if (product.image) { %>
+                <img src="/images/<%= product.image %>" alt="<%= product.productName %> front" class="img-fluid rounded mb-2" style="max-height: 200px; object-fit: cover;">
+              <% } else { %>
+                <p class="text-muted">No front image uploaded.</p>
+              <% } %>
+              <input type="hidden" name="currentImage" value="<%= frontImage && frontImage.image_url ? frontImage.image_url : product.image %>">
+            </div>
+
+            <div class="mb-4">
+              <label for="imageFront" class="form-label">Replace front image</label>
+              <input class="form-control" type="file" id="imageFront" name="imageFront" accept="image/*">
+              <small class="text-muted">Leave blank to keep the existing front image.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Current back image</label>
+              <% if (backImage && backImage.image_url) { %>
+                <img src="/images/<%= backImage.image_url %>" alt="<%= product.productName %> back" class="img-fluid rounded mb-2" style="max-height: 200px; object-fit: cover;">
+              <% } else { %>
+                <p class="text-muted">No back image uploaded.</p>
+              <% } %>
+            </div>
+
+            <div class="mb-4">
+              <label for="imageBack" class="form-label">Replace back image</label>
+              <input class="form-control" type="file" id="imageBack" name="imageBack" accept="image/*">
+              <small class="text-muted">Optional back view for the product gallery.</small>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary flex-grow-1">Save changes</button>
+              <a href="/inventory" class="btn btn-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <h3>Product not found</h3>
+          <p class="text-muted">We couldn't locate that product. Return to inventory to continue managing your catalogue.</p>
+          <a href="/inventory" class="btn btn-primary">Back to inventory</a>
+        </div>
+      <% } %>
     </div>
   </section>
 
-  <footer class="footer">
-    <div class="container">
-      <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
-    </div>
-  </footer>
-</body>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var category = document.getElementById('category');
+      var wrap = document.getElementById('new-category-wrap');
+      var input = document.getElementById('newCategory');
+      var totalQty = document.getElementById('quantity');
+      var sizeGrid = document.getElementById('size-input-grid');
+      var sizeInputs = [];
+      var sizeRangeInput = document.getElementById('sizeRange');
+      var sizeOrder = ['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One-Size'];
+      var existingQuantities = <%- JSON.stringify(sizeQuantities || {}) %>;
 
-</html>
+      if (category && wrap && input) {
+        var toggleCustomCategory = function () {
+          var needsCustom = category.value === '__new__';
+          wrap.classList.toggle('d-none', !needsCustom);
+          input.required = needsCustom;
+          if (!needsCustom) {
+            input.value = '';
+          }
+        };
+
+        category.addEventListener('change', toggleCustomCategory);
+        toggleCustomCategory();
+      }
+
+      var buildSizeKey = function (sizeLabel) {
+        if (sizeLabel === 'One-Size') {
+          return 'size_one_size';
+        }
+        return 'size_' + sizeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      };
+
+      var normalizeSizeToken = function (token) {
+        if (!token) {
+          return null;
+        }
+        var cleaned = token.trim().toUpperCase().replace(/_/g, '-');
+        if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') {
+          return 'One-Size';
+        }
+        return cleaned;
+      };
+
+      var parseSizeRange = function (value) {
+        if (!value) {
+          return null;
+        }
+        var trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+
+        var normalized = normalizeSizeToken(trimmed);
+        if (normalized === 'One-Size') {
+          return ['One-Size'];
+        }
+
+        if (trimmed.indexOf(',') !== -1) {
+          return trimmed.split(',').map(function (part) {
+            return normalizeSizeToken(part);
+          }).filter(Boolean);
+        }
+
+        if (trimmed.indexOf('-') !== -1) {
+          var parts = trimmed.split('-').map(function (part) {
+            return normalizeSizeToken(part);
+          });
+          if (parts.length >= 2) {
+            var start = parts[0];
+            var end = parts[1];
+            var startIndex = sizeOrder.indexOf(start);
+            var endIndex = sizeOrder.indexOf(end);
+            if (startIndex !== -1 && endIndex !== -1) {
+              var from = Math.min(startIndex, endIndex);
+              var to = Math.max(startIndex, endIndex);
+              return sizeOrder.slice(from, to + 1);
+            }
+          }
+        }
+
+        return null;
+      };
+
+      var updateTotalQty = function () {
+        if (!totalQty || !sizeInputs.length) {
+          return;
+        }
+        var hasValue = false;
+        var total = 0;
+        sizeInputs.forEach(function (field) {
+          if (field.value !== '') {
+            hasValue = true;
+          }
+          var value = parseInt(field.value, 10);
+          if (!isNaN(value) && value > 0) {
+            total += value;
+          }
+        });
+        if (!hasValue) {
+          return;
+        }
+        totalQty.value = total;
+      };
+
+      var renderSizeInputs = function () {
+        if (!sizeGrid) {
+          return;
+        }
+        sizeGrid.innerHTML = '';
+        var rangeValue = sizeRangeInput ? sizeRangeInput.value : '';
+        var sizes = parseSizeRange(rangeValue);
+        if (!sizes) {
+          var existingSizes = Object.keys(existingQuantities || {});
+          sizes = existingSizes.length ? existingSizes : ['2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
+        }
+
+        sizes.forEach(function (size) {
+          var col = document.createElement('div');
+          col.className = 'col-6 col-md-3';
+          var key = buildSizeKey(size);
+          var value = typeof existingQuantities[size] !== 'undefined' ? existingQuantities[size] : '';
+          col.innerHTML =
+            '<label class="form-label small" for="' + key + '">' + size + '</label>' +
+            '<input type="number" class="form-control size-input" id="' + key + '" name="' + key + '" min="0" step="1" placeholder="0" value="' + value + '">';
+          sizeGrid.appendChild(col);
+        });
+
+        sizeInputs = Array.prototype.slice.call(sizeGrid.querySelectorAll('.size-input'));
+        sizeInputs.forEach(function (field) {
+          field.addEventListener('input', updateTotalQty);
+        });
+        updateTotalQty();
+      };
+
+      if (sizeRangeInput) {
+        sizeRangeInput.addEventListener('input', renderSizeInputs);
+        sizeRangeInput.addEventListener('change', renderSizeInputs);
+      }
+
+      renderSizeInputs();
+      updateTotalQty();
+    });
+  </script>
+<%- include('partial/footer') %>
