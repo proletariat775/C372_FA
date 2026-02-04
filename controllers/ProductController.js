@@ -98,6 +98,26 @@ const enhanceProductRecord = (product) => {
     };
 };
 
+const fetchRelatedProducts = (product, callback) => {
+    const category = product && product.category ? String(product.category).trim() : '';
+    if (!category) {
+        return callback(null, []);
+    }
+
+    Product.getByCategory(category, (error, rows) => {
+        if (error) {
+            return callback(error);
+        }
+
+        const related = (rows || [])
+            .map(enhanceProductRecord)
+            .filter((item) => Number(item.id) !== Number(product.id))
+            .slice(0, 3);
+
+        return callback(null, related);
+    });
+};
+
 const ProductController = {
     showShopping: (req, res) => {
         const activeCategory = req.query.category ? String(req.query.category).trim() : '';
@@ -301,15 +321,22 @@ const ProductController = {
                             ? reviews.find(review => review.user_id === req.session.user.id)
                             : null;
 
-                        res.render('product', {
-                            product,
-                            productDetails,
-                            user: req.session.user,
-                            reviews,
-                            averageRating,
-                            userReview,
-                            messages: req.flash('success'),
-                            errors: req.flash('error')
+                        fetchRelatedProducts(product, (relatedError, relatedProducts) => {
+                            if (relatedError) {
+                                console.error('Error fetching related products:', relatedError);
+                            }
+
+                            res.render('product', {
+                                product,
+                                productDetails,
+                                user: req.session.user,
+                                reviews,
+                                relatedProducts: relatedProducts || [],
+                                averageRating,
+                                userReview,
+                                messages: req.flash('success'),
+                                errors: req.flash('error')
+                            });
                         });
                     });
                 });
