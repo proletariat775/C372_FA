@@ -19,7 +19,8 @@ const clampDiscount = (value) => {
     if (parsed > 100) {
         return 100;
     }
-    return Number(parsed.toFixed(2));
+    // products.discount_percent is an INT in the current schema.
+    return Math.round(parsed);
 };
 
 const normaliseOfferMessage = (message) => {

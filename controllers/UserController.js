@@ -23,9 +23,9 @@ const register = (req, res) => {
     } = req.body;
     const role = req.body.role;
 
-    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, phone, role };
+    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, phone, role: 'customer' };
     console.log('Register endpoint body:', req.body);
-    const allowedRoles = ['customer', 'admin'];
+    const allowedRoles = ['customer'];
     const safeRole = allowedRoles.includes(role) ? role : 'customer';
     console.log('Register handler received:', formData);
 
