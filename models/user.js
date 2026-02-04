@@ -18,7 +18,7 @@ const create = (userData, callback) => {
         zip_code = null,
         country = null,
         phone = null,
-        role = 'user'
+        role = 'customer'
     } = userData;
 
     const sql = `INSERT INTO users (username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role)
@@ -112,7 +112,7 @@ const update = (id, data, callback) => {
         zip_code = null,
         country = null,
         phone = null,
-        role = 'user'
+        role = 'customer'
     } = data;
 
     const sql = `

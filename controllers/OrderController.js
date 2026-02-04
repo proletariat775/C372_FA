@@ -206,7 +206,7 @@ const sanitiseDeliveryAddress = (address) => {
  * Handle checkout and order creation.
  */
 const checkout = (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'user') {
+    if (!req.session.user || req.session.user.role !== 'customer') {
         req.flash('error', 'Only shoppers can complete checkout.');
         return res.redirect('/cart');
     }
