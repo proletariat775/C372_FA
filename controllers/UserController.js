@@ -19,15 +19,17 @@ const register = (req, res) => {
         state,
         zip_code,
         country,
-        contact
+        phone
     } = req.body;
+    const role = req.body.role;
 
-    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, contact };
+    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, phone, role };
     console.log('Register endpoint body:', req.body);
-    const role = 'customer';
+    const allowedRoles = ['customer', 'admin'];
+    const safeRole = allowedRoles.includes(role) ? role : 'customer';
     console.log('Register handler received:', formData);
 
-    User.create({ username, email, password, first_name, last_name, address, city, state, zip_code, country, contact, role }, (err, result) => {
+    User.create({ username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role: safeRole }, (err, result) => {
         if (err) {
             console.error('Error registering user (db):', err);
             if (err.code === 'ER_DUP_ENTRY') {
@@ -134,9 +136,9 @@ const editUserForm = (req, res) => {
 
 const updateUserRole = (req, res) => {
     const userId = parseInt(req.params.id, 10);
-    const { username, email, address, contact, role } = req.body;
+    const { username, email, address, phone, role } = req.body;
 
-    const allowedRoles = ['customer', 'admin', 'staff'];
+    const allowedRoles = ['customer', 'admin'];
     const errors = [];
 
     if (Number.isNaN(userId)) {
@@ -146,7 +148,7 @@ const updateUserRole = (req, res) => {
     const safeUsername = username ? username.trim() : '';
     const safeEmail = email ? email.trim() : '';
     const safeAddress = address ? address.trim() : '';
-    const safeContact = contact ? contact.trim() : '';
+    const safePhone = phone ? phone.trim() : '';
 
     if (!safeUsername) {
         errors.push('Username is required.');
@@ -160,8 +162,8 @@ const updateUserRole = (req, res) => {
         errors.push('Address is required.');
     }
 
-    if (!safeContact) {
-        errors.push('Contact number is required.');
+    if (!safePhone) {
+        errors.push('Phone number is required.');
     }
 
     if (!role || !allowedRoles.includes(role)) {
@@ -177,7 +179,7 @@ const updateUserRole = (req, res) => {
         username: safeUsername,
         email: safeEmail,
         address: safeAddress,
-        contact: safeContact,
+        phone: safePhone,
         role
     }, (err, result) => {
         if (err) {
@@ -202,7 +204,7 @@ const updateUserRole = (req, res) => {
             req.session.user.username = safeUsername;
             req.session.user.email = safeEmail;
             req.session.user.address = safeAddress;
-            req.session.user.contact = safeContact;
+            req.session.user.phone = safePhone;
         }
         return res.redirect('/admin/users');
     });

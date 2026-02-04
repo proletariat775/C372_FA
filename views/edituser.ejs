@@ -82,9 +82,9 @@
                               value="<%= managedUser.email %>" required>
                           </div>
                           <div class="col-md-6">
-                            <label for="contact" class="form-label">Contact Number</label>
-                            <input type="text" id="contact" name="contact" class="form-control"
-                              value="<%= managedUser.contact %>" required>
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="text" id="phone" name="phone" class="form-control"
+                              value="<%= managedUser.phone %>" required>
                           </div>
                           <div class="col-md-6">
                             <label for="address" class="form-label">Address</label>
@@ -94,7 +94,8 @@
                           <div class="col-md-6">
                             <label for="role" class="form-label">Role</label>
                             <select name="role" id="role" class="form-select" required>
-                              <option value="user" <%=managedUser.role==='user' ? 'selected' : '' %>>User</option>
+                              <option value="customer" <%=managedUser.role==='customer' ? 'selected' : '' %>>Customer
+                              </option>
                               <option value="admin" <%=managedUser.role==='admin' ? 'selected' : '' %>>Admin</option>
                             </select>
                           </div>

@@ -117,10 +117,18 @@
                 <input type="text" id="country" name="country" class="form-control" placeholder="Country"
                   value="<%= formData && formData.country ? formData.country : '' %>">
               </div>
+              <div class="mb-3">
+                <label for="phone" class="form-label">Phone Number</label>
+                <input type="text" id="phone" name="phone" class="form-control" placeholder="(+65) 1234 5678" required
+                  value="<%= formData && formData.phone ? formData.phone : '' %>">
+              </div>
               <div class="mb-4">
-                <label for="contact" class="form-label">Contact Number</label>
-                <input type="text" id="contact" name="contact" class="form-control" placeholder="(+65) 1234 5678"
-                  required value="<%= formData && formData.contact ? formData.contact : '' %>">
+                <label for="role" class="form-label">Role</label>
+                <select id="role" name="role" class="form-select">
+                  <option value="customer" <%=formData && formData.role==='customer' ? 'selected' : '' %>>Customer
+                  </option>
+                  <option value="admin" <%=formData && formData.role==='admin' ? 'selected' : '' %>>Admin</option>
+                </select>
               </div>
               <button type="submit" class="btn btn-primary w-100">Create account</button>
             </form>
