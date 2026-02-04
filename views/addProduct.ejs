@@ -89,10 +89,19 @@
 
                           <div class="mb-3">
                             <label for="category" class="form-label">Style / Category</label>
-                            <input type="text" class="form-control" id="category" name="category"
-                              placeholder="e.g. T-Shirts" required>
-                            <small class="text-muted">Used to help shoppers filter items (e.g. T-Shirts, Polos,
-                              Hoodies).</small>
+                            <select class="form-select" id="category" name="category" required>
+                              <option value="">Select category</option>
+                              <option value="T-shirt">T-shirt</option>
+                              <option value="Pants">Pants</option>
+                              <option value="__new__">Add new category</option>
+                            </select>
+                            <small class="text-muted">Choose one of the preset categories, or add a new one.</small>
+                          </div>
+
+                          <div class="mb-3 d-none" id="new-category-wrap">
+                            <label for="newCategory" class="form-label">New category name</label>
+                            <input type="text" class="form-control" id="newCategory" name="newCategory"
+                              placeholder="e.g. Hoodies">
                           </div>
 
                           <div class="mb-3">
@@ -174,6 +183,29 @@
       <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
     </div>
   </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var category = document.getElementById('category');
+      var wrap = document.getElementById('new-category-wrap');
+      var input = document.getElementById('newCategory');
+
+      if (!category || !wrap || !input) {
+        return;
+      }
+
+      var toggleCustomCategory = function () {
+        var needsCustom = category.value === '__new__';
+        wrap.classList.toggle('d-none', !needsCustom);
+        input.required = needsCustom;
+        if (!needsCustom) {
+          input.value = '';
+        }
+      };
+
+      category.addEventListener('change', toggleCustomCategory);
+      toggleCustomCategory();
+    });
+  </script>
 </body>
 
 </html>
