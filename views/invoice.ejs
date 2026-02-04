@@ -1,4 +1,4 @@
-<% const pageTitle=`Invoice #${order.id} | Shirt Shop`; const extraHead=` <style>
+<% const pageTitle=`Invoice #${order.id} | Shirt Shop`; const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; const extraHead=` <style>
   body {
   background: #f5f7fb;
   color: #0f172a;
@@ -102,6 +102,12 @@
               </p>
               <p class="mb-1 text-muted">Fee: <%= Number(order.delivery_fee || 0)> 0 ? '$' +
                   Number(order.delivery_fee).toFixed(2) : 'Free' %></p>
+              <% if (order.delivery_slot_date && slotWindowLabel) { %>
+                <p class="mb-1 text-muted">Slot: <%= new Date(order.delivery_slot_date).toLocaleDateString() %> - <%= slotWindowLabel %></p>
+                <% } %>
+                  <% if (order.order_notes) { %>
+                    <p class="mb-1 text-muted">Notes: <%= order.order_notes %></p>
+                    <% } %>
             </div>
           </div>
 

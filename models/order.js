@@ -22,7 +22,10 @@ const create = (userId, cartItems, options, callback) => {
         promo_code = null,
         delivery_method = null,
         delivery_address = null,
-        delivery_fee = null
+        delivery_fee = null,
+        delivery_slot_date = null,
+        delivery_slot_window = null,
+        order_notes = null
     } = options || {};
 
     if (!Array.isArray(cartItems) || cartItems.length === 0) {
@@ -46,11 +49,51 @@ const create = (userId, cartItems, options, callback) => {
 
         const delivery_fee_safe = Number.isFinite(delivery_fee) ? Number(delivery_fee) : shipping_amount_safe;
         const orderSql = `
-            INSERT INTO orders (order_number, user_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, billing_address, promo_code, delivery_method, delivery_address, delivery_fee)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO orders (
+                order_number,
+                user_id,
+                status,
+                subtotal,
+                tax_amount,
+                shipping_amount,
+                discount_amount,
+                total_amount,
+                payment_method,
+                payment_status,
+                shipping_address,
+                billing_address,
+                promo_code,
+                delivery_method,
+                delivery_address,
+                delivery_fee,
+                delivery_slot_date,
+                delivery_slot_window,
+                order_notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-        connection.query(orderSql, [generateOrderNumber(), userId, status, subtotal, tax_amount, shipping_amount_safe, discount_amount_safe, total_amount, payment_method, payment_status, shipping_address, billing_address, promo_code, delivery_method, delivery_address, delivery_fee_safe], (oErr, oRes) => {
+        connection.query(orderSql, [
+            generateOrderNumber(),
+            userId,
+            status,
+            subtotal,
+            tax_amount,
+            shipping_amount_safe,
+            discount_amount_safe,
+            total_amount,
+            payment_method,
+            payment_status,
+            shipping_address,
+            billing_address,
+            promo_code,
+            delivery_method,
+            delivery_address,
+            delivery_fee_safe,
+            delivery_slot_date,
+            delivery_slot_window,
+            order_notes
+        ], (oErr, oRes) => {
             if (oErr) return connection.rollback(() => callback(oErr));
             const orderId = oRes.insertId;
 
@@ -127,7 +170,7 @@ const create = (userId, cartItems, options, callback) => {
  */
 const findByUser = (userId, callback) => {
     const sql = `
-        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, created_at
+        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, delivery_slot_date, delivery_slot_window, order_notes, created_at
         FROM orders
         WHERE user_id = ?
             ORDER BY created_at DESC, id DESC
@@ -159,6 +202,9 @@ const findAllWithUsers = (callback) => {
             o.total_amount,
             o.payment_method,
             o.shipping_address,
+            o.delivery_slot_date,
+            o.delivery_slot_window,
+            o.order_notes,
             o.delivery_method,
             o.delivery_address,
             o.delivery_fee,

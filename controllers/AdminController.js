@@ -1,5 +1,6 @@
 const Product = require('../models/product');
 const Order = require('../models/order');
+const Coupon = require('../models/coupon');
 
 const toNumber = (value) => {
     const parsed = Number(value);
@@ -28,19 +29,26 @@ const AdminController = {
                             console.error('Error loading recent orders:', recentErr);
                         }
 
-                        const stats = productStats || {};
+                        Coupon.getStats((couponErr, couponStats) => {
+                            if (couponErr) {
+                                console.error('Error loading coupon stats:', couponErr);
+                            }
 
-                        res.render('adminDashboard', {
-                            user: req.session.user,
-                            metrics: {
-                                totalProducts: toNumber(stats.totalProducts),
-                                totalUnits: toNumber(stats.totalUnits),
-                                openOrders: toNumber(openCount),
-                                deliveredLast7Days: toNumber(deliveredCount)
-                            },
-                            recentOrders: recentOrders || [],
-                            messages: req.flash('success'),
-                            errors: req.flash('error')
+                            const stats = productStats || {};
+
+                            res.render('adminDashboard', {
+                                user: req.session.user,
+                                metrics: {
+                                    totalProducts: toNumber(stats.totalProducts),
+                                    totalUnits: toNumber(stats.totalUnits),
+                                    openOrders: toNumber(openCount),
+                                    deliveredLast7Days: toNumber(deliveredCount)
+                                },
+                                couponStats: couponStats || { active: 0, scheduled: 0, expired: 0 },
+                                recentOrders: recentOrders || [],
+                                messages: req.flash('success'),
+                                errors: req.flash('error')
+                            });
                         });
                     });
                 });

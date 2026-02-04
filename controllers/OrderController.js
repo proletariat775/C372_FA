@@ -4,6 +4,7 @@ const User = require('../models/user');
 const Coupon = require('../models/coupon');
 const OrderReview = require('../models/orderReview');
 const couponService = require('../services/couponService');
+const bundleService = require('../services/bundleService');
 const sustainabilityService = require('../services/sustainabilityService');
 const paypalService = require('../services/paypalService');
 const netsQrService = require('../services/netsQrService');
@@ -100,6 +101,8 @@ const buildCartItem = (product, variant, quantity) => {
         product_variant_id: variantId,
         size,
         productName: product.productName || product.name,
+        brandId: product.brand_id || product.brandId || null,
+        brand: product.brand || product.brand_name || null,
         price: finalPrice,
         quantity,
         image: product.image || null,
@@ -188,6 +191,8 @@ const validateCartForCheckout = async (req) => {
                 price: variant.price,
                 discount_percent: variant.discount_percent,
                 description: variant.description,
+                brand_id: variant.brand_id,
+                brand: variant.brand_name,
                 image: variant.image
             };
 
@@ -290,46 +295,33 @@ const resolvePaymentMethod = (value, allowedValues = PAYMENT_METHODS.map((method
     return allowedValues.includes(selected) ? selected : null;
 };
 
-const calculateBundleDiscount = (cart, bundle) => {
-    if (!bundle || !Array.isArray(bundle.productIds) || !bundle.productIds.length) {
-        return 0;
+// FEATURE 1/2: Delivery slot + order notes validation helpers.
+const normaliseOrderNotes = (value) => {
+    if (!value) {
+        return '';
     }
-
-    const rate = Number(bundle.discountRate || 0);
-    if (!Number.isFinite(rate) || rate <= 0) {
-        return 0;
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+        return '';
     }
-
-    const idSet = new Set(bundle.productIds.map(id => Number(id)));
-    const eligibleTotal = (cart || []).reduce((sum, item) => {
-        const productId = Number(item.productId);
-        if (!idSet.has(productId)) {
-            return sum;
-        }
-        const price = Number(item.price);
-        const qty = Number(item.quantity);
-        if (!Number.isFinite(price) || !Number.isFinite(qty)) {
-            return sum;
-        }
-        return sum + (price * qty);
-    }, 0);
-
-    if (!eligibleTotal) {
-        return 0;
-    }
-
-    return Number((eligibleTotal * rate).toFixed(2));
+    return trimmed.slice(0, 200);
 };
 
 const clearBundleIfEmpty = (req) => {
-    if (req.session && req.session.bundle && (!req.session.cart || req.session.cart.length === 0)) {
+    if (!req.session || (req.session.cart && req.session.cart.length > 0)) {
+        return;
+    }
+    if (req.session.bundleDefinitions) {
+        delete req.session.bundleDefinitions;
+    }
+    if (req.session.bundle) {
         delete req.session.bundle;
     }
 };
 
 const resolveBaseUrl = (req) => process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
 
-const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress) => {
+const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, orderNotes) => {
     const { cart, changed, issues } = await validateCartForCheckout(req);
     if (!cart.length) {
         clearBundleIfEmpty(req);
@@ -346,7 +338,7 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress) => {
 
     const subtotal = couponService.calculateSubtotal(cart);
     const cartContainer = ensureSessionCart(req);
-    let appliedCoupon = cartContainer.appliedCoupon || null;
+    let appliedCoupon = (req.session && req.session.appliedCoupon) || cartContainer.appliedCoupon || null;
     let discountAmount = 0;
     let promoCode = null;
     let couponId = null;
@@ -356,11 +348,15 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress) => {
             const validation = await couponService.validateCoupon(
                 appliedCoupon.code,
                 req.session.user.id,
-                subtotal
+                subtotal,
+                cart
             );
 
             if (!validation.valid) {
                 delete cartContainer.appliedCoupon;
+                if (req.session && req.session.appliedCoupon) {
+                    delete req.session.appliedCoupon;
+                }
                 appliedCoupon = null;
             } else {
                 discountAmount = validation.discountAmount;
@@ -368,18 +364,23 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress) => {
                 couponId = validation.coupon.id;
                 appliedCoupon = couponService.buildAppliedCoupon(validation.coupon, discountAmount);
                 cartContainer.appliedCoupon = appliedCoupon;
+                if (req.session) {
+                    req.session.appliedCoupon = appliedCoupon;
+                }
             }
         } catch (error) {
             console.error('Error validating coupon during payment:', error);
             delete cartContainer.appliedCoupon;
+            if (req.session && req.session.appliedCoupon) {
+                delete req.session.appliedCoupon;
+            }
             appliedCoupon = null;
         }
     }
 
-    const bundleDiscount = calculateBundleDiscount(cart, req.session.bundle);
-    if (!bundleDiscount && req.session.bundle) {
-        delete req.session.bundle;
-    }
+    const bundleSource = req.session.bundleDefinitions || req.session.bundle || [];
+    const bundleResult = bundleService.calculateBundleDiscount(cart, bundleSource);
+    const bundleDiscount = bundleResult.discountAmount;
 
     const baseTotal = Math.max(0, subtotal - discountAmount - bundleDiscount);
     const resolvedDeliveryMethod = deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
@@ -390,6 +391,15 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress) => {
     if (resolvedDeliveryMethod === 'delivery' && !resolvedAddress) {
         return { error: 'Please provide a delivery address.' };
     }
+
+    // Delivery slot selection removed; ignore any slot inputs.
+    const slotValidation = { valid: true, slot: null };
+
+    const rawNotes = orderNotes ? String(orderNotes) : '';
+    if (rawNotes && rawNotes.trim().length > 200) {
+        return { error: 'Order notes must be 200 characters or fewer.' };
+    }
+    const safeNotes = normaliseOrderNotes(rawNotes);
 
     const deliveryFee = computeDeliveryFee(req.session.user, resolvedDeliveryMethod);
     const total = Number((baseTotal + (resolvedDeliveryMethod === 'delivery' ? deliveryFee : 0)).toFixed(2));
@@ -407,7 +417,9 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress) => {
         couponId,
         couponDiscount: discountAmount,
         deliveryMethod: resolvedDeliveryMethod,
-        deliveryAddress: resolvedAddress
+        deliveryAddress: resolvedAddress,
+        deliverySlot: slotValidation.slot,
+        orderNotes: safeNotes
     };
 };
 
@@ -425,7 +437,10 @@ const finalizePaidOrder = (req, snapshot, paymentMethod) => new Promise((resolve
         delivery_fee: deliveryFee,
         payment_method: paymentMethod,
         payment_status: 'paid',
-        status: 'processing'
+        status: 'processing',
+        delivery_slot_date: snapshot.deliverySlot ? snapshot.deliverySlot.date : null,
+        delivery_slot_window: snapshot.deliverySlot ? snapshot.deliverySlot.window : null,
+        order_notes: snapshot.orderNotes || null
     }, (error, result) => {
         if (error) {
             return reject(error);
@@ -447,6 +462,9 @@ const finalizePaidOrder = (req, snapshot, paymentMethod) => new Promise((resolve
         }
 
         req.session.cart = [];
+        if (req.session.bundleDefinitions) {
+            delete req.session.bundleDefinitions;
+        }
         if (req.session.bundle) {
             delete req.session.bundle;
         }
@@ -483,7 +501,7 @@ const showCheckout = async (req, res) => {
 
         const subtotal = couponService.calculateSubtotal(cart);
         const cartContainer = ensureSessionCart(req);
-        let appliedCoupon = cartContainer.appliedCoupon || null;
+        let appliedCoupon = (req.session && req.session.appliedCoupon) || cartContainer.appliedCoupon || null;
         let discountAmount = 0;
 
         if (appliedCoupon && subtotal > 0) {
@@ -491,30 +509,39 @@ const showCheckout = async (req, res) => {
                 const validation = await couponService.validateCoupon(
                     appliedCoupon.code,
                     req.session.user.id,
-                    subtotal
+                    subtotal,
+                    cart
                 );
 
                 if (!validation.valid) {
                     delete cartContainer.appliedCoupon;
+                    if (req.session && req.session.appliedCoupon) {
+                        delete req.session.appliedCoupon;
+                    }
                     req.flash('error', validation.message || 'Coupon is no longer valid.');
                     appliedCoupon = null;
                 } else {
                     discountAmount = validation.discountAmount;
                     appliedCoupon = couponService.buildAppliedCoupon(validation.coupon, discountAmount);
                     cartContainer.appliedCoupon = appliedCoupon;
+                    if (req.session) {
+                        req.session.appliedCoupon = appliedCoupon;
+                    }
                 }
             } catch (error) {
                 console.error('Error validating coupon during checkout preview:', error);
                 delete cartContainer.appliedCoupon;
+                if (req.session && req.session.appliedCoupon) {
+                    delete req.session.appliedCoupon;
+                }
                 appliedCoupon = null;
                 req.flash('error', 'Unable to validate your coupon right now.');
             }
         }
 
-        const bundleDiscount = calculateBundleDiscount(cart, req.session.bundle);
-        if (!bundleDiscount && req.session.bundle) {
-            delete req.session.bundle;
-        }
+        const bundleSource = req.session.bundleDefinitions || req.session.bundle || [];
+        const bundleResult = bundleService.calculateBundleDiscount(cart, bundleSource);
+        const bundleDiscount = bundleResult.discountAmount;
 
         const baseTotal = Math.max(0, subtotal - discountAmount - bundleDiscount);
         const deliveryFee = computeDeliveryFee(req.session.user, 'delivery');
@@ -527,7 +554,7 @@ const showCheckout = async (req, res) => {
             discountAmount,
             appliedCoupon,
             bundleDiscount,
-            bundleInfo: req.session.bundle || null,
+            bundleInfo: bundleResult,
             baseTotal,
             deliveryFee,
             impactSummary,
@@ -583,6 +610,14 @@ const checkout = (req, res) => {
                 return res.redirect('/cart');
             }
 
+            // Delivery slot selection removed; keep order notes optional.
+            const rawNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
+            if (rawNotes && rawNotes.trim().length > 200) {
+                req.flash('error', 'Order notes must be 200 characters or fewer.');
+                return res.redirect('/checkout');
+            }
+            const orderNotes = normaliseOrderNotes(rawNotes);
+
             if (!paymentMethod) {
                 req.flash('error', 'Please select a payment method.');
                 return res.redirect('/checkout');
@@ -590,22 +625,24 @@ const checkout = (req, res) => {
 
             const deliveryFee = computeDeliveryFee(req.session.user, deliveryMethod);
             const subtotal = couponService.calculateSubtotal(cart);
-            const bundleDiscount = calculateBundleDiscount(cart, req.session.bundle);
-            if (!bundleDiscount && req.session.bundle) {
-                delete req.session.bundle;
-            }
+            const bundleSource = req.session.bundleDefinitions || req.session.bundle || [];
+            const bundleResult = bundleService.calculateBundleDiscount(cart, bundleSource);
+            const bundleDiscount = bundleResult.discountAmount;
 
             const cartContainer = ensureSessionCart(req);
-            let appliedCoupon = cartContainer.appliedCoupon || null;
+            let appliedCoupon = (req.session && req.session.appliedCoupon) || cartContainer.appliedCoupon || null;
             let discountAmount = 0;
             let promoCode = null;
             let couponId = null;
 
             if (appliedCoupon && subtotal > 0) {
-                return couponService.validateCoupon(appliedCoupon.code, req.session.user.id, subtotal)
+                return couponService.validateCoupon(appliedCoupon.code, req.session.user.id, subtotal, cart)
                     .then((validation) => {
                         if (!validation.valid) {
                             delete cartContainer.appliedCoupon;
+                            if (req.session && req.session.appliedCoupon) {
+                                delete req.session.appliedCoupon;
+                            }
                             req.flash('error', validation.message || 'Coupon is no longer valid.');
                             return res.redirect('/cart');
                         }
@@ -614,6 +651,9 @@ const checkout = (req, res) => {
                         promoCode = validation.coupon.code;
                         couponId = validation.coupon.id;
                         cartContainer.appliedCoupon = couponService.buildAppliedCoupon(validation.coupon, discountAmount);
+                        if (req.session) {
+                            req.session.appliedCoupon = cartContainer.appliedCoupon;
+                        }
 
                         return createOrderWithCoupon({
                             req,
@@ -626,7 +666,10 @@ const checkout = (req, res) => {
                             discountAmount: discountAmount + bundleDiscount,
                             couponDiscount: discountAmount,
                             promoCode,
-                            couponId
+                            couponId,
+                            deliverySlotDate: null,
+                            deliverySlotWindow: null,
+                            orderNotes
                         });
                     })
                     .catch((error) => {
@@ -647,7 +690,10 @@ const checkout = (req, res) => {
                 discountAmount: discountAmount + bundleDiscount,
                 couponDiscount: discountAmount,
                 promoCode,
-                couponId
+                couponId,
+                deliverySlotDate: null,
+                deliverySlotWindow: null,
+                orderNotes
             });
         })
         .catch((error) => {
@@ -657,7 +703,22 @@ const checkout = (req, res) => {
         });
 };
 
-const createOrderWithCoupon = ({ req, res, cart, deliveryAddress, deliveryFee, deliveryMethod, paymentMethod, discountAmount, couponDiscount, promoCode, couponId }) => {
+const createOrderWithCoupon = ({
+    req,
+    res,
+    cart,
+    deliveryAddress,
+    deliveryFee,
+    deliveryMethod,
+    paymentMethod,
+    discountAmount,
+    couponDiscount,
+    promoCode,
+    couponId,
+    deliverySlotDate,
+    deliverySlotWindow,
+    orderNotes
+}) => {
     return Order.create(req.session.user.id, cart, {
         shipping_address: deliveryAddress,
         shipping_amount: deliveryFee,
@@ -666,7 +727,10 @@ const createOrderWithCoupon = ({ req, res, cart, deliveryAddress, deliveryFee, d
         delivery_method: deliveryMethod,
         delivery_address: deliveryAddress,
         delivery_fee: deliveryFee,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        delivery_slot_date: deliverySlotDate,
+        delivery_slot_window: deliverySlotWindow,
+        order_notes: orderNotes || null
     }, (error, result) => {
         if (error) {
             console.error('Error during checkout:', error);
@@ -690,6 +754,9 @@ const createOrderWithCoupon = ({ req, res, cart, deliveryAddress, deliveryFee, d
         }
 
         req.session.cart = [];
+        if (req.session.bundleDefinitions) {
+            delete req.session.bundleDefinitions;
+        }
         if (req.session.bundle) {
             delete req.session.bundle;
         }
@@ -1072,7 +1139,9 @@ const createPayPalOrder = async (req, res) => {
     try {
         const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
         const deliveryAddress = req.body.deliveryAddress ? String(req.body.deliveryAddress).trim() : '';
-        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress);
+        const orderNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
+        // Delivery slot input removed; keep the payload minimal.
+        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes);
 
         if (snapshot.error) {
             return res.status(400).json({ success: false, message: snapshot.error, issues: snapshot.issues || [] });
@@ -1154,7 +1223,9 @@ const createNetsQrPayment = async (req, res) => {
     try {
         const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
         const deliveryAddress = req.body.deliveryAddress ? String(req.body.deliveryAddress).trim() : '';
-        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress);
+        const orderNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
+        // Delivery slot input removed; keep the payload minimal.
+        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes);
 
         if (snapshot.error) {
             return res.status(400).json({ success: false, message: snapshot.error, issues: snapshot.issues || [] });

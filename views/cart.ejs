@@ -241,8 +241,14 @@
                                               <span>- $<%= Number(discountAmount).toFixed(2) %></span>
                                             </div>
                                             <% } %>
+                                              <% if (bundleDiscount && Number(bundleDiscount)> 0) { %>
+                                                <div class="d-flex justify-content-between text-success">
+                                                  <span>Bundle discount</span>
+                                                  <span>- $<%= Number(bundleDiscount).toFixed(2) %></span>
+                                                </div>
+                                                <% } %>
                                               <div class="d-flex justify-content-between fw-semibold mt-2">
-                                                <span>Final total</span>
+                                                <span>Estimated total</span>
                                                 <span>$<%= Number(finalTotal || 0).toFixed(2) %></span>
                                               </div>
                                         </div>
