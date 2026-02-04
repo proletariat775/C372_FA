@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
-  <rect width="100%" height="100%" fill="#fff8f2"/>
-  <g transform="translate(220,120)">
-    <path d="M190 0 L290 0 L350 120 L350 360 L30 360 L30 120 Z" fill="#e84b3a" stroke="#b83a2c" stroke-width="4"/>
-    <rect x="85" y="70" width="130" height="36" rx="8" fill="#ffffff" opacity="0.12"/>
-  </g>
-  <text x="50%" y="92%" text-anchor="middle" fill="#666" font-family="Arial, Helvetica, sans-serif" font-size="28">Shirt Shop — Sample Polo (Red)</text>
-</svg>
