@@ -138,6 +138,20 @@ const resolveCategory = (body) => {
     return custom || null;
 };
 
+const resolveBrand = (body) => {
+    const selected = body && body.brand ? String(body.brand).trim() : '';
+    const custom = body && body.newBrand ? String(body.newBrand).trim() : '';
+    if (selected && selected !== '__new__') {
+        return selected;
+    }
+
+    if (selected === '__new__') {
+        return custom || null;
+    }
+
+    return custom || null;
+};
+
 const enhanceProductRecord = (product) => {
     if (!product) {
         return product;
@@ -496,10 +510,30 @@ const ProductController = {
 
     // Show the add product page
     showAddProductForm: (req, res) => {
-        res.render('addProduct', {
-            user: req.session.user,
-            messages: req.flash('success'),
-            errors: req.flash('error')
+        Product.getCategories((catErr, categoryRows) => {
+            if (catErr) {
+                console.error('Error fetching categories:', catErr);
+            }
+            Product.getBrands((brandErr, brandRows) => {
+                if (brandErr) {
+                    console.error('Error fetching brands:', brandErr);
+                }
+
+                const categories = (categoryRows || [])
+                    .map((row) => row.name || row.category)
+                    .filter(Boolean);
+                const brands = (brandRows || [])
+                    .map((row) => row.name)
+                    .filter(Boolean);
+
+                res.render('addProduct', {
+                    user: req.session.user,
+                    categories,
+                    brands,
+                    messages: req.flash('success'),
+                    errors: req.flash('error')
+                });
+            });
         });
     },
 
@@ -509,6 +543,7 @@ const ProductController = {
         const imageBack = req.files && req.files.imageBack ? req.files.imageBack[0].filename : null;
         const image = req.files && req.files.image ? req.files.image[0].filename : null;
         const resolvedCategory = resolveCategory(req.body);
+        const resolvedBrand = resolveBrand(req.body);
         const sizeInfo = parseSizeQuantities(req.body);
 
         if (!resolvedCategory) {
@@ -517,6 +552,7 @@ const ProductController = {
         }
 
         req.body.category = resolvedCategory;
+        req.body.brand = resolvedBrand;
         const productData = buildProductPayload(req.body, { front: imageFront, back: imageBack, single: image }, sizeInfo);
         const detailsData = {
             description: req.body.description,
@@ -590,23 +626,37 @@ const ProductController = {
                                     console.error('Error fetching categories:', catErr);
                                 }
 
-                                const product = enhanceProductRecord(results[0]);
-                                const categories = (categoryRows || [])
-                                    .map((row) => row.name || row.category)
-                                    .filter(Boolean);
-                                if (product.category && !categories.includes(product.category)) {
-                                    categories.unshift(product.category);
-                                }
+                                Product.getBrands((brandErr, brandRows) => {
+                                    if (brandErr) {
+                                        console.error('Error fetching brands:', brandErr);
+                                    }
 
-                                res.render('updateProduct', {
-                                    user: req.session.user,
-                                    product,
-                                    productDetails: detailRows && detailRows.length ? detailRows[0] : {},
-                                    productImages: imageRows || [],
-                                    categories,
-                                    sizeQuantities,
-                                    errors: req.flash('error'),
-                                    messages: req.flash('success')
+                                    const product = enhanceProductRecord(results[0]);
+                                    const categories = (categoryRows || [])
+                                        .map((row) => row.name || row.category)
+                                        .filter(Boolean);
+                                    const brands = (brandRows || [])
+                                        .map((row) => row.name)
+                                        .filter(Boolean);
+
+                                    if (product.category && !categories.includes(product.category)) {
+                                        categories.unshift(product.category);
+                                    }
+                                    if (product.brand && !brands.includes(product.brand)) {
+                                        brands.unshift(product.brand);
+                                    }
+
+                                    res.render('updateProduct', {
+                                        user: req.session.user,
+                                        product,
+                                        productDetails: detailRows && detailRows.length ? detailRows[0] : {},
+                                        productImages: imageRows || [],
+                                        categories,
+                                        brands,
+                                        sizeQuantities,
+                                        errors: req.flash('error'),
+                                        messages: req.flash('success')
+                                    });
                                 });
                             });
                         });
@@ -629,12 +679,14 @@ const ProductController = {
         }
 
         const resolvedCategory = resolveCategory(req.body);
+        const resolvedBrand = resolveBrand(req.body);
         if (!resolvedCategory) {
             req.flash('error', 'Please choose a category or enter a new category name.');
             return res.redirect(`/updateProduct/${productId}`);
         }
 
         req.body.category = resolvedCategory;
+        req.body.brand = resolvedBrand;
         const sizeInfo = parseSizeQuantities(req.body);
         const productData = buildProductPayload(req.body, { front: imageFront, back: imageBack, single: image }, sizeInfo);
         const detailsData = {
