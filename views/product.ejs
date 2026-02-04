@@ -104,9 +104,9 @@
                     <% } %>
 
                       <% if (product) { %>
-                        <div class="row g-4 align-items-start">
-                          <div class="col-12 col-lg-6">
-                            <div class="card shadow-sm h-100">
+                        <div class="row g-4 align-items-stretch product-top-row">
+                          <div class="col-12 col-lg-6 d-flex">
+                            <div class="card shadow-sm h-100 w-100 product-media-card">
                               <% if (product.image) { %>
                                 <img src="/images/<%= product.image %>" class="card-img-top product-hero-image"
                                   alt="<%= product.productName %>">
@@ -117,8 +117,8 @@
                                   <% } %>
                             </div>
                           </div>
-                          <div class="col-12 col-lg-6">
-                            <div class="card shadow-sm h-100">
+                          <div class="col-12 col-lg-6 d-flex">
+                            <div class="card shadow-sm h-100 w-100 product-info-card">
                               <div class="card-body">
                                 <span class="badge bg-primary text-uppercase mb-3">
                                   <%= user.role %>
