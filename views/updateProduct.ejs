@@ -41,9 +41,22 @@
 
                                       <div class="mb-3">
                                         <label for="brand" class="form-label">Brand</label>
-                                        <input type="text" class="form-control" id="brand" name="brand"
-                                          value="<%= product.brand || '' %>" placeholder="e.g. Cult Gaia">
-                                        <small class="text-muted">Optional, used for brand filters and styling.</small>
+                                        <select class="form-select" id="brand" name="brand">
+                                          <option value="">No brand</option>
+                                          <% (brands || []).forEach(function(item) { %>
+                                            <option value="<%= item %>" <%=product.brand===item ? 'selected' : '' %>>
+                                              <%= item %>
+                                            </option>
+                                            <% }); %>
+                                              <option value="__new__">Add new brand</option>
+                                        </select>
+                                        <small class="text-muted">Choose an existing brand, or add a new one.</small>
+                                      </div>
+
+                                      <div class="mb-3 d-none" id="new-brand-wrap">
+                                        <label for="newBrand" class="form-label">New brand name</label>
+                                        <input type="text" class="form-control" id="newBrand" name="newBrand"
+                                          placeholder="e.g. Cult Gaia">
                                       </div>
 
                                       <div class="mb-3">
@@ -229,8 +242,11 @@
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         var category = document.getElementById('category');
-        var wrap = document.getElementById('new-category-wrap');
-        var input = document.getElementById('newCategory');
+        var categoryWrap = document.getElementById('new-category-wrap');
+        var categoryInput = document.getElementById('newCategory');
+        var brand = document.getElementById('brand');
+        var brandWrap = document.getElementById('new-brand-wrap');
+        var brandInput = document.getElementById('newBrand');
         var totalQty = document.getElementById('quantity');
         var sizeGrid = document.getElementById('size-input-grid');
         var sizeInputs = [];
@@ -238,18 +254,32 @@
         var sizeOrder = ['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One-Size'];
         var existingQuantities = <% - JSON.stringify(sizeQuantities || {}) %>;
 
-        if (category && wrap && input) {
+        if (category && categoryWrap && categoryInput) {
           var toggleCustomCategory = function () {
             var needsCustom = category.value === '__new__';
-            wrap.classList.toggle('d-none', !needsCustom);
-            input.required = needsCustom;
+            categoryWrap.classList.toggle('d-none', !needsCustom);
+            categoryInput.required = needsCustom;
             if (!needsCustom) {
-              input.value = '';
+              categoryInput.value = '';
             }
           };
 
           category.addEventListener('change', toggleCustomCategory);
           toggleCustomCategory();
+        }
+
+        if (brand && brandWrap && brandInput) {
+          var toggleCustomBrand = function () {
+            var needsCustom = brand.value === '__new__';
+            brandWrap.classList.toggle('d-none', !needsCustom);
+            brandInput.required = needsCustom;
+            if (!needsCustom) {
+              brandInput.value = '';
+            }
+          };
+
+          brand.addEventListener('change', toggleCustomBrand);
+          toggleCustomBrand();
         }
 
         var buildSizeKey = function (sizeLabel) {
