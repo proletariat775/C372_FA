@@ -7,7 +7,7 @@ const upsert = (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const user = req.session.user;
 
-    if (!user || user.role !== 'user') {
+    if (!user || user.role !== 'customer') {
         req.flash('error', 'Only shoppers can leave reviews.');
         return res.redirect(`/product/${productId}`);
     }
@@ -60,7 +60,7 @@ const remove = (req, res) => {
     const reviewId = parseInt(req.params.reviewId, 10);
     const user = req.session.user;
 
-    if (!user || user.role !== 'user') {
+    if (!user || user.role !== 'customer') {
         req.flash('error', 'Only shoppers can manage reviews.');
         return res.redirect(`/product/${productId}`);
     }

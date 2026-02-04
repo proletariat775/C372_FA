@@ -44,7 +44,7 @@ const decorateWishlistItem = (item) => {
     };
 };
 
-const isShopper = (user) => user && user.role === 'user';
+const isShopper = (user) => user && user.role === 'customer';
 const isAdmin = (user) => user && user.role === 'admin';
 
 const getRedirectPath = (user) => (user && user.role === 'admin' ? '/admin/deliveries' : '/orders/history');

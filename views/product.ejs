@@ -176,7 +176,7 @@
                                                 <% } %>
                                           </div>
 
-                                          <% if (user && user.role === 'user') { %>
+                                          <% if (user && user.role === 'customer') { %>
                                             <form action="/add-to-cart/<%= product.id %>" method="POST"
                                               class="d-flex flex-column flex-sm-row gap-3">
                                               <div class="flex-grow-1">
@@ -326,7 +326,7 @@
                                     <% } %>
                                 </div>
 
-                                <% if (user && user.role === 'user') { %>
+                                <% if (user && user.role === 'customer') { %>
                                   <form action="/product/<%= product.id %>/reviews" method="POST" class="mb-3">
                                     <div class="mb-3">
                                       <label for="rating" class="form-label">Your Rating</label>

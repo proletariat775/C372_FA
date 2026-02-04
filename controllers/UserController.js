@@ -23,10 +23,10 @@ const register = (req, res) => {
     } = req.body;
     const role = req.body.role;
 
-    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, phone, role: 'user' };
+    const formData = { username, email, first_name, last_name, address, city, state, zip_code, country, phone, role: 'customer' };
     console.log('Register endpoint body:', req.body);
-    const allowedRoles = ['user'];
-    const safeRole = allowedRoles.includes(role) ? role : 'user';
+    const allowedRoles = ['customer'];
+    const safeRole = allowedRoles.includes(role) ? role : 'customer';
     console.log('Register handler received:', formData);
 
     User.create({ username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role: safeRole }, (err, result) => {
@@ -138,7 +138,7 @@ const updateUserRole = (req, res) => {
     const userId = parseInt(req.params.id, 10);
     const { username, email, address, phone, role } = req.body;
 
-    const allowedRoles = ['user', 'admin'];
+    const allowedRoles = ['customer', 'admin'];
     const errors = [];
 
     if (Number.isNaN(userId)) {
