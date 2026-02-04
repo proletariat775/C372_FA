@@ -16,7 +16,7 @@ const ensureSessionCart = (req) => {
 };
 
 const ensureShopperRole = (req, res) => {
-    const shopperRoles = ['user', 'customer'];
+    const shopperRoles = ['user'];
     if (!req.session.user || !shopperRoles.includes(req.session.user.role)) {
         req.flash('error', 'Access denied.');
         res.redirect('/login');

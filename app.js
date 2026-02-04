@@ -70,34 +70,34 @@ app.get('/admin/users/:id/edit', checkAuthenticated, checkAdmin, userController.
 app.post('/admin/users/:id', checkAuthenticated, checkAdmin, userController.updateUserRole);
 app.post('/admin/users/:id/delete', checkAuthenticated, checkAdmin, userController.deleteUser);
 
-app.get('/shopping', checkAuthenticated, checkRoles('user', 'customer'), productController.showShopping);
+app.get('/shopping', checkAuthenticated, checkRoles('user'), productController.showShopping);
 
 // TEAM START - Fit assistant routes
 app.get('/fit-assistant', fitAssistantController.show);
 app.post('/fit-assistant', fitAssistantController.calculate);
 // TEAM END - Fit assistant routes
 
-app.post('/add-to-cart/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.addToCart);
-app.get('/cart', checkAuthenticated, checkRoles('user', 'customer'), cartController.viewCart);
-app.post('/cart/update/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.updateCartItem);
-app.post('/cart/remove/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.removeCartItem);
-app.post('/cart/apply-coupon', checkAuthenticated, checkRoles('user', 'customer'), cartController.applyCoupon);
-app.post('/cart/remove-coupon', checkAuthenticated, checkRoles('user', 'customer'), cartController.removeCoupon);
-app.post('/checkout', checkAuthenticated, checkRoles('user', 'customer'), orderController.checkout);
-app.get('/orders/history', checkAuthenticated, checkRoles('user', 'customer', 'admin'), orderController.history);
+app.post('/add-to-cart/:id', checkAuthenticated, checkRoles('user'), cartController.addToCart);
+app.get('/cart', checkAuthenticated, checkRoles('user'), cartController.viewCart);
+app.post('/cart/update/:id', checkAuthenticated, checkRoles('user'), cartController.updateCartItem);
+app.post('/cart/remove/:id', checkAuthenticated, checkRoles('user'), cartController.removeCartItem);
+app.post('/cart/apply-coupon', checkAuthenticated, checkRoles('user'), cartController.applyCoupon);
+app.post('/cart/remove-coupon', checkAuthenticated, checkRoles('user'), cartController.removeCoupon);
+app.post('/checkout', checkAuthenticated, checkRoles('user'), orderController.checkout);
+app.get('/orders/history', checkAuthenticated, checkRoles('user', 'admin'), orderController.history);
 app.post('/orders/:id/delivery', checkAuthenticated, orderController.updateDeliveryDetails);
 app.get('/orders/:id/invoice', checkAuthenticated, orderController.invoice);
 // ZOEY START - Post-purchase management routes
-app.get('/orders', checkAuthenticated, checkRoles('user', 'customer', 'admin'), orderController.history);
-app.get('/order/:id', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.details);
-app.get('/order/:id/track', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.track);
-app.get('/order/:id/review', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.reviewForm);
-app.post('/review/:id/submit', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.submitReview);
-app.get('/order/:id/return', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.returnForm);
-app.post('/return/:id/process', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.processReturn);
-app.get('/wishlist', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.wishlist);
-app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.addWishlist);
-app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('user', 'customer', 'admin'), postPurchaseController.removeWishlist);
+app.get('/orders', checkAuthenticated, checkRoles('user', 'admin'), orderController.history);
+app.get('/order/:id', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.details);
+app.get('/order/:id/track', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.track);
+app.get('/order/:id/review', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.reviewForm);
+app.post('/review/:id/submit', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.submitReview);
+app.get('/order/:id/return', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.returnForm);
+app.post('/return/:id/process', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.processReturn);
+app.get('/wishlist', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.wishlist);
+app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.addWishlist);
+app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('user', 'admin'), postPurchaseController.removeWishlist);
 // ZOEY END - Post-purchase management routes
 
 app.get('/logout', userController.logout);

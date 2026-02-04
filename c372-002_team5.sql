@@ -45,7 +45,7 @@ CREATE TABLE users (
   zip_code VARCHAR(20) NULL,
   country VARCHAR(100) NULL,
   phone VARCHAR(30) NULL,
-  role ENUM('customer', 'user', 'admin') NOT NULL DEFAULT 'customer',
+  role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
   free_delivery TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -363,7 +363,7 @@ ON DUPLICATE KEY UPDATE is_active = VALUES(is_active);
 INSERT INTO users (username, email, password, role)
 VALUES
   ('admin', 'admin@shirtshop.local', SHA1('admin123'), 'admin'),
-  ('customer', 'customer@shirtshop.local', SHA1('customer123'), 'customer')
+  ('user', 'user@shirtshop.local', SHA1('user123'), 'user')
 ON DUPLICATE KEY UPDATE role = VALUES(role);
 
 SET FOREIGN_KEY_CHECKS = 1;

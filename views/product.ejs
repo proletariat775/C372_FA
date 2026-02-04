@@ -176,7 +176,7 @@
                                                 <% } %>
                                           </div>
 
-                                          <% if (user && user.role==='user' ) { %>
+                                          <% if (user && user.role === 'user') { %>
                                             <form action="/add-to-cart/<%= product.id %>" method="POST"
                                               class="d-flex flex-column flex-sm-row gap-3">
                                               <div class="flex-grow-1">
@@ -278,7 +278,7 @@
                                 <p class="text-muted mb-0">More styles curated for your next look.</p>
                               </div>
                             </div>
-                            <% if (relatedProducts && relatedProducts.length) { %>
+                            <% if (typeof relatedProducts !== 'undefined' && relatedProducts && relatedProducts.length) { %>
                               <div class="row g-3">
                                 <% relatedProducts.slice(0, 3).forEach(function(item) { %>
                                   <div class="col-12 col-md-6 col-lg-4">
@@ -326,7 +326,7 @@
                                     <% } %>
                                 </div>
 
-                                <% if (user && user.role==='user' ) { %>
+                                <% if (user && user.role === 'user') { %>
                                   <form action="/product/<%= product.id %>/reviews" method="POST" class="mb-3">
                                     <div class="mb-3">
                                       <label for="rating" class="form-label">Your Rating</label>
