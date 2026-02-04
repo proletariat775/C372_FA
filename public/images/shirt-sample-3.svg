@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
-  <rect width="100%" height="100%" fill="#f3fff5"/>
-  <g transform="translate(210,120)">
-    <path d="M195 0 L295 0 L355 120 L355 360 L35 360 L35 120 Z" fill="#2ecc71" stroke="#22a85a" stroke-width="4"/>
-    <rect x="92" y="70" width="116" height="38" rx="8" fill="#ffffff" opacity="0.12"/>
-  </g>
-  <text x="50%" y="92%" text-anchor="middle" fill="#666" font-family="Arial, Helvetica, sans-serif" font-size="28">Shirt Shop — Sample Longsleeve (Green)</text>
-</svg>
