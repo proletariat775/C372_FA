@@ -9,12 +9,14 @@ const cartController = require('./controllers/CartController');
 const productController = require('./controllers/ProductController');
 const orderController = require('./controllers/OrderController');
 const reviewController = require('./controllers/ReviewController');
+const reviewsController = require('./controllers/ReviewsController');
+const adminController = require('./controllers/AdminController');
 // TEAM START - Fit assistant controller
 const fitAssistantController = require('./controllers/FitAssistantController');
 // TEAM END - Fit assistant controller
-// ZOEY START - Post-purchase management controller
+
 const postPurchaseController = require('./controllers/PostPurchaseController');
-// ZOEY END - Post-purchase management controller
+
 const {
     checkAuthenticated,
     checkAdmin,
@@ -32,6 +34,11 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+const productImageUpload = upload.fields([
+    { name: 'imageFront', maxCount: 1 },
+    { name: 'imageBack', maxCount: 1 },
+    { name: 'image', maxCount: 1 }
+]);
 
 // Set up view engine
 app.set('view engine', 'ejs');
@@ -41,6 +48,7 @@ app.use(express.static('public'));
 app.use(express.urlencoded({
     extended: false
 }));
+app.use(express.json());
 
 // Session Middleware
 app.use(session({
@@ -58,6 +66,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);
+app.get('/admin/dashboard', checkAuthenticated, checkAdmin, adminController.dashboard);
 
 app.get('/register', userController.showRegister);
 app.post('/register', userController.register);
@@ -71,6 +80,7 @@ app.post('/admin/users/:id', checkAuthenticated, checkAdmin, userController.upda
 app.post('/admin/users/:id/delete', checkAuthenticated, checkAdmin, userController.deleteUser);
 
 app.get('/shopping', checkAuthenticated, checkRoles('customer'), productController.showShopping);
+app.post('/bundle/add', checkAuthenticated, checkRoles('customer'), productController.addBundleToCart);
 
 // TEAM START - Fit assistant routes
 app.get('/fit-assistant', fitAssistantController.show);
@@ -83,11 +93,17 @@ app.post('/cart/update/:id', checkAuthenticated, checkRoles('customer'), cartCon
 app.post('/cart/remove/:id', checkAuthenticated, checkRoles('customer'), cartController.removeCartItem);
 app.post('/cart/apply-coupon', checkAuthenticated, checkRoles('customer'), cartController.applyCoupon);
 app.post('/cart/remove-coupon', checkAuthenticated, checkRoles('customer'), cartController.removeCoupon);
+app.get('/checkout', checkAuthenticated, checkRoles('customer'), orderController.showCheckout);
 app.post('/checkout', checkAuthenticated, checkRoles('customer'), orderController.checkout);
+app.post('/payments/paypal/create', checkAuthenticated, checkRoles('customer'), orderController.createPayPalOrder);
+app.post('/payments/paypal/capture', checkAuthenticated, checkRoles('customer'), orderController.capturePayPalOrder);
+app.post('/payments/netsqr/create', checkAuthenticated, checkRoles('customer'), orderController.createNetsQrPayment);
+app.get('/payments/netsqr/status', checkAuthenticated, checkRoles('customer'), orderController.getNetsQrStatus);
+app.post('/payments/netsqr/finalize', checkAuthenticated, checkRoles('customer'), orderController.finalizeNetsQrPayment);
 app.get('/orders/history', checkAuthenticated, checkRoles('customer', 'admin'), orderController.history);
 app.post('/orders/:id/delivery', checkAuthenticated, orderController.updateDeliveryDetails);
 app.get('/orders/:id/invoice', checkAuthenticated, orderController.invoice);
-// ZOEY START - Post-purchase management routes
+
 app.get('/orders', checkAuthenticated, checkRoles('customer', 'admin'), orderController.history);
 app.get('/order/:id', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.details);
 app.get('/order/:id/track', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.track);
@@ -98,22 +114,24 @@ app.post('/return/:id/process', checkAuthenticated, checkRoles('customer', 'admi
 app.get('/wishlist', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.wishlist);
 app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.addWishlist);
 app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.removeWishlist);
-// ZOEY END - Post-purchase management routes
+
 
 app.get('/logout', userController.logout);
 
 app.get('/product/:id', checkAuthenticated, productController.showProductDetails);
 app.post('/product/:id/reviews', checkAuthenticated, checkRoles('customer'), reviewController.upsert);
 app.post('/product/:id/reviews/:reviewId/delete', checkAuthenticated, checkRoles('customer'), reviewController.remove);
+app.post('/reviews', checkAuthenticated, checkRoles('customer'), reviewsController.createReview);
 
 app.get('/addProduct', checkAuthenticated, checkAdmin, productController.showAddProductForm);
-app.post('/addProduct', checkAuthenticated, checkAdmin, upload.single('image'), productController.addProduct);
+app.post('/addProduct', checkAuthenticated, checkAdmin, productImageUpload, productController.addProduct);
 
 app.get('/updateProduct/:id', checkAuthenticated, checkAdmin, productController.showUpdateProductForm);
-app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, upload.single('image'), productController.updateProduct);
+app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, productImageUpload, productController.updateProduct);
 
 app.get('/deleteProduct/:id', checkAuthenticated, checkAdmin, productController.deleteProduct);
 app.get('/admin/deliveries', checkAuthenticated, checkAdmin, orderController.listAllDeliveries);
+app.post('/admin/orders/:id/update', checkAuthenticated, checkAdmin, orderController.updateAdminOrder);
 
 
 const PORT = process.env.PORT || 3000;

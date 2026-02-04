@@ -1,0 +1,120 @@
+<%- include('partial/header', { title: 'Admin Dashboard | Shirt Shop' }) %>
+<%- include('partial/adminNavbar', { user: user }) %>
+
+<% const statusClasses = {
+  pending: 'bg-warning text-dark',
+  packed: 'bg-info text-dark',
+  shipped: 'bg-primary',
+  delivered: 'bg-success',
+  completed: 'bg-success',
+  cancelled: 'bg-secondary',
+  returned: 'bg-danger'
+}; %>
+
+<section class="page-section">
+  <div class="container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <p class="mb-1 text-muted">Administrator dashboard</p>
+        <h2 class="mb-0">Admin overview</h2>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/addProduct" class="btn btn-primary">Add product</a>
+        <a href="/admin/deliveries" class="btn btn-outline-secondary">View orders</a>
+      </div>
+    </div>
+
+    <% if (messages && messages.length) { %>
+      <% messages.forEach(function(message) { %>
+        <div class="alert alert-success"><%= message %></div>
+      <% }); %>
+    <% } %>
+
+    <% if (errors && errors.length) { %>
+      <% errors.forEach(function(error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% }); %>
+    <% } %>
+
+    <div class="row g-4">
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <p class="text-muted mb-1">Total products</p>
+            <h3 class="mb-0"><%= metrics.totalProducts %></h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <p class="text-muted mb-1">Units in stock</p>
+            <h3 class="mb-0"><%= metrics.totalUnits %></h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <p class="text-muted mb-1">Open orders</p>
+            <h3 class="mb-0"><%= metrics.openOrders %></h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <p class="text-muted mb-1">Delivered (7 days)</p>
+            <h3 class="mb-0"><%= metrics.deliveredLast7Days %></h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+          <div>
+            <h4 class="mb-1">Recent orders</h4>
+            <p class="text-muted mb-0">Latest activity across the storefront.</p>
+          </div>
+          <a href="/admin/deliveries" class="btn btn-outline-primary btn-sm">Manage orders</a>
+        </div>
+        <% if (recentOrders && recentOrders.length) { %>
+          <div class="table-responsive">
+            <table class="table table-modern align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% recentOrders.forEach(function(order) { %>
+                  <tr>
+                    <td>#<%= order.order_number || order.id %></td>
+                    <td><%= order.username %></td>
+                    <td>
+                      <span class="badge <%= statusClasses[order.status] || 'bg-light text-dark' %> text-uppercase">
+                        <%= order.status %>
+                      </span>
+                    </td>
+                    <td class="text-end">$<%= Number(order.total_amount || 0).toFixed(2) %></td>
+                    <td class="text-end"><%= new Date(order.created_at).toLocaleDateString() %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <p class="text-muted mb-0">No recent orders to display.</p>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partial/footer') %>

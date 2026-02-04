@@ -16,8 +16,13 @@ const create = (userId, cartItems, options, callback) => {
         billing_address = null,
         shipping_amount = 0.00,
         payment_method = 'cod',
+        payment_status = 'pending',
+        status = 'pending',
         discount_amount = 0.00,
-        promo_code = null
+        promo_code = null,
+        delivery_method = null,
+        delivery_address = null,
+        delivery_fee = null
     } = options || {};
 
     if (!Array.isArray(cartItems) || cartItems.length === 0) {
@@ -39,12 +44,13 @@ const create = (userId, cartItems, options, callback) => {
         const discount_amount_safe = Number.isFinite(discount_amount) ? Number(discount_amount) : 0.00;
         const total_amount = Number((subtotal + tax_amount + shipping_amount_safe - discount_amount_safe).toFixed(2));
 
+        const delivery_fee_safe = Number.isFinite(delivery_fee) ? Number(delivery_fee) : shipping_amount_safe;
         const orderSql = `
-            INSERT INTO orders (order_number, user_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, billing_address, promo_code)
-            VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+            INSERT INTO orders (order_number, user_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, billing_address, promo_code, delivery_method, delivery_address, delivery_fee)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-        connection.query(orderSql, [generateOrderNumber(), userId, subtotal, tax_amount, shipping_amount_safe, discount_amount_safe, total_amount, payment_method, shipping_address, billing_address, promo_code], (oErr, oRes) => {
+        connection.query(orderSql, [generateOrderNumber(), userId, status, subtotal, tax_amount, shipping_amount_safe, discount_amount_safe, total_amount, payment_method, payment_status, shipping_address, billing_address, promo_code, delivery_method, delivery_address, delivery_fee_safe], (oErr, oRes) => {
             if (oErr) return connection.rollback(() => callback(oErr));
             const orderId = oRes.insertId;
 
@@ -143,15 +149,31 @@ const findAllWithUsers = (callback) => {
     const sql = `
         SELECT
         o.id,
-            o.total,
-            o.created_at,
+            o.user_id,
+            o.order_number,
+            o.status,
+            o.subtotal,
+            o.tax_amount,
+            o.shipping_amount,
+            o.discount_amount,
+            o.total_amount,
+            o.payment_method,
+            o.shipping_address,
             o.delivery_method,
             o.delivery_address,
             o.delivery_fee,
+            o.shipping_provider,
+            o.tracking_number,
+            o.est_delivery_date,
+            o.admin_notes,
+            o.total,
+            o.created_at,
             u.username,
             u.email,
             u.phone AS phone,
             u.address AS account_address,
+            u.first_name,
+            u.last_name,
                 u.free_delivery
         FROM orders o
         JOIN users u ON u.id = o.user_id
@@ -170,7 +192,8 @@ const findItemsByOrderIds = (orderIds, callback) => {
 
     const sql = `
         SELECT
-        oi.order_id,
+        oi.id,
+            oi.order_id,
             oi.product_variant_id,
             oi.product_name AS productName,
                 oi.variant_description,
@@ -217,7 +240,13 @@ const getBestSellers = (limit, callback) => {
 };
 
 const updateDelivery = (orderId, deliveryData, callback) => {
-    const { shipping_address = null, shipping_amount = 0 } = deliveryData || {};
+    const {
+        shipping_address = null,
+        shipping_amount = 0,
+        delivery_method = null,
+        delivery_address = null,
+        delivery_fee = null
+    } = deliveryData || {};
 
     // recalc total_amount using subtotal + tax + shipping - discount
     connection.query('SELECT subtotal, tax_amount, discount_amount FROM orders WHERE id = ? LIMIT 1', [orderId], (err, rows) => {
@@ -230,10 +259,18 @@ const updateDelivery = (orderId, deliveryData, callback) => {
         const ship = Number.isFinite(shipping_amount) ? Number(shipping_amount) : 0;
         const total = Number((subtotal + tax + ship - discount).toFixed(2));
 
+        const fee = Number.isFinite(delivery_fee) ? Number(delivery_fee) : ship;
         const sql = `
-            UPDATE orders SET shipping_address = ?, shipping_amount = ?, total_amount = ? WHERE id = ?
+            UPDATE orders
+            SET shipping_address = ?,
+                shipping_amount = ?,
+                delivery_method = ?,
+                delivery_address = ?,
+                delivery_fee = ?,
+                total_amount = ?
+            WHERE id = ?
         `;
-        connection.query(sql, [shipping_address, ship, total, orderId], callback);
+        connection.query(sql, [shipping_address, ship, delivery_method, delivery_address, fee, total, orderId], callback);
     });
 };
 
@@ -244,5 +281,89 @@ module.exports = {
     findAllWithUsers,
     findItemsByOrderIds,
     getBestSellers,
-    updateDelivery
+    updateDelivery,
+    updateAdminOrder: (orderId, updateData, callback) => {
+        const {
+            status = 'pending',
+            shipping_provider = null,
+            tracking_number = null,
+            est_delivery_date = null,
+            admin_notes = null
+        } = updateData || {};
+
+        const sql = `
+            UPDATE orders
+            SET status = ?,
+                shipping_provider = ?,
+                tracking_number = ?,
+                est_delivery_date = ?,
+                admin_notes = ?
+            WHERE id = ?
+        `;
+        connection.query(sql, [status, shipping_provider, tracking_number, est_delivery_date, admin_notes, orderId], callback);
+    },
+    countOpenOrders: (callback) => {
+        const sql = `
+            SELECT COUNT(*) AS count
+            FROM orders
+            WHERE status NOT IN ('delivered', 'completed', 'cancelled', 'returned')
+        `;
+        connection.query(sql, (err, rows) => {
+            if (err) return callback(err);
+            const count = rows && rows[0] ? Number(rows[0].count || 0) : 0;
+            return callback(null, count);
+        });
+    },
+    countDeliveredSince: (days, callback) => {
+        const safeDays = Number.isFinite(days) && days > 0 ? Math.floor(days) : 7;
+        const sql = `
+            SELECT COUNT(*) AS count
+            FROM orders
+            WHERE status IN ('delivered', 'completed')
+              AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        `;
+        connection.query(sql, [safeDays], (err, rows) => {
+            if (err) return callback(err);
+            const count = rows && rows[0] ? Number(rows[0].count || 0) : 0;
+            return callback(null, count);
+        });
+    },
+    getRecentOrders: (limit, callback) => {
+        const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5;
+        const sql = `
+            SELECT
+                o.id,
+                o.order_number,
+                o.status,
+                o.total_amount,
+                o.created_at,
+                o.shipping_address,
+                u.username,
+                u.email
+            FROM orders o
+            JOIN users u ON u.id = o.user_id
+            ORDER BY o.created_at DESC, o.id DESC
+            LIMIT ?
+        `;
+        connection.query(sql, [safeLimit], callback);
+    },
+    hasDeliveredProduct: (userId, productId, callback) => {
+        const safeUserId = Number(userId);
+        const safeProductId = Number(productId);
+        if (!Number.isFinite(safeUserId) || !Number.isFinite(safeProductId)) {
+            return callback(null, false);
+        }
+        const sql = `
+            SELECT COUNT(*) AS count
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            LEFT JOIN product_variants pv ON pv.id = oi.product_variant_id
+            WHERE o.user_id = ? AND o.status = 'completed' AND pv.product_id = ?
+        `;
+        connection.query(sql, [safeUserId, safeProductId], (err, rows) => {
+            if (err) return callback(err);
+            const count = rows && rows[0] ? Number(rows[0].count || 0) : 0;
+            return callback(null, count > 0);
+        });
+    }
 };

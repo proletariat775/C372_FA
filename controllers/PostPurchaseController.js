@@ -185,7 +185,7 @@ const details = (req, res) => {
                 order,
                 items,
                 totals: buildTotals(order),
-                canReview: isShopper(sessionUser) && order.status === 'delivered',
+                canReview: isShopper(sessionUser) && order.status === 'completed',
                 returnEligibility: eligibility,
                 returnRequest: returnData,
                 returnTimeline: buildReturnTimeline(returnData),
@@ -260,12 +260,12 @@ const reviewForm = (req, res) => {
 
         const owner = sessionUser && order.user_id === sessionUser.id;
         if (!owner || !isShopper(sessionUser)) {
-            req.flash('error', 'Only shoppers can review delivered orders.');
+            req.flash('error', 'Only shoppers can review completed orders.');
             return res.redirect(`/order/${orderId}`);
         }
 
-        if (order.status !== 'delivered') {
-            req.flash('error', 'Reviews are available after delivery is complete.');
+        if (order.status !== 'completed') {
+            req.flash('error', 'Reviews are available after the order is completed.');
             return res.redirect(`/order/${orderId}`);
         }
 
@@ -346,8 +346,8 @@ const submitReview = (req, res) => {
             return res.redirect(redirectPath);
         }
 
-        if (order.status !== 'delivered') {
-            req.flash('error', 'Reviews are available after delivery is complete.');
+        if (order.status !== 'completed') {
+            req.flash('error', 'Reviews are available after the order is completed.');
             return res.redirect(`/order/${orderId}`);
         }
 

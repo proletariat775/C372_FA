@@ -1,4 +1,5 @@
-﻿const fitAssistant = require('../models/fitAssistant');
+const fitAssistant = require('../models/fitAssistant');
+const sizeChartService = require('../services/sizeChartService');
 
 function buildViewModel(req, overrides = {}) {
   return {
@@ -6,7 +7,9 @@ function buildViewModel(req, overrides = {}) {
     user: req.session.user,
     profile: overrides.profile || req.session.fitProfile || { ...fitAssistant.DEFAULT_PROFILE },
     result: overrides.result || null,
-    chart: fitAssistant.SIZE_CHART,
+    sizeChart: sizeChartService.getSizeChart(),
+    cmToIn: sizeChartService.cmToIn,
+    sizeDisclaimer: sizeChartService.SIZE_DISCLAIMER,
     errors: overrides.errors || []
   };
 }

@@ -1,269 +1,236 @@
-<!DOCTYPE html>
-<html lang="en">
+<%- include('partial/header', { title: 'Your Cart | Shirt Shop' }) %>
+<%- include('partial/navbar', { user: user }) %>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel='stylesheet' href='/css/styles.css'>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <title>Your Cart | Shirt Shop</title>
-</head>
-
-<body>
-  <nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">Shirt Shop</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="collapsibleNavbar">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/shopping">Shop</a></li>
-          <li class="nav-item"><a class="nav-link active" aria-current="page" href="/cart">View Cart</a></li>
-          <li class="nav-item"><a class="nav-link" href="/orders/history">Purchase History</a></li>
-          <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
-        </ul>
+<section class="page-section">
+  <div class="container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <p class="mb-1 text-muted">Your selections</p>
+        <h2 class="mb-0">Shopping cart</h2>
       </div>
     </div>
-  </nav>
 
-  <section class="page-section">
-    <div class="container">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-        <div>
-          <p class="mb-1 text-muted">Your selections</p>
-          <h2 class="mb-0">Shopping cart</h2>
+    <% if (messages && messages.length) { %>
+      <% messages.forEach(function(message) { %>
+        <div class="alert alert-success">
+          <%= message %>
         </div>
-      </div>
+        <% }); %>
+          <% } %>
 
-      <% if (messages && messages.length) { %>
-        <% messages.forEach(function(message) { %>
-          <div class="alert alert-success">
-            <%= message %>
-          </div>
-          <% }); %>
-            <% } %>
+            <% if (errors && errors.length) { %>
+              <% errors.forEach(function(error) { %>
+                <div class="alert alert-danger">
+                  <%= error %>
+                </div>
+                <% }); %>
+                  <% } %>
 
-              <% if (errors && errors.length) { %>
-                <% errors.forEach(function(error) { %>
-                  <div class="alert alert-danger">
-                    <%= error %>
-                  </div>
-                  <% }); %>
-                    <% } %>
+                    <% if (cart.length===0) { %>
+                      <div class="empty-state">
+                        <h3>Your cart is empty</h3>
+                        <p class="text-muted">Browse our catalogue and add items to your cart to see them here.</p>
+                        <a href="/shopping" class="btn btn-primary">Start shopping</a>
+                      </div>
+                      <% } else { %>
+                        <% let totalSavings = 0; %>
+                        <% cart.forEach(function(item) { %>
+                          <% if (item.hasDiscount) { totalSavings += (item.originalPrice - item.price) * item.quantity; } %>
+                        <% }); %>
 
-                      <% if (cart.length===0) { %>
-                        <div class="empty-state">
-                          <h3>Your cart is empty</h3>
-                          <p class="text-muted">Browse our catalogue and add items to your cart to see them here.</p>
-                          <a href="/shopping" class="btn btn-primary">Start shopping</a>
-                        </div>
-                        <% } else { %>
+                        <div class="d-md-none">
                           <div class="row g-4">
-                            <% let totalSavings=0; %>
-                                <% cart.forEach(function(item) { %>
-                                    <% if (item.hasDiscount) { totalSavings +=(item.originalPrice - item.price) *
-                                      item.quantity; } %>
-                                      <div class="col-12 col-md-6 col-lg-4">
-                                        <div class="card h-100 shadow-sm">
-                                          <% if (item.image) { %>
-                                            <img src="/images/<%= item.image %>" class="card-img-top"
-                                              alt="<%= item.productName %>">
-                                            <% } else { %>
-                                              <div
-                                                class="card-img-top bg-light d-flex align-items-center justify-content-center"
-                                                style="height: 180px;">
-                                                <span class="text-muted">No image available</span>
-                                              </div>
-                                              <% } %>
-                                                <div class="card-body d-flex flex-column">
-                                                  <h5 class="card-title">
-                                                    <%= item.productName %>
-                                                  </h5>
-                                                  <% if (item.hasDiscount) { %>
-                                                    <p class="mb-1">
-                                                      <span class="text-muted text-decoration-line-through">Price: $<%=
-                                                          Number(item.originalPrice).toFixed(2) %></span><br>
-                                                      <span class="text-success">Discounted: $<%=
-                                                          Number(item.price).toFixed(2) %> (<%=
-                                                            Number(item.discountPercentage).toFixed(2) %>% off)</span>
-                                                    </p>
-                                                    <% } else { %>
-                                                      <p class="mb-1">Price: $<%= Number(item.price).toFixed(2) %>
-                                                      </p>
-                                                      <% } %>
-                                                        <p class="mb-3">Subtotal: $<%= (item.price *
-                                                            item.quantity).toFixed(2) %>
-                                                        </p>
-                                                        <% if (item.offerMessage) { %>
-                                                          <div class="alert alert-info py-2">
-                                                            <span class="fw-semibold text-uppercase small">Offer</span>
-                                                            <div class="small mb-0">
-                                                              <%= item.offerMessage %>
-                                                            </div>
-                                                          </div>
-                                                          <% } %>
-                                                            <div class="mt-auto">
-                                                              <form action="/cart/update/<%= item.productId %>"
-                                                                method="POST" class="mb-2">
-                                                                <label for="cart-quantity-<%= item.productId %>"
-                                                                  class="form-label">Quantity</label>
-                                                                <div class="input-group">
-                                                                  <input type="number"
-                                                                    id="cart-quantity-<%= item.productId %>"
-                                                                    name="quantity" class="form-control" min="1"
-                                                                    value="<%= item.quantity %>" required>
-                                                                  <button type="submit"
-                                                                    class="btn btn-primary">Update</button>
-                                                                </div>
-                                                              </form>
-                                                              <form action="/cart/remove/<%= item.productId %>"
-                                                                method="POST">
-                                                                <button type="submit"
-                                                                  class="btn btn-outline-danger w-100">Remove</button>
-                                                              </form>
-                                                            </div>
-                                                </div>
-                                        </div>
-                                      </div>
-                                      <% }); %>
-                          </div>
-
-                          <form action="/checkout" method="POST" class="mt-4">
-                            <div class="card summary-card">
-                              <div class="card-body">
-                                <div
-                                  class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
-                                  <div>
-                                    <p class="text-muted mb-1">Cart total (before delivery)</p>
-                                    <h4 class="mb-0">$<%= Number(subtotal || 0).toFixed(2) %>
-                                    </h4>
-                                  </div>
-                                  <div class="text-md-end">
-                                    <% if (user && user.free_delivery) { %>
-                                      <span class="badge bg-success-subtle text-success">Free delivery unlocked</span>
-                                      <% } else { %>
-                                        <span class="badge bg-light text-dark">Delivery +$4.50</span>
-                                        <% } %>
-                                  </div>
-                                </div>
-
-                                <div class="mb-3">
-                                  <label class="form-label fw-semibold">Have a coupon?</label>
-                                  <form action="/cart/apply-coupon" method="POST" class="d-flex flex-column flex-sm-row gap-2">
-                                    <input type="text" name="coupon" class="form-control" placeholder="Enter coupon code"
-                                      value="<%= appliedCoupon ? appliedCoupon.code : '' %>">
-                                    <button type="submit" class="btn btn-outline-primary">Apply</button>
-                                  </form>
-                                  <% if (appliedCoupon) { %>
-                                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mt-2">
-                                      <span class="text-success">Applied: <strong><%= appliedCoupon.code %></strong></span>
-                                      <form action="/cart/remove-coupon" method="POST">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
-                                      </form>
-                                    </div>
-                                    <% } %>
-                                </div>
-
-                                <div class="mb-3">
-                                  <div class="d-flex justify-content-between">
-                                    <span class="text-muted">Subtotal</span>
-                                    <span>$<%= Number(subtotal || 0).toFixed(2) %></span>
-                                  </div>
-                                  <% if (discountAmount && Number(discountAmount) > 0) { %>
-                                    <div class="d-flex justify-content-between text-success">
-                                      <span>Coupon discount</span>
-                                      <span>- $<%= Number(discountAmount).toFixed(2) %></span>
-                                    </div>
-                                    <% } %>
-                                  <div class="d-flex justify-content-between fw-semibold mt-2">
-                                    <span>Final total</span>
-                                    <span>$<%= Number(finalTotal || 0).toFixed(2) %></span>
-                                  </div>
-                                </div>
-
-                                <div class="mb-3">
-                                  <label class="form-label fw-semibold">Delivery preference</label>
-                                  <div class="d-flex flex-wrap gap-2">
-                                    <div class="form-check form-check-inline">
-                                      <input class="form-check-input" type="radio" name="deliveryMethod"
-                                        id="delivery-pickup" value="pickup" checked>
-                                      <label class="form-check-label" for="delivery-pickup">Store pickup</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                      <input class="form-check-input" type="radio" name="deliveryMethod"
-                                        id="delivery-shipping" value="delivery">
-                                      <label class="form-check-label" for="delivery-shipping">Island-wide
-                                        delivery</label>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div class="mb-3 d-none" id="delivery-address-group">
-                                  <label for="deliveryAddress" class="form-label">Delivery address</label>
-                                  <textarea class="form-control" id="deliveryAddress" name="deliveryAddress" rows="2"
-                                    placeholder="Enter delivery address"><%= user && user.address ? user.address : '' %></textarea>
-                                  <small class="text-muted">Required when delivery is selected. We use your saved
-                                    address by default.</small>
-                                </div>
-
-                                <div
-                                  class="alert <%= user && user.free_delivery ? 'alert-success' : 'alert-info' %> py-2">
-                                  <% if (user && user.free_delivery) { %>
-                                    <strong>Great news!</strong> You qualify for free delivery on every order.
+                            <% cart.forEach(function(item) { %>
+                              <div class="col-12">
+                                <div class="card h-100 shadow-sm">
+                                  <% if (item.image) { %>
+                                    <img src="/images/<%= item.image %>" class="card-img-top"
+                                      alt="<%= item.productName %>">
                                     <% } else { %>
-                                      Selecting delivery adds a flat $4.50 island-wide fee to your total.
+                                      <div
+                                        class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                                        style="height: 180px;">
+                                        <span class="text-muted">No image available</span>
+                                      </div>
                                       <% } %>
-                                </div>
-
-                                <div class="d-flex flex-column flex-md-row gap-2">
-                                  <a href="/shopping" class="btn btn-secondary w-100 w-md-auto">Back to shop</a>
-                                  <button type="submit" class="btn btn-success flex-grow-1">Checkout</button>
+                                        <div class="card-body d-flex flex-column">
+                                          <h5 class="card-title">
+                                            <%= item.productName %>
+                                          </h5>
+                                          <p class="text-muted mb-2">Size: <%= item.size || 'Standard' %></p>
+                                          <% if (item.hasDiscount) { %>
+                                            <p class="mb-1">
+                                              <span class="text-muted text-decoration-line-through">Price: $<%=
+                                                  Number(item.originalPrice).toFixed(2) %></span><br>
+                                              <span class="text-success">Discounted: $<%=
+                                                  Number(item.price).toFixed(2) %> (<%=
+                                                    Number(item.discountPercentage).toFixed(2) %>% off)</span>
+                                            </p>
+                                            <% } else { %>
+                                              <p class="mb-1">Price: $<%= Number(item.price).toFixed(2) %>
+                                              </p>
+                                              <% } %>
+                                                <p class="mb-3">Subtotal: $<%= (item.price *
+                                                    item.quantity).toFixed(2) %>
+                                                </p>
+                                                <% if (item.offerMessage) { %>
+                                                  <div class="alert alert-info py-2">
+                                                    <span class="fw-semibold text-uppercase small">Offer</span>
+                                                    <div class="small mb-0">
+                                                      <%= item.offerMessage %>
+                                                    </div>
+                                                  </div>
+                                                  <% } %>
+                                                    <div class="mt-auto">
+                                                      <form action="/cart/update/<%= item.variantId || item.productId %>"
+                                                        method="POST" class="mb-2">
+                                                        <label for="cart-quantity-<%= item.variantId || item.productId %>"
+                                                          class="form-label">Quantity</label>
+                                                        <div class="input-group">
+                                                          <input type="number"
+                                                            id="cart-quantity-<%= item.variantId || item.productId %>"
+                                                            name="quantity" class="form-control" min="1"
+                                                            value="<%= item.quantity %>" required>
+                                                          <button type="submit"
+                                                            class="btn btn-primary">Update</button>
+                                                        </div>
+                                                      </form>
+                                                      <form action="/cart/remove/<%= item.variantId || item.productId %>"
+                                                        method="POST">
+                                                        <button type="submit"
+                                                          class="btn btn-outline-danger w-100">Remove</button>
+                                                      </form>
+                                                    </div>
+                                        </div>
                                 </div>
                               </div>
-                              <% if (totalSavings> 0) { %>
-                                <div class="card-footer text-success fw-semibold">
-                                  You're saving $<%= totalSavings.toFixed(2) %> on this order.
+                            <% }); %>
+                          </div>
+                        </div>
+
+                        <div class="d-none d-md-block">
+                          <div class="table-responsive">
+                            <table class="table table-modern align-middle">
+                              <thead>
+                                <tr>
+                                  <th>Item</th>
+                                  <th>Size</th>
+                                  <th>Price</th>
+                                  <th>Qty</th>
+                                  <th>Subtotal</th>
+                                  <th class="text-end">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% cart.forEach(function(item) { %>
+                                  <tr>
+                                    <td>
+                                      <div class="d-flex align-items-center gap-3">
+                                        <% if (item.image) { %>
+                                          <img src="/images/<%= item.image %>" alt="<%= item.productName %>" width="64" height="64" class="rounded">
+                                          <% } else { %>
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+                                              <span class="text-muted small">No image</span>
+                                            </div>
+                                            <% } %>
+                                              <div>
+                                                <div class="fw-semibold"><%= item.productName %></div>
+                                                <% if (item.offerMessage) { %>
+                                                  <small class="text-muted"><%= item.offerMessage %></small>
+                                                  <% } %>
+                                              </div>
+                                      </div>
+                                    </td>
+                                    <td class="text-muted"><%= item.size || 'Standard' %></td>
+                                    <td>
+                                      <% if (item.hasDiscount) { %>
+                                        <div class="text-muted text-decoration-line-through small">$<%= Number(item.originalPrice).toFixed(2) %></div>
+                                        <div class="fw-semibold text-success">$<%= Number(item.price).toFixed(2) %></div>
+                                        <% } else { %>
+                                          <div class="fw-semibold">$<%= Number(item.price).toFixed(2) %></div>
+                                          <% } %>
+                                    </td>
+                                    <td style="min-width: 140px;">
+                                      <form action="/cart/update/<%= item.variantId || item.productId %>" method="POST" class="d-flex gap-2">
+                                        <input type="number" name="quantity" class="form-control" min="1" value="<%= item.quantity %>" required>
+                                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                                      </form>
+                                    </td>
+                                    <td>$<%= (item.price * item.quantity).toFixed(2) %></td>
+                                    <td class="text-end">
+                                      <form action="/cart/remove/<%= item.variantId || item.productId %>" method="POST">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                                      </form>
+                                    </td>
+                                  </tr>
+                                <% }); %>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div class="card summary-card mt-4">
+                          <div class="card-body">
+                            <div
+                              class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+                              <div>
+                                <p class="text-muted mb-1">Cart total</p>
+                                <h4 class="mb-0">$<%= Number(subtotal || 0).toFixed(2) %>
+                                </h4>
+                              </div>
+                            </div>
+
+                            <div class="mb-3">
+                              <label class="form-label fw-semibold">Have a coupon?</label>
+                              <form action="/cart/apply-coupon" method="POST" class="d-flex flex-column flex-sm-row gap-2">
+                                <input type="text" name="coupon" class="form-control" placeholder="Enter coupon code"
+                                  value="<%= appliedCoupon ? appliedCoupon.code : '' %>">
+                                <button type="submit" class="btn btn-outline-primary">Apply</button>
+                              </form>
+                              <% if (appliedCoupon) { %>
+                                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mt-2">
+                                  <span class="text-success">Applied: <strong><%= appliedCoupon.code %></strong></span>
+                                  <form action="/cart/remove-coupon" method="POST">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                                  </form>
                                 </div>
                                 <% } %>
                             </div>
-                          </form>
-                          <% } %>
-    </div>
-  </section>
 
-  <footer class="footer">
-    <div class="container">
-      <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
-    </div>
-  </footer>
+                            <div class="mb-3">
+                              <div class="d-flex justify-content-between">
+                                <span class="text-muted">Subtotal</span>
+                                <span>$<%= Number(subtotal || 0).toFixed(2) %></span>
+                              </div>
+                              <% if (discountAmount && Number(discountAmount) > 0) { %>
+                                <div class="d-flex justify-content-between text-success">
+                                  <span>Coupon discount</span>
+                                  <span>- $<%= Number(discountAmount).toFixed(2) %></span>
+                                </div>
+                                <% } %>
+                              <div class="d-flex justify-content-between fw-semibold mt-2">
+                                <span>Final total</span>
+                                <span>$<%= Number(finalTotal || 0).toFixed(2) %></span>
+                              </div>
+                            </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      var deliveryRadios = document.querySelectorAll('input[name="deliveryMethod"]');
-      var addressGroup = document.getElementById('delivery-address-group');
+                            <div class="alert alert-info py-2">
+                              Delivery preferences and fees are confirmed at checkout.
+                            </div>
 
-      if (!addressGroup) {
-        return;
-      }
+                            <div class="d-flex flex-column flex-md-row gap-2">
+                              <a href="/shopping" class="btn btn-secondary w-100 w-md-auto">Back to shop</a>
+                              <a href="/checkout" class="btn btn-success flex-grow-1">Proceed to checkout</a>
+                            </div>
+                          </div>
+                          <% if (totalSavings> 0) { %>
+                            <div class="card-footer text-success fw-semibold">
+                              You're saving $<%= totalSavings.toFixed(2) %> on this order.
+                            </div>
+                            <% } %>
+                        </div>
+                        <% } %>
+  </div>
+</section>
 
-      var toggleAddress = function () {
-        var selected = document.querySelector('input[name="deliveryMethod"]:checked');
-        if (selected && selected.value === 'delivery') {
-          addressGroup.classList.remove('d-none');
-        } else {
-          addressGroup.classList.add('d-none');
-        }
-      };
-
-      deliveryRadios.forEach(function (radio) {
-        radio.addEventListener('change', toggleAddress);
-      });
-
-      toggleAddress();
-    });
-  </script>
-</body>
-
-</html>
+<%- include('partial/footer') %>
