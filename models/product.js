@@ -45,6 +45,11 @@ const Product = {
         connection.query(sql, callback);
     },
 
+    getBrandsWithIds: (callback) => {
+        const sql = 'SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name ASC';
+        connection.query(sql, callback);
+    },
+
     getFiltered: (filters, callback) => {
         const { category, brand, q, sort } = filters || {};
         let sql = `
@@ -425,9 +430,12 @@ const Product = {
                 p.price,
                 p.discount_percent,
                 p.description,
+                p.brand_id,
+                b.name AS brand_name,
                 (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id LIMIT 1) AS image
             FROM product_variants pv
             JOIN products p ON p.id = pv.product_id
+            LEFT JOIN brands b ON b.id = p.brand_id
             WHERE pv.id = ? AND p.is_active = 1
             LIMIT 1
         `;

@@ -1,4 +1,5 @@
 <%- include('partials/header', { title: 'Order Details | Shirt Shop' }) %>
+<% const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; %>
   <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
     <main class="page-section">
@@ -46,6 +47,16 @@
                                   <% } else { %>
                                     <p class="mb-1 text-muted">Pickup order</p>
                                     <% } %>
+                                      <% if (order.delivery_slot_date && slotWindowLabel) { %>
+                                        <p class="mb-1 text-muted"><strong>Delivery slot:</strong>
+                                          <%= new Date(order.delivery_slot_date).toLocaleDateString() %> - <%= slotWindowLabel %>
+                                        </p>
+                                        <% } %>
+                                          <% if (order.order_notes) { %>
+                                            <p class="mb-1 text-muted"><strong>Order notes:</strong>
+                                              <%= order.order_notes %>
+                                            </p>
+                                            <% } %>
                                       <p class="mb-0 text-muted">Payment method: <%= order.payment_method %>
                                       </p>
                               </div>

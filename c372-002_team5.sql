@@ -189,6 +189,9 @@ CREATE TABLE orders (
   tracking_number VARCHAR(80) NULL,
   est_delivery_date DATE NULL,
   admin_notes TEXT NULL,
+  delivery_slot_date DATE NULL,
+  delivery_slot_window VARCHAR(50) NULL,
+  order_notes VARCHAR(200) NULL,
   -- Compatibility fields used by older query paths in current controllers
   total DECIMAL(10,2) NULL,
   delivery_method ENUM('pickup','delivery') NULL,
@@ -235,12 +238,17 @@ CREATE TABLE coupons (
   start_date DATETIME NOT NULL,
   end_date DATETIME NOT NULL,
   usage_limit INT NULL,
+  per_user_limit INT NULL,
+  brand_id INT NULL,
   usage_count INT NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_coupons_code (code),
-  KEY idx_coupons_active_dates (is_active, start_date, end_date)
+  KEY idx_coupons_active_dates (is_active, start_date, end_date),
+  KEY idx_coupons_brand (brand_id),
+  CONSTRAINT fk_coupons_brand FOREIGN KEY (brand_id) REFERENCES brands(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE coupon_usage (

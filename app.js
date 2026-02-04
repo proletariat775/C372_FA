@@ -11,6 +11,7 @@ const orderController = require('./controllers/OrderController');
 const reviewController = require('./controllers/ReviewController');
 const reviewsController = require('./controllers/ReviewsController');
 const adminController = require('./controllers/AdminController');
+const couponController = require('./controllers/CouponController');
 // TEAM START - Fit assistant controller
 const fitAssistantController = require('./controllers/FitAssistantController');
 // TEAM END - Fit assistant controller
@@ -67,6 +68,11 @@ app.get('/', (req, res) => {
 
 app.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);
 app.get('/admin/dashboard', checkAuthenticated, checkAdmin, adminController.dashboard);
+app.get('/admin/coupons', checkAuthenticated, checkAdmin, couponController.list);
+app.post('/admin/coupons', checkAuthenticated, checkAdmin, couponController.create);
+app.get('/admin/coupons/:id/edit', checkAuthenticated, checkAdmin, couponController.editForm);
+app.post('/admin/coupons/:id', checkAuthenticated, checkAdmin, couponController.update);
+app.post('/admin/coupons/:id/delete', checkAuthenticated, checkAdmin, couponController.remove);
 
 app.get('/register', userController.showRegister);
 app.post('/register', userController.register);

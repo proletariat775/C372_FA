@@ -1,5 +1,6 @@
 ﻿const Product = require('../models/product');
 const couponService = require('../services/couponService');
+const bundleService = require('../services/bundleService');
 
 const getFlash = (req, type) => {
     if (typeof req.flash !== 'function') {
@@ -74,6 +75,8 @@ const buildCartItem = (product, variant, quantity) => {
         product_variant_id: variantId,
         size,
         productName: product.productName || product.name,
+        brandId: product.brand_id || product.brandId || null,
+        brand: product.brand || product.brand_name || null,
         price: finalPrice,
         quantity,
         image: product.image || null,
@@ -105,23 +108,40 @@ const findCartItem = (cart, variantId, productId) => {
     return null;
 };
 
-const clearAppliedCoupon = (cart) => {
-    if (cart && typeof cart === 'object' && cart.appliedCoupon) {
-        delete cart.appliedCoupon;
+const clearAppliedCoupon = (req) => {
+    if (!req || !req.session) {
+        return;
+    }
+    if (req.session.appliedCoupon) {
+        delete req.session.appliedCoupon;
+    }
+    if (req.session.cart && req.session.cart.appliedCoupon) {
+        delete req.session.cart.appliedCoupon;
     }
 };
 
-const setAppliedCoupon = (cart, coupon) => {
-    if (cart && typeof cart === 'object') {
-        cart.appliedCoupon = coupon;
+const setAppliedCoupon = (req, coupon) => {
+    if (!req || !req.session) {
+        return;
+    }
+    req.session.appliedCoupon = coupon;
+    if (req.session.cart && typeof req.session.cart === 'object') {
+        req.session.cart.appliedCoupon = coupon;
     }
 };
 
-const getAppliedCoupon = (cart) => {
-    if (!cart || typeof cart !== 'object') {
+const getAppliedCoupon = (req) => {
+    if (!req || !req.session) {
         return null;
     }
-    return cart.appliedCoupon || null;
+    if (req.session.appliedCoupon) {
+        return req.session.appliedCoupon;
+    }
+    if (req.session.cart && req.session.cart.appliedCoupon) {
+        req.session.appliedCoupon = req.session.cart.appliedCoupon;
+        return req.session.cart.appliedCoupon;
+    }
+    return null;
 };
 
 const addToCart = (req, res) => {
@@ -166,6 +186,8 @@ const addToCart = (req, res) => {
             price: variant.price,
             discount_percent: variant.discount_percent,
             description: variant.description,
+            brand_id: variant.brand_id,
+            brand: variant.brand_name,
             image: variant.image
         };
 
@@ -235,13 +257,18 @@ const viewCart = async (req, res) => {
 
     const cart = ensureSessionCart(req);
     if (!cart.length) {
-        clearAppliedCoupon(cart);
+        clearAppliedCoupon(req);
+        if (req.session.bundleDefinitions) {
+            delete req.session.bundleDefinitions;
+        }
         if (req.session.bundle) {
             delete req.session.bundle;
         }
     }
 
-    let appliedCoupon = getAppliedCoupon(cart);
+    // Stock warning UI removed; render cart items without stock enrichment.
+
+    let appliedCoupon = getAppliedCoupon(req);
     const subtotal = couponService.calculateSubtotal(cart);
     let discountAmount = 0;
 
@@ -250,27 +277,32 @@ const viewCart = async (req, res) => {
             const validation = await couponService.validateCoupon(
                 appliedCoupon.code,
                 req.session.user && req.session.user.id,
-                subtotal
+                subtotal,
+                cart
             );
 
             if (!validation.valid) {
-                clearAppliedCoupon(cart);
+                clearAppliedCoupon(req);
                 appliedCoupon = null;
                 req.flash('error', validation.message || 'Coupon is no longer valid.');
             } else {
                 discountAmount = validation.discountAmount;
                 appliedCoupon = couponService.buildAppliedCoupon(validation.coupon, discountAmount);
-                setAppliedCoupon(cart, appliedCoupon);
+                setAppliedCoupon(req, appliedCoupon);
             }
         } catch (error) {
             console.error('Error validating coupon for cart:', error);
-            clearAppliedCoupon(cart);
+            clearAppliedCoupon(req);
             appliedCoupon = null;
             req.flash('error', 'Unable to validate your coupon right now.');
         }
     }
 
-    const finalTotal = Number(Math.max(0, subtotal - discountAmount).toFixed(2));
+    const bundleSource = req.session.bundleDefinitions || req.session.bundle || [];
+    const bundleResult = bundleService.calculateBundleDiscount(cart, bundleSource);
+    const bundleDiscount = bundleResult.discountAmount;
+
+    const finalTotal = Number(Math.max(0, subtotal - discountAmount - bundleDiscount).toFixed(2));
 
     res.render('cart', {
         cart,
@@ -279,6 +311,8 @@ const viewCart = async (req, res) => {
         errors: getFlash(req, 'error'),
         subtotal,
         discountAmount,
+        bundleDiscount,
+        bundleInfo: bundleResult,
         finalTotal,
         appliedCoupon
     });
@@ -324,11 +358,7 @@ const updateCartItem = (req, res) => {
                 return res.redirect('/cart');
             }
 
-            const stock = Number.parseInt(variant.variant_quantity || variant.quantity, 10) || 0;
-            if (quantity > stock) {
-                req.flash('error', `Cannot set quantity above stock. Only ${stock} units available.`);
-                return res.redirect('/cart');
-            }
+            // Stock enforcement removed to allow quantity updates without max limits.
 
             item.quantity = quantity;
             req.flash('success', 'Cart updated successfully.');
@@ -350,12 +380,7 @@ const updateCartItem = (req, res) => {
         }
 
         const product = results[0];
-        const stock = Number.parseInt(product.quantity, 10) || 0;
-
-        if (quantity > stock) {
-            req.flash('error', `Cannot set quantity above stock. Only ${stock} units available.`);
-            return res.redirect('/cart');
-        }
+        // Stock enforcement removed to allow quantity updates without max limits.
 
         item.quantity = quantity;
         req.flash('success', 'Cart updated successfully.');
@@ -402,14 +427,19 @@ const applyCoupon = async (req, res) => {
     }
 
     try {
-        const validation = await couponService.validateCoupon(code, req.session.user && req.session.user.id, subtotal);
+        const validation = await couponService.validateCoupon(
+            code,
+            req.session.user && req.session.user.id,
+            subtotal,
+            cart
+        );
         if (!validation.valid) {
             req.flash('error', validation.message || 'Invalid coupon code.');
             return res.redirect('/cart');
         }
 
         const applied = couponService.buildAppliedCoupon(validation.coupon, validation.discountAmount);
-        setAppliedCoupon(cart, applied);
+        setAppliedCoupon(req, applied);
         req.flash('success', `Coupon "${applied.code}" applied.`);
         return res.redirect('/cart');
     } catch (error) {
@@ -425,7 +455,7 @@ const removeCoupon = (req, res) => {
     }
 
     const cart = ensureSessionCart(req);
-    clearAppliedCoupon(cart);
+    clearAppliedCoupon(req);
     req.flash('success', 'Coupon removed.');
     return res.redirect('/cart');
 };

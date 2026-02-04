@@ -1,0 +1,146 @@
+<%- include('partials/header', { title: 'Edit Coupon | Shirt Shop' }) %>
+  <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
+
+    <section class="page-section">
+      <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+          <div>
+            <p class="mb-1 text-muted">Administrator dashboard</p>
+            <h2 class="mb-0">Edit coupon</h2>
+          </div>
+          <a href="/admin/coupons" class="btn btn-outline-secondary">Back to coupons</a>
+        </div>
+
+        <% if (messages && messages.length) { %>
+          <% messages.forEach(function(message) { %>
+            <div class="alert alert-success">
+              <%= message %>
+            </div>
+            <% }); %>
+              <% } %>
+
+                <% if (errors && errors.length) { %>
+                  <% errors.forEach(function(error) { %>
+                    <div class="alert alert-danger">
+                      <%= error %>
+                    </div>
+                    <% }); %>
+                      <% } %>
+
+                        <% const hasFormData=formData && Object.keys(formData).length; %>
+                          <% const data=hasFormData ? Object.assign({}, coupon, formData) : coupon; %>
+                            <% const formatDateTime=(value)=>{ %>
+                              <% if (!value) { return ''; } %>
+                                <% const raw=String(value); %>
+                                  <% if (raw.includes('T')) { return raw.slice(0, 16); } %>
+                                    <% const parsed=new Date(value); %>
+                                      <% if (Number.isNaN(parsed.getTime())) { return ''; } %>
+                                        <% const pad=(num)=>String(num).padStart(2, '0'); %>
+                                          <% return parsed.getFullYear() + '-' + pad(parsed.getMonth() + 1) + '-' +
+                                            pad(parsed.getDate()) + 'T' + pad(parsed.getHours()) + ':' +
+                                            pad(parsed.getMinutes()); %>
+                                              <% }; %>
+                                                <% const activeChecked=data && (data.is_active===1 || data.is_active==='1' || data.is_active===true || data.is_active==='on'); %>
+
+                                                  <div class="card shadow-sm">
+                                                    <div class="card-body">
+                                                      <div
+                                                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                                                        <div>
+                                                          <h4 class="mb-1">Update coupon</h4>
+                                                          <p class="text-muted mb-0">Coupon usage count:
+                                                            <strong><%= Number(coupon.usage_count || 0) %></strong>
+                                                          </p>
+                                                        </div>
+                                                      </div>
+
+                                                      <form action="/admin/coupons/<%= coupon.id %>" method="POST"
+                                                        class="row g-3">
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Code</label>
+                                                          <input type="text" name="code" class="form-control" required
+                                                            value="<%= data.code || '' %>">
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Discount type</label>
+                                                          <select class="form-select" name="discount_type" required>
+                                                            <option value="">Select type</option>
+                                                            <option value="percentage" <%=data.discount_type==='percentage' ? 'selected' : '' %>>
+                                                              Percentage (%)
+                                                            </option>
+                                                            <option value="fixed_amount" <%=data.discount_type==='fixed_amount' ? 'selected' : '' %>>
+                                                              Fixed amount ($)
+                                                            </option>
+                                                          </select>
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Discount value</label>
+                                                          <input type="number" name="discount_value" class="form-control"
+                                                            min="0" step="0.01" required
+                                                            value="<%= data.discount_value || '' %>">
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Brand (optional)</label>
+                                                          <select class="form-select" name="brand_id">
+                                                            <option value="">All brands</option>
+                                                            <% (brands || []).forEach(function(brand) { %>
+                                                              <option value="<%= brand.id %>" <%= String(data.brand_id || '') === String(brand.id) ? 'selected' : '' %>>
+                                                                <%= brand.name %>
+                                                              </option>
+                                                              <% }); %>
+                                                          </select>
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Minimum order</label>
+                                                          <input type="number" name="min_order_amount"
+                                                            class="form-control" min="0" step="0.01"
+                                                            value="<%= data.min_order_amount || '' %>">
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Max discount</label>
+                                                          <input type="number" name="max_discount_amount"
+                                                            class="form-control" min="0" step="0.01"
+                                                            value="<%= data.max_discount_amount || '' %>">
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Usage limit (global)</label>
+                                                          <input type="number" name="usage_limit" class="form-control"
+                                                            min="1" step="1" value="<%= data.usage_limit || '' %>">
+                                                          <div class="form-text">Leave blank for no limit.</div>
+                                                        </div>
+                                                        <div class="col-12 col-md-4">
+                                                          <label class="form-label">Per-user usage limit</label>
+                                                          <input type="number" name="per_user_limit" class="form-control"
+                                                            min="1" step="1" value="<%= data.per_user_limit || '' %>">
+                                                          <div class="form-text">Leave blank for no per-user limit.</div>
+                                                        </div>
+                                                        <div class="col-12 col-md-6">
+                                                          <label class="form-label">Start date</label>
+                                                          <input type="datetime-local" name="start_date"
+                                                            class="form-control" required
+                                                            value="<%= formatDateTime(data.start_date) %>">
+                                                        </div>
+                                                        <div class="col-12 col-md-6">
+                                                          <label class="form-label">End date</label>
+                                                          <input type="datetime-local" name="end_date"
+                                                            class="form-control" required
+                                                            value="<%= formatDateTime(data.end_date) %>">
+                                                        </div>
+                                                        <div class="col-12">
+                                                          <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox"
+                                                              name="is_active" id="coupon-active"
+                                                              <%= activeChecked ? 'checked' : '' %>>
+                                                            <label class="form-check-label" for="coupon-active">Active</label>
+                                                          </div>
+                                                        </div>
+                                                        <div class="col-12 d-flex justify-content-end">
+                                                          <button type="submit" class="btn btn-primary">Save changes</button>
+                                                        </div>
+                                                      </form>
+                                                    </div>
+                                                  </div>
+      </div>
+    </section>
+
+    <%- include('partials/footer') %>

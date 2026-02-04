@@ -4,6 +4,7 @@ const OrderReview = require('../models/orderReview');
 const Order = require('../models/order');
 const ProductDetails = require('../models/productDetails');
 const sizeChartService = require('../services/sizeChartService');
+const bundleService = require('../services/bundleService');
 
 const normalizeSizeLabel = (raw) => {
     if (!raw) {
@@ -208,6 +209,8 @@ const buildCartItem = (product, variant, quantity) => {
         product_variant_id: variantId,
         size,
         productName: product.name || product.productName,
+        brandId: product.brand_id || product.brandId || null,
+        brand: product.brand || product.brand_name || null,
         price: finalPrice,
         quantity,
         image: product.image || null,
@@ -853,6 +856,11 @@ const ProductController = {
             req.flash('error', 'Unable to add this bundle. Please try again.');
             return res.redirect('/shopping');
         }
+
+        bundleService.registerBundleDefinition(req.session, {
+            productIds,
+            discountRate: 0.1
+        });
 
         const cart = ensureSessionCart(req);
         const addedIds = [];

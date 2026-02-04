@@ -23,6 +23,40 @@ const calculateSubtotal = (cart) => {
     return Number(total.toFixed(2));
 };
 
+const calculateBrandSubtotal = (cart, brandId, brandName) => {
+    if (!Array.isArray(cart) || !brandId) {
+        return 0;
+    }
+
+    const brandKey = Number(brandId);
+    if (!Number.isFinite(brandKey)) {
+        return 0;
+    }
+
+    const nameKey = brandName ? String(brandName).toLowerCase() : null;
+
+    const total = cart.reduce((sum, item) => {
+        const itemBrandId = Number(item.brandId || item.brand_id);
+        const itemBrandName = item.brand ? String(item.brand).toLowerCase() : null;
+        const matches = Number.isFinite(itemBrandId)
+            ? itemBrandId === brandKey
+            : (nameKey && itemBrandName === nameKey);
+
+        if (!matches) {
+            return sum;
+        }
+
+        const price = Number(item.price);
+        const qty = Number(item.quantity);
+        if (!Number.isFinite(price) || !Number.isFinite(qty)) {
+            return sum;
+        }
+        return sum + (price * qty);
+    }, 0);
+
+    return Number(total.toFixed(2));
+};
+
 const parseDate = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
@@ -68,7 +102,7 @@ const buildAppliedCoupon = (coupon, discountAmount) => ({
     discountAmount: Number(discountAmount || 0)
 });
 
-const validateCoupon = async (code, userId, subtotal) => {
+const validateCoupon = async (code, userId, subtotal, cartItems) => {
     const trimmed = String(code || '').trim();
     if (!trimmed) {
         return { valid: false, message: 'Please enter a coupon code.' };
@@ -96,9 +130,19 @@ const validateCoupon = async (code, userId, subtotal) => {
         return { valid: false, message: 'This coupon is not valid at the moment.' };
     }
 
+    const eligibleSubtotal = coupon.brand_id
+        ? calculateBrandSubtotal(cartItems, coupon.brand_id, coupon.brand_name)
+        : subtotal;
+
+    if (coupon.brand_id && eligibleSubtotal <= 0) {
+        const brandLabel = coupon.brand_name ? ` on ${coupon.brand_name}` : '';
+        return { valid: false, message: `This coupon only applies to items${brandLabel}.` };
+    }
+
     const minAmount = Number(coupon.min_order_amount || 0);
-    if (Number.isFinite(minAmount) && subtotal < minAmount) {
-        return { valid: false, message: `Minimum spend of $${minAmount.toFixed(2)} required for this coupon.` };
+    if (Number.isFinite(minAmount) && eligibleSubtotal < minAmount) {
+        const prefix = coupon.brand_id ? 'Eligible items' : 'Minimum spend';
+        return { valid: false, message: `${prefix} must total $${minAmount.toFixed(2)} to use this coupon.` };
     }
 
     if (coupon.usage_limit !== null && coupon.usage_limit !== undefined) {
@@ -117,13 +161,16 @@ const validateCoupon = async (code, userId, subtotal) => {
             });
         });
 
-        // Per-user limit column does not exist; enforce single redemption per user as a safe default.
-        if (userUsageCount >= 1) {
-            return { valid: false, message: 'You have already used this coupon.' };
+        const perUserLimit = coupon.per_user_limit;
+        if (perUserLimit !== null && perUserLimit !== undefined) {
+            const limit = Number(perUserLimit);
+            if (Number.isFinite(limit) && limit > 0 && userUsageCount >= limit) {
+                return { valid: false, message: 'You have already used this coupon.' };
+            }
         }
     }
 
-    const discountAmount = calculateDiscount(coupon, subtotal);
+    const discountAmount = calculateDiscount(coupon, eligibleSubtotal);
     if (discountAmount <= 0) {
         return { valid: false, message: 'This coupon does not provide a discount for your cart.' };
     }
@@ -136,5 +183,6 @@ module.exports = {
     calculateSubtotal,
     calculateDiscount,
     buildAppliedCoupon,
+    calculateBrandSubtotal,
     validateCoupon
 };

@@ -1,0 +1,246 @@
+<%- include('partials/header', { title: 'Coupons | Shirt Shop' }) %>
+  <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
+
+    <section class="page-section">
+      <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+          <div>
+            <p class="mb-1 text-muted">Administrator dashboard</p>
+            <h2 class="mb-0">Promo codes</h2>
+          </div>
+          <a href="/admin/dashboard" class="btn btn-outline-secondary">Back to dashboard</a>
+        </div>
+
+        <% if (messages && messages.length) { %>
+          <% messages.forEach(function(message) { %>
+            <div class="alert alert-success">
+              <%= message %>
+            </div>
+            <% }); %>
+              <% } %>
+
+                <% if (errors && errors.length) { %>
+                  <% errors.forEach(function(error) { %>
+                    <div class="alert alert-danger">
+                      <%= error %>
+                    </div>
+                    <% }); %>
+                      <% } %>
+
+                        <% const hasFormData=formData && Object.keys(formData).length; %>
+                          <% const isActiveChecked=hasFormData ? (formData.is_active==='1' || formData.is_active==='on'
+                            || formData.is_active===true) : true; %>
+
+                            <div class="card shadow-sm mb-4">
+                              <div class="card-body">
+                                <h4 class="mb-3">Create coupon</h4>
+                                <form action="/admin/coupons" method="POST" class="row g-3">
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Code</label>
+                                    <input type="text" name="code" class="form-control" placeholder="WELCOME10" required
+                                      value="<%= formData.code || '' %>">
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Discount type</label>
+                                    <select class="form-select" name="discount_type" required>
+                                      <option value="">Select type</option>
+                                      <option value="percentage" <%=formData.discount_type==='percentage' ? 'selected' : '' %>>
+                                        Percentage (%)
+                                      </option>
+                                      <option value="fixed_amount" <%=formData.discount_type==='fixed_amount' ? 'selected' : '' %>>
+                                        Fixed amount ($)
+                                      </option>
+                                    </select>
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Discount value</label>
+                                    <input type="number" name="discount_value" class="form-control" min="0" step="0.01"
+                                      placeholder="10" required value="<%= formData.discount_value || '' %>">
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Brand (optional)</label>
+                                    <select class="form-select" name="brand_id">
+                                      <option value="">All brands</option>
+                                      <% (brands || []).forEach(function(brand) { %>
+                                        <option value="<%= brand.id %>" <%= String(formData.brand_id || '') === String(brand.id) ? 'selected' : '' %>>
+                                          <%= brand.name %>
+                                        </option>
+                                        <% }); %>
+                                    </select>
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Minimum order</label>
+                                    <input type="number" name="min_order_amount" class="form-control" min="0" step="0.01"
+                                      placeholder="0.00" value="<%= formData.min_order_amount || '' %>">
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Max discount</label>
+                                    <input type="number" name="max_discount_amount" class="form-control" min="0" step="0.01"
+                                      placeholder="Optional" value="<%= formData.max_discount_amount || '' %>">
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Usage limit (global)</label>
+                                    <input type="number" name="usage_limit" class="form-control" min="1" step="1"
+                                      placeholder="Optional" value="<%= formData.usage_limit || '' %>">
+                                    <div class="form-text">Leave blank for no limit.</div>
+                                  </div>
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label">Per-user usage limit</label>
+                                    <input type="number" name="per_user_limit" class="form-control" min="1" step="1"
+                                      placeholder="Optional" value="<%= formData.per_user_limit || '' %>">
+                                    <div class="form-text">Leave blank for no per-user limit.</div>
+                                  </div>
+                                  <div class="col-12 col-md-6">
+                                    <label class="form-label">Start date</label>
+                                    <input type="datetime-local" name="start_date" class="form-control" required
+                                      value="<%= formData.start_date || '' %>">
+                                  </div>
+                                  <div class="col-12 col-md-6">
+                                    <label class="form-label">End date</label>
+                                    <input type="datetime-local" name="end_date" class="form-control" required
+                                      value="<%= formData.end_date || '' %>">
+                                  </div>
+                                  <div class="col-12">
+                                    <div class="form-check form-switch">
+                                      <input class="form-check-input" type="checkbox" name="is_active" id="coupon-active"
+                                        <%= isActiveChecked ? 'checked' : '' %>>
+                                      <label class="form-check-label" for="coupon-active">Active</label>
+                                    </div>
+                                  </div>
+                                  <div class="col-12 d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary">Create coupon</button>
+                                  </div>
+                                </form>
+                              </div>
+                            </div>
+
+                            <div class="card shadow-sm">
+                              <div class="card-body">
+                                <div
+                                  class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                                  <div>
+                                    <h4 class="mb-1">Existing coupons</h4>
+                                    <p class="text-muted mb-0">Track active, scheduled, and expired promo codes.</p>
+                                  </div>
+                                  <span class="badge bg-light text-dark">Total: <%= coupons ? coupons.length : 0 %></span>
+                                </div>
+
+                                <% if (!coupons || !coupons.length) { %>
+                                  <p class="text-muted mb-0">No coupons created yet.</p>
+                                  <% } else { %>
+                                    <div class="table-responsive">
+                                      <table class="table table-modern align-middle">
+                                        <thead class="text-uppercase small text-muted">
+                                          <tr>
+                                            <th>Code</th>
+                                            <th>Discount</th>
+                                            <th>Brand</th>
+                                            <th>Min order</th>
+                                            <th>Max cap</th>
+                                            <th>Dates</th>
+                                            <th>Usage</th>
+                                            <th>Per user</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Actions</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <% coupons.forEach(function(coupon) { %>
+                                            <% const now=new Date(); %>
+                                              <% const start=coupon.start_date ? new Date(coupon.start_date) : null; %>
+                                                <% const end=coupon.end_date ? new Date(coupon.end_date) : null; %>
+                                                  <% const isActive=coupon.is_active===1 || coupon.is_active===true; %>
+                                                    <% let statusLabel='Inactive' ; %>
+                                                      <% let statusClass='bg-secondary-subtle text-secondary' ; %>
+                                                        <% if (isActive) { %>
+                                                          <% if (start && now < start) { %>
+                                                            <% statusLabel='Scheduled' ; %>
+                                                              <% statusClass='bg-info-subtle text-info' ; %>
+                                                                <% } else if (end && now> end) { %>
+                                                                  <% statusLabel='Expired' ; %>
+                                                                    <% statusClass='bg-danger-subtle text-danger' ; %>
+                                                                      <% } else { %>
+                                                                        <% statusLabel='Active' ; %>
+                                                                          <% statusClass='bg-success-subtle text-success' ; %>
+                                                                            <% } %>
+                                                                              <% } %>
+                                                                                <tr>
+                                                                                  <td>
+                                                                                    <span class="fw-semibold"><%= coupon.code %></span>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <% if (coupon.discount_type === 'percentage') { %>
+                                                                                      <%= Number(coupon.discount_value || 0).toFixed(2) %>%
+                                                                                      <% } else { %>
+                                                                                        $<%= Number(coupon.discount_value || 0).toFixed(2) %>
+                                                                                          <% } %>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <% if (coupon.brand_name) { %>
+                                                                                      <%= coupon.brand_name %>
+                                                                                      <% } else { %>
+                                                                                        <span class="text-muted small">All brands</span>
+                                                                                        <% } %>
+                                                                                  </td>
+                                                                                  <td>$<%= Number(coupon.min_order_amount || 0).toFixed(2) %>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <% if (coupon.max_discount_amount !== null && coupon.max_discount_amount !== undefined) { %>
+                                                                                      $<%= Number(coupon.max_discount_amount || 0).toFixed(2) %>
+                                                                                      <% } else { %>
+                                                                                        No cap
+                                                                                        <% } %>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <div class="small text-muted">Start:
+                                                                                      <%= start ? start.toLocaleString() : '-' %>
+                                                                                    </div>
+                                                                                    <div class="small text-muted">End:
+                                                                                      <%= end ? end.toLocaleString() : '-' %>
+                                                                                    </div>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <% const usageLimit=coupon.usage_limit; %>
+                                                                                      <span class="fw-semibold">
+                                                                                        <%= Number(coupon.usage_count || 0) %>
+                                                                                      </span>
+                                                                                      <% if (usageLimit !== null && usageLimit !== undefined) { %>
+                                                                                        / <%= usageLimit %>
+                                                                                        <% } else { %>
+                                                                                          <div class="small text-muted">No limit</div>
+                                                                                          <% } %>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <% if (coupon.per_user_limit !== null && coupon.per_user_limit !== undefined) { %>
+                                                                                      <%= coupon.per_user_limit %>
+                                                                                      <% } else { %>
+                                                                                        <span class="text-muted small">No limit</span>
+                                                                                        <% } %>
+                                                                                  </td>
+                                                                                  <td>
+                                                                                    <span class="badge <%= statusClass %>"><%= statusLabel %></span>
+                                                                                  </td>
+                                                                                  <td class="text-end">
+                                                                                    <div class="d-flex justify-content-end gap-2">
+                                                                                      <a href="/admin/coupons/<%= coupon.id %>/edit"
+                                                                                        class="btn btn-outline-primary btn-sm">Edit</a>
+                                                                                      <form action="/admin/coupons/<%= coupon.id %>/delete" method="POST"
+                                                                                        class="d-inline">
+                                                                                        <button type="submit"
+                                                                                          class="btn btn-outline-danger btn-sm"
+                                                                                          onclick="return confirm('Are you sure you want to deactivate this coupon?')">Deactivate</button>
+                                                                                      </form>
+                                                                                    </div>
+                                                                                  </td>
+                                                                                </tr>
+                                                                                <% }); %>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    <% } %>
+                              </div>
+                            </div>
+      </div>
+    </section>
+
+    <%- include('partials/footer') %>

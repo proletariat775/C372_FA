@@ -1,4 +1,5 @@
 <%- include('partials/header', { title: 'Purchase History | Shirt Shop' }) %>
+<% const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; %>
   <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
     <main class="page-section">
@@ -74,6 +75,7 @@
                                     aria-labelledby="heading-<%= order.id %>" data-bs-parent="#order-history">
                                     <div class="accordion-body">
                                       <% const items=orderItems[order.id] || []; %>
+                                      <% const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; %>
                                         <% if (items.length) { %>
                                           <div class="table-responsive">
                                             <table class="table align-middle">
@@ -252,11 +254,23 @@
                                                           <%= order.delivery_address ? order.delivery_address
                                                             : 'Pending confirmation' %>
                                                         </p>
+                                                        <% if (order.delivery_slot_date && slotWindowLabel) { %>
+                                                          <p class="text-muted mb-3">
+                                                            <strong>Delivery slot:</strong>
+                                                            <%= new Date(order.delivery_slot_date).toLocaleDateString() %> - <%= slotWindowLabel %>
+                                                          </p>
+                                                          <% } %>
                                                         <% } else { %>
                                                           <p class="text-muted mb-3">We will notify you once your pickup
                                                             is
                                                             ready.</p>
                                                           <% } %>
+                                                            <% if (order.order_notes) { %>
+                                                              <p class="text-muted mb-3">
+                                                                <strong>Order notes:</strong>
+                                                                <%= order.order_notes %>
+                                                              </p>
+                                                              <% } %>
 
                                                             <form action="/orders/<%= order.id %>/delivery"
                                                               method="POST" class="row gy-3">
