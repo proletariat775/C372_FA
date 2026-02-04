@@ -1,10 +1,10 @@
 :root {
-  --brand-primary: #ff7a59;
-  --brand-secondary: #2ec5ce;
-  --brand-accent: #ffd166;
-  --brand-dark: #132639;
-  --brand-light: #fdf7ef;
-  --brand-muted: #6b7280;
+  --brand-primary: #2f6b4f;
+  --brand-secondary: #7f9f74;
+  --brand-accent: #c7b083;
+  --brand-dark: #1b2b22;
+  --brand-light: #f2f5ed;
+  --brand-muted: #5b6b60;
 }
 
 * {
@@ -14,9 +14,40 @@
 body {
   margin: 0;
   font-family: "Poppins", "Segoe UI", sans-serif;
-  background: #f8fafc;
-  color: #111827;
+  background: #0f1d17;
+  color: #1f2937;
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(135deg, rgba(10, 31, 23, 0.92), rgba(47, 107, 79, 0.45), rgba(242, 245, 237, 0.2)),
+    radial-gradient(circle at 20% 10%, rgba(127, 159, 116, 0.35), transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(199, 176, 131, 0.25), transparent 45%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  opacity: 0.9;
+  filter: saturate(1.1);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 12% 18%, rgba(199, 176, 131, 0.22), transparent 35%),
+              radial-gradient(circle at 88% 12%, rgba(127, 159, 116, 0.22), transparent 35%),
+              linear-gradient(120deg, rgba(242, 245, 237, 0.82) 0%, rgba(242, 245, 237, 0.4) 55%, rgba(242, 245, 237, 0.7) 100%);
+  color: #111827;
+  pointer-events: none;
 }
 
 a {
@@ -193,7 +224,7 @@ a:hover {
 }
 
 .table-modern tbody tr:hover {
-  background-color: rgba(255, 209, 102, 0.12);
+  background-color: rgba(127, 159, 116, 0.12);
 }
 
 .form-card {
@@ -227,16 +258,16 @@ a:hover {
 .form-control:focus,
 .form-select:focus {
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 0.25rem rgba(255, 122, 89, 0.2);
+  box-shadow: 0 0 0 0.25rem rgba(47, 107, 79, 0.2);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--brand-primary), #ff9f68);
+  background: linear-gradient(135deg, var(--brand-primary), #3f7d5f);
   border: none;
   border-radius: 0.9rem;
   padding: 0.75rem 1.5rem;
   font-weight: 700;
-  box-shadow: 0 14px 28px rgba(255, 122, 89, 0.25);
+  box-shadow: 0 14px 28px rgba(47, 107, 79, 0.25);
 }
 
 .btn-outline-danger,

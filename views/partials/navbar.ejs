@@ -1,0 +1,52 @@
+<nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Shirt Shop</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav ms-auto">
+                <% if (!user) { %>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/register">Register</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/login">Login</a>
+                    </li>
+                    <% } else if (user.role==='admin' ) { %>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/inventory">Inventory</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/addProduct">Add Product</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/deliveries">Deliveries</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/users">Manage Users</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/logout">Logout</a>
+                        </li>
+                        <% } else { %>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/shopping">Shop</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/cart">Cart</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/fit-assistant">Fit Assistant</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/user">User</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/logout">Logout</a>
+                            </li>
+                            <% } %>
+            </ul>
+        </div>
+    </div>
+</nav>

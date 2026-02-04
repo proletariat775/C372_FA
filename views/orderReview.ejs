@@ -1,92 +1,102 @@
-<%- include('partial/header', { title: 'Order Review | Shirt Shop' }) %>
-<%- include('partial/navbar', { user: user }) %>
+<%- include('partials/header', { title: 'Order Review | Shirt Shop' }) %>
+  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-<main class="page-section">
-    <div class="container">
-      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
-        <div>
-          <p class="mb-1 text-muted">Share feedback</p>
-          <h2 class="mb-0">Order #<%= order.id %> reviews</h2>
-          <p class="text-muted mb-0">Delivered on <%= new Date(order.updated_at || order.created_at).toLocaleString() %></p>
-        </div>
-        <a href="/order/<%= order.id %>" class="btn btn-outline-primary">Back to order</a>
-      </div>
-
-      <% if (messages && messages.length) { %>
-        <% messages.forEach(function(message) { %>
-          <div class="alert alert-success">
-            <%= message %>
+    <main class="page-section">
+      <div class="container">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+          <div>
+            <p class="mb-1 text-muted">Share feedback</p>
+            <h2 class="mb-0">Order #<%= order.id %> reviews</h2>
+            <p class="text-muted mb-0">Delivered on <%= new Date(order.updated_at || order.created_at).toLocaleString()
+                %>
+            </p>
           </div>
-          <% }); %>
-            <% } %>
+          <a href="/order/<%= order.id %>" class="btn btn-outline-primary">Back to order</a>
+        </div>
 
-              <% if (errors && errors.length) { %>
-                <% errors.forEach(function(error) { %>
-                  <div class="alert alert-danger">
-                    <%= error %>
-                  </div>
-                  <% }); %>
-                    <% } %>
+        <% if (messages && messages.length) { %>
+          <% messages.forEach(function(message) { %>
+            <div class="alert alert-success">
+              <%= message %>
+            </div>
+            <% }); %>
+              <% } %>
 
-                      <% if (items && items.length) { %>
-                        <div class="row g-3">
-                          <% items.forEach(function(item) { %>
-                            <% const existing=reviewByItem[item.id]; %>
-                              <div class="col-12">
-                                <div class="card shadow-sm">
-                                  <div class="card-body">
-                                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-                                      <div>
-                                        <h5 class="mb-1"><%= item.productName %></h5>
-                                        <p class="text-muted mb-0">Variant: <%= item.size || 'Standard' %> / <%= item.color || 'Default' %></p>
+                <% if (errors && errors.length) { %>
+                  <% errors.forEach(function(error) { %>
+                    <div class="alert alert-danger">
+                      <%= error %>
+                    </div>
+                    <% }); %>
+                      <% } %>
+
+                        <% if (items && items.length) { %>
+                          <div class="row g-3">
+                            <% items.forEach(function(item) { %>
+                              <% const existing=reviewByItem[item.id]; %>
+                                <div class="col-12">
+                                  <div class="card shadow-sm">
+                                    <div class="card-body">
+                                      <div
+                                        class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                                        <div>
+                                          <h5 class="mb-1">
+                                            <%= item.productName %>
+                                          </h5>
+                                          <p class="text-muted mb-0">Variant: <%= item.size || 'Standard' %> / <%=
+                                                item.color || 'Default' %>
+                                          </p>
+                                        </div>
+                                        <span class="badge bg-light text-dark">Qty: <%= item.quantity %></span>
                                       </div>
-                                      <span class="badge bg-light text-dark">Qty: <%= item.quantity %></span>
+
+                                      <% if (!item.product_id) { %>
+                                        <div class="alert alert-warning mb-0">Review not available for removed items.
+                                        </div>
+                                        <% } else { %>
+                                          <form action="/review/<%= order.id %>/submit" method="POST">
+                                            <input type="hidden" name="orderItemId" value="<%= item.id %>">
+                                            <input type="hidden" name="productId" value="<%= item.product_id %>">
+
+                                            <div class="row g-3">
+                                              <div class="col-12 col-md-4">
+                                                <label class="form-label">Rating</label>
+                                                <select name="rating" class="form-select" required>
+                                                  <% for (let score=5; score>=1; score--) { %>
+                                                    <option value="<%= score %>" <%=existing &&
+                                                      Number(existing.rating)===score ? 'selected' : '' %>>
+                                                      <%= score %> star<%= score>1 ? 's' : '' %>
+                                                    </option>
+                                                    <% } %>
+                                                </select>
+                                              </div>
+                                              <div class="col-12 col-md-8">
+                                                <label class="form-label">Comment</label>
+                                                <textarea name="comment" rows="3" class="form-control"
+                                                  placeholder="Tell us about the fit, fabric, and quality"
+                                                  required><%= existing ? existing.comment : '' %></textarea>
+                                              </div>
+                                            </div>
+
+                                            <div class="mt-3 d-flex justify-content-end">
+                                              <button type="submit" class="btn btn-primary">
+                                                <%= existing ? 'Update review' : 'Submit review' %>
+                                              </button>
+                                            </div>
+                                          </form>
+                                          <% } %>
                                     </div>
-
-                                    <% if (!item.product_id) { %>
-                                      <div class="alert alert-warning mb-0">Review not available for removed items.</div>
-                                      <% } else { %>
-                                        <form action="/review/<%= order.id %>/submit" method="POST">
-                                          <input type="hidden" name="orderItemId" value="<%= item.id %>">
-                                          <input type="hidden" name="productId" value="<%= item.product_id %>">
-
-                                          <div class="row g-3">
-                                            <div class="col-12 col-md-4">
-                                              <label class="form-label">Rating</label>
-                                              <select name="rating" class="form-select" required>
-                                                <% for (let score=5; score>=1; score--) { %>
-                                                  <option value="<%= score %>" <%= existing && Number(existing.rating)===score ? 'selected' : '' %>>
-                                                    <%= score %> star<%= score>1 ? 's' : '' %>
-                                                  </option>
-                                                  <% } %>
-                                              </select>
-                                            </div>
-                                            <div class="col-12 col-md-8">
-                                              <label class="form-label">Comment</label>
-                                              <textarea name="comment" rows="3" class="form-control" placeholder="Tell us about the fit, fabric, and quality" required><%= existing ? existing.comment : '' %></textarea>
-                                            </div>
-                                          </div>
-
-                                          <div class="mt-3 d-flex justify-content-end">
-                                            <button type="submit" class="btn btn-primary">
-                                              <%= existing ? 'Update review' : 'Submit review' %>
-                                            </button>
-                                          </div>
-                                        </form>
-                                        <% } %>
                                   </div>
                                 </div>
-                              </div>
-                              <% }); %>
-                        </div>
-                        <% } else { %>
-                          <div class="empty-state">
-                            <h3>No items available for review</h3>
-                            <p class="text-muted">This order does not have reviewable items.</p>
-                            <a href="/orders/history" class="btn btn-primary">Return to history</a>
+                                <% }); %>
                           </div>
-                          <% } %>
-    </div>
-  </main>
-<%- include('partial/footer') %>
-
+                          <% } else { %>
+                            <div class="empty-state">
+                              <h3>No items available for review</h3>
+                              <p class="text-muted">This order does not have reviewable items.</p>
+                              <a href="/orders/history" class="btn btn-primary">Return to history</a>
+                            </div>
+                            <% } %>
+      </div>
+    </main>
+    <%- include('partials/footer') %>

@@ -1,303 +1,306 @@
-<%- include('partial/header', { title: 'Add Shirt | Shirt Shop' }) %>
-<%- include('partial/adminNavbar', { user: user }) %>
+<%- include('partials/header', { title: 'Add Shirt | Shirt Shop' }) %>
+  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-  <section class="page-section">
-    <div class="container">
-      <div class="form-card">
-        <h2 class="text-center">Add new shirt</h2>
-        <p class="text-center text-muted mb-4">Add styles, sizes, and colours to keep your collection fresh.</p>
+    <section class="page-section">
+      <div class="container">
+        <div class="form-card">
+          <h2 class="text-center">Add new shirt</h2>
+          <p class="text-center text-muted mb-4">Add styles, sizes, and colours to keep your collection fresh.</p>
 
-        <% if (messages && messages.length) { %>
-          <% messages.forEach(function(message) { %>
-            <div class="alert alert-success">
-              <%= message %>
-            </div>
-            <% }); %>
-              <% } %>
+          <% if (messages && messages.length) { %>
+            <% messages.forEach(function(message) { %>
+              <div class="alert alert-success">
+                <%= message %>
+              </div>
+              <% }); %>
+                <% } %>
 
-                <% if (errors && errors.length) { %>
-                  <% errors.forEach(function(error) { %>
-                    <div class="alert alert-danger">
-                      <%= error %>
-                    </div>
-                    <% }); %>
-                      <% } %>
+                  <% if (errors && errors.length) { %>
+                    <% errors.forEach(function(error) { %>
+                      <div class="alert alert-danger">
+                        <%= error %>
+                      </div>
+                      <% }); %>
+                        <% } %>
 
-                        <form action="/addProduct" method="POST" enctype="multipart/form-data">
-                          <div class="mb-3">
-                            <label for="name" class="form-label">Product name</label>
-                            <input type="text" class="form-control" id="name" name="name" placeholder="Classic Tee"
-                              required>
-                          </div>
+                          <form action="/addProduct" method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                              <label for="name" class="form-label">Product name</label>
+                              <input type="text" class="form-control" id="name" name="name" placeholder="Classic Tee"
+                                required>
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="brand" class="form-label">Brand</label>
-                            <input type="text" class="form-control" id="brand" name="brand"
-                              placeholder="e.g. Cult Gaia">
-                            <small class="text-muted">Optional, used for brand filters and styling.</small>
-                          </div>
+                            <div class="mb-3">
+                              <label for="brand" class="form-label">Brand</label>
+                              <input type="text" class="form-control" id="brand" name="brand"
+                                placeholder="e.g. Cult Gaia">
+                              <small class="text-muted">Optional, used for brand filters and styling.</small>
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="quantity" class="form-label">Total quantity (auto from sizes)</label>
-                            <input type="number" class="form-control" id="quantity" name="quantity" min="0" step="1"
-                              required>
-                            <small class="text-muted">This total is calculated from the size quantities below.</small>
-                          </div>
+                            <div class="mb-3">
+                              <label for="quantity" class="form-label">Total quantity (auto from sizes)</label>
+                              <input type="number" class="form-control" id="quantity" name="quantity" min="0" step="1"
+                                required>
+                              <small class="text-muted">This total is calculated from the size quantities below.</small>
+                            </div>
 
-                          <div class="mb-3">
-                            <label class="form-label">Sizes & stock</label>
-                            <div id="size-input-grid" class="row g-2"></div>
-                            <small class="text-muted">Sizes are generated from “Size range” (e.g. 3XS-3XL, M-L, One-Size).</small>
-                          </div>
+                            <div class="mb-3">
+                              <label class="form-label">Sizes & stock</label>
+                              <div id="size-input-grid" class="row g-2"></div>
+                              <small class="text-muted">Sizes are generated from “Size range” (e.g. 3XS-3XL, M-L,
+                                One-Size).</small>
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="price" class="form-label">Price ($)</label>
-                            <input type="number" class="form-control" id="price" name="price" min="0" step="0.01"
-                              required>
-                          </div>
+                            <div class="mb-3">
+                              <label for="price" class="form-label">Price ($)</label>
+                              <input type="number" class="form-control" id="price" name="price" min="0" step="0.01"
+                                required>
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="discount" class="form-label">Discount (%)</label>
-                            <input type="number" class="form-control" id="discount" name="discount" min="0" max="100"
-                              step="1" value="0">
-                            <small class="text-muted">Whole numbers only (0 to 100).</small>
-                          </div>
+                            <div class="mb-3">
+                              <label for="discount" class="form-label">Discount (%)</label>
+                              <input type="number" class="form-control" id="discount" name="discount" min="0" max="100"
+                                step="1" value="0">
+                              <small class="text-muted">Whole numbers only (0 to 100).</small>
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="category" class="form-label">Style / Category</label>
-                            <select class="form-select" id="category" name="category" required>
-                              <option value="">Select category</option>
-                              <option value="T-shirt">T-shirt</option>
-                              <option value="Pants">Pants</option>
-                              <option value="__new__">Add new category</option>
-                            </select>
-                            <small class="text-muted">Choose one of the preset categories, or add a new one.</small>
-                          </div>
+                            <div class="mb-3">
+                              <label for="category" class="form-label">Style / Category</label>
+                              <select class="form-select" id="category" name="category" required>
+                                <option value="">Select category</option>
+                                <option value="T-shirt">T-shirt</option>
+                                <option value="Pants">Pants</option>
+                                <option value="__new__">Add new category</option>
+                              </select>
+                              <small class="text-muted">Choose one of the preset categories, or add a new one.</small>
+                            </div>
 
-                          <div class="mb-3 d-none" id="new-category-wrap">
-                            <label for="newCategory" class="form-label">New category name</label>
-                            <input type="text" class="form-control" id="newCategory" name="newCategory"
-                              placeholder="e.g. Hoodies">
-                          </div>
+                            <div class="mb-3 d-none" id="new-category-wrap">
+                              <label for="newCategory" class="form-label">New category name</label>
+                              <input type="text" class="form-control" id="newCategory" name="newCategory"
+                                placeholder="e.g. Hoodies">
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="offer" class="form-label">Promotional offer</label>
-                            <textarea class="form-control" id="offer" name="offer" rows="2"
-                              placeholder="E.g. Free delivery with every purchase"></textarea>
-                            <small class="text-muted">Optional message shown to shoppers alongside any discount.</small>
-                          </div>
+                            <div class="mb-3">
+                              <label for="offer" class="form-label">Promotional offer</label>
+                              <textarea class="form-control" id="offer" name="offer" rows="2"
+                                placeholder="E.g. Free delivery with every purchase"></textarea>
+                              <small class="text-muted">Optional message shown to shoppers alongside any
+                                discount.</small>
+                            </div>
 
-                          <div class="mb-3">
-                            <label for="description" class="form-label">Shirt description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"
-                              placeholder="Describe the fit, feel, and style of this shirt."></textarea>
-                          </div>
+                            <div class="mb-3">
+                              <label for="description" class="form-label">Shirt description</label>
+                              <textarea class="form-control" id="description" name="description" rows="3"
+                                placeholder="Describe the fit, feel, and style of this shirt."></textarea>
+                            </div>
 
-                          <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                              <div class="mb-3">
-                                <label for="fitType" class="form-label">Fit type</label>
-                                <select class="form-select" id="fitType" name="fitType">
-                                  <option value="">Select fit</option>
-                                  <option value="Regular">Regular</option>
-                                  <option value="Oversized">Oversized</option>
-                                  <option value="Slim">Slim</option>
-                                  <option value="Relaxed">Relaxed</option>
-                                </select>
+                            <div class="row g-3">
+                              <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                  <label for="fitType" class="form-label">Fit type</label>
+                                  <select class="form-select" id="fitType" name="fitType">
+                                    <option value="">Select fit</option>
+                                    <option value="Regular">Regular</option>
+                                    <option value="Oversized">Oversized</option>
+                                    <option value="Slim">Slim</option>
+                                    <option value="Relaxed">Relaxed</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                  <label for="material" class="form-label">Material</label>
+                                  <select class="form-select" id="material" name="material">
+                                    <option value="">Select material</option>
+                                    <option value="100% Cotton">100% Cotton</option>
+                                    <option value="Cotton Blend">Cotton Blend</option>
+                                    <option value="Dry-fit">Dry-fit</option>
+                                  </select>
+                                </div>
                               </div>
                             </div>
-                            <div class="col-12 col-md-6">
-                              <div class="mb-3">
-                                <label for="material" class="form-label">Material</label>
-                                <select class="form-select" id="material" name="material">
-                                  <option value="">Select material</option>
-                                  <option value="100% Cotton">100% Cotton</option>
-                                  <option value="Cotton Blend">Cotton Blend</option>
-                                  <option value="Dry-fit">Dry-fit</option>
-                                </select>
+
+                            <div class="row g-3">
+                              <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                  <label for="color" class="form-label">Color</label>
+                                  <input type="text" class="form-control" id="color" name="color"
+                                    placeholder="e.g. Midnight Navy">
+                                </div>
+                              </div>
+                              <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                  <label for="sizeRange" class="form-label">Size range</label>
+                                  <input type="text" class="form-control" id="sizeRange" name="sizeRange"
+                                    placeholder="e.g. XS-3XL">
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                              <div class="mb-3">
-                                <label for="color" class="form-label">Color</label>
-                                <input type="text" class="form-control" id="color" name="color"
-                                  placeholder="e.g. Midnight Navy">
-                              </div>
+                            <div class="mb-3">
+                              <label for="care" class="form-label">Care instructions</label>
+                              <input type="text" class="form-control" id="care" name="care"
+                                placeholder="e.g. Machine wash cold, tumble dry low">
                             </div>
-                            <div class="col-12 col-md-6">
-                              <div class="mb-3">
-                                <label for="sizeRange" class="form-label">Size range</label>
-                                <input type="text" class="form-control" id="sizeRange" name="sizeRange"
-                                  placeholder="e.g. XS-3XL">
-                              </div>
+
+                            <div class="mb-4">
+                              <label for="imageFront" class="form-label">Product image (front)</label>
+                              <input class="form-control" type="file" id="imageFront" name="imageFront" accept="image/*"
+                                required>
+                              <small class="text-muted">Recommended: clear front-facing product photo.</small>
                             </div>
-                          </div>
 
-                          <div class="mb-3">
-                            <label for="care" class="form-label">Care instructions</label>
-                            <input type="text" class="form-control" id="care" name="care"
-                              placeholder="e.g. Machine wash cold, tumble dry low">
-                          </div>
+                            <div class="mb-4">
+                              <label for="imageBack" class="form-label">Product image (back)</label>
+                              <input class="form-control" type="file" id="imageBack" name="imageBack" accept="image/*">
+                              <small class="text-muted">Optional back view for the product gallery.</small>
+                            </div>
 
-                          <div class="mb-4">
-                            <label for="imageFront" class="form-label">Product image (front)</label>
-                            <input class="form-control" type="file" id="imageFront" name="imageFront" accept="image/*" required>
-                            <small class="text-muted">Recommended: clear front-facing product photo.</small>
-                          </div>
-
-                          <div class="mb-4">
-                            <label for="imageBack" class="form-label">Product image (back)</label>
-                            <input class="form-control" type="file" id="imageBack" name="imageBack" accept="image/*">
-                            <small class="text-muted">Optional back view for the product gallery.</small>
-                          </div>
-
-                          <button type="submit" class="btn btn-primary w-100">Save product</button>
-                        </form>
+                            <button type="submit" class="btn btn-primary w-100">Save product</button>
+                          </form>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      var category = document.getElementById('category');
-      var wrap = document.getElementById('new-category-wrap');
-      var input = document.getElementById('newCategory');
-      var totalQty = document.getElementById('quantity');
-      var sizeGrid = document.getElementById('size-input-grid');
-      var sizeInputs = [];
-      var sizeRangeInput = document.getElementById('sizeRange');
-      var sizeOrder = ['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One-Size'];
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var category = document.getElementById('category');
+        var wrap = document.getElementById('new-category-wrap');
+        var input = document.getElementById('newCategory');
+        var totalQty = document.getElementById('quantity');
+        var sizeGrid = document.getElementById('size-input-grid');
+        var sizeInputs = [];
+        var sizeRangeInput = document.getElementById('sizeRange');
+        var sizeOrder = ['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One-Size'];
 
-      if (!category || !wrap || !input) {
-        return;
-      }
-
-      var toggleCustomCategory = function () {
-        var needsCustom = category.value === '__new__';
-        wrap.classList.toggle('d-none', !needsCustom);
-        input.required = needsCustom;
-        if (!needsCustom) {
-          input.value = '';
-        }
-      };
-
-      category.addEventListener('change', toggleCustomCategory);
-      toggleCustomCategory();
-
-      var buildSizeKey = function (sizeLabel) {
-        if (sizeLabel === 'One-Size') {
-          return 'size_one_size';
-        }
-        return 'size_' + sizeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-      };
-
-      var normalizeSizeToken = function (token) {
-        if (!token) {
-          return null;
-        }
-        var cleaned = token.trim().toUpperCase().replace(/_/g, '-');
-        if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') {
-          return 'One-Size';
-        }
-        return cleaned;
-      };
-
-      var parseSizeRange = function (value) {
-        if (!value) {
-          return null;
-        }
-        var trimmed = value.trim();
-        if (!trimmed) {
-          return null;
+        if (!category || !wrap || !input) {
+          return;
         }
 
-        var normalized = normalizeSizeToken(trimmed);
-        if (normalized === 'One-Size') {
-          return ['One-Size'];
-        }
+        var toggleCustomCategory = function () {
+          var needsCustom = category.value === '__new__';
+          wrap.classList.toggle('d-none', !needsCustom);
+          input.required = needsCustom;
+          if (!needsCustom) {
+            input.value = '';
+          }
+        };
 
-        if (trimmed.indexOf(',') !== -1) {
-          return trimmed.split(',').map(function (part) {
-            return normalizeSizeToken(part);
-          }).filter(Boolean);
-        }
+        category.addEventListener('change', toggleCustomCategory);
+        toggleCustomCategory();
 
-        if (trimmed.indexOf('-') !== -1) {
-          var parts = trimmed.split('-').map(function (part) {
-            return normalizeSizeToken(part);
-          });
-          if (parts.length >= 2) {
-            var start = parts[0];
-            var end = parts[1];
-            var startIndex = sizeOrder.indexOf(start);
-            var endIndex = sizeOrder.indexOf(end);
-            if (startIndex !== -1 && endIndex !== -1) {
-              var from = Math.min(startIndex, endIndex);
-              var to = Math.max(startIndex, endIndex);
-              return sizeOrder.slice(from, to + 1);
+        var buildSizeKey = function (sizeLabel) {
+          if (sizeLabel === 'One-Size') {
+            return 'size_one_size';
+          }
+          return 'size_' + sizeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        };
+
+        var normalizeSizeToken = function (token) {
+          if (!token) {
+            return null;
+          }
+          var cleaned = token.trim().toUpperCase().replace(/_/g, '-');
+          if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') {
+            return 'One-Size';
+          }
+          return cleaned;
+        };
+
+        var parseSizeRange = function (value) {
+          if (!value) {
+            return null;
+          }
+          var trimmed = value.trim();
+          if (!trimmed) {
+            return null;
+          }
+
+          var normalized = normalizeSizeToken(trimmed);
+          if (normalized === 'One-Size') {
+            return ['One-Size'];
+          }
+
+          if (trimmed.indexOf(',') !== -1) {
+            return trimmed.split(',').map(function (part) {
+              return normalizeSizeToken(part);
+            }).filter(Boolean);
+          }
+
+          if (trimmed.indexOf('-') !== -1) {
+            var parts = trimmed.split('-').map(function (part) {
+              return normalizeSizeToken(part);
+            });
+            if (parts.length >= 2) {
+              var start = parts[0];
+              var end = parts[1];
+              var startIndex = sizeOrder.indexOf(start);
+              var endIndex = sizeOrder.indexOf(end);
+              if (startIndex !== -1 && endIndex !== -1) {
+                var from = Math.min(startIndex, endIndex);
+                var to = Math.max(startIndex, endIndex);
+                return sizeOrder.slice(from, to + 1);
+              }
             }
           }
+
+          return null;
+        };
+
+        var renderSizeInputs = function () {
+          if (!sizeGrid) {
+            return;
+          }
+          sizeGrid.innerHTML = '';
+          var rangeValue = sizeRangeInput ? sizeRangeInput.value : '';
+          var sizes = parseSizeRange(rangeValue) || ['2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
+
+          sizes.forEach(function (size) {
+            var col = document.createElement('div');
+            col.className = 'col-6 col-md-3';
+            var key = buildSizeKey(size);
+            col.innerHTML =
+              '<label class="form-label small" for="' + key + '">' + size + '</label>' +
+              '<input type="number" class="form-control size-input" id="' + key + '" name="' + key + '" min="0" step="1" placeholder="0">';
+            sizeGrid.appendChild(col);
+          });
+
+          sizeInputs = Array.prototype.slice.call(sizeGrid.querySelectorAll('.size-input'));
+          sizeInputs.forEach(function (field) {
+            field.addEventListener('input', updateTotalQty);
+          });
+          updateTotalQty();
+        };
+
+        var updateTotalQty = function () {
+          if (!totalQty || !sizeInputs.length) {
+            return;
+          }
+          var hasValue = false;
+          var total = 0;
+          sizeInputs.forEach(function (field) {
+            if (field.value !== '') {
+              hasValue = true;
+            }
+            var value = parseInt(field.value, 10);
+            if (!isNaN(value) && value > 0) {
+              total += value;
+            }
+          });
+          if (!hasValue) {
+            return;
+          }
+          totalQty.value = total;
+        };
+
+        if (sizeRangeInput) {
+          sizeRangeInput.addEventListener('input', renderSizeInputs);
+          sizeRangeInput.addEventListener('change', renderSizeInputs);
         }
 
-        return null;
-      };
-
-      var renderSizeInputs = function () {
-        if (!sizeGrid) {
-          return;
-        }
-        sizeGrid.innerHTML = '';
-        var rangeValue = sizeRangeInput ? sizeRangeInput.value : '';
-        var sizes = parseSizeRange(rangeValue) || ['2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
-
-        sizes.forEach(function (size) {
-          var col = document.createElement('div');
-          col.className = 'col-6 col-md-3';
-          var key = buildSizeKey(size);
-          col.innerHTML =
-            '<label class="form-label small" for="' + key + '">' + size + '</label>' +
-            '<input type="number" class="form-control size-input" id="' + key + '" name="' + key + '" min="0" step="1" placeholder="0">';
-          sizeGrid.appendChild(col);
-        });
-
-        sizeInputs = Array.prototype.slice.call(sizeGrid.querySelectorAll('.size-input'));
-        sizeInputs.forEach(function (field) {
-          field.addEventListener('input', updateTotalQty);
-        });
+        renderSizeInputs();
         updateTotalQty();
-      };
-
-      var updateTotalQty = function () {
-        if (!totalQty || !sizeInputs.length) {
-          return;
-        }
-        var hasValue = false;
-        var total = 0;
-        sizeInputs.forEach(function (field) {
-          if (field.value !== '') {
-            hasValue = true;
-          }
-          var value = parseInt(field.value, 10);
-          if (!isNaN(value) && value > 0) {
-            total += value;
-          }
-        });
-        if (!hasValue) {
-          return;
-        }
-        totalQty.value = total;
-      };
-
-      if (sizeRangeInput) {
-        sizeRangeInput.addEventListener('input', renderSizeInputs);
-        sizeRangeInput.addEventListener('change', renderSizeInputs);
-      }
-
-      renderSizeInputs();
-      updateTotalQty();
-    });
-  </script>
-<%- include('partial/footer') %>
+      });
+    </script>
+    <%- include('partial/footer') %>
