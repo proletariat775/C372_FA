@@ -150,7 +150,7 @@ const findAllWithUsers = (callback) => {
             o.delivery_fee,
             u.username,
             u.email,
-            u.contact,
+            u.phone AS contact,
             u.address AS account_address,
                 u.free_delivery
         FROM orders o

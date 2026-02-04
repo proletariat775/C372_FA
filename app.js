@@ -9,6 +9,9 @@ const cartController = require('./controllers/CartController');
 const productController = require('./controllers/ProductController');
 const orderController = require('./controllers/OrderController');
 const reviewController = require('./controllers/ReviewController');
+// TEAM START - Fit assistant controller
+const fitAssistantController = require('./controllers/FitAssistantController');
+// TEAM END - Fit assistant controller
 // ZOEY START - Post-purchase management controller
 const postPurchaseController = require('./controllers/PostPurchaseController');
 // ZOEY END - Post-purchase management controller
@@ -68,6 +71,11 @@ app.post('/admin/users/:id', checkAuthenticated, checkAdmin, userController.upda
 app.post('/admin/users/:id/delete', checkAuthenticated, checkAdmin, userController.deleteUser);
 
 app.get('/shopping', checkAuthenticated, checkRoles('user', 'customer'), productController.showShopping);
+
+// TEAM START - Fit assistant routes
+app.get('/fit-assistant', fitAssistantController.show);
+app.post('/fit-assistant', fitAssistantController.calculate);
+// TEAM END - Fit assistant routes
 
 app.post('/add-to-cart/:id', checkAuthenticated, checkRoles('user', 'customer'), cartController.addToCart);
 app.get('/cart', checkAuthenticated, checkRoles('user', 'customer'), cartController.viewCart);

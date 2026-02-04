@@ -1,0 +1,300 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/fit-assistant.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <title>
+    <%= title %>
+  </title>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-sm navbar-light bg-white shadow-sm">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">Shirt Shop</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#fitNavbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="fitNavbar">
+        <ul class="navbar-nav ms-auto">
+          <% if (!user) { %>
+            <li class="nav-item">
+              <a class="nav-link" href="/register">Register</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/login">Login</a>
+            </li>
+            <% } else if (user.role === 'admin') { %>
+              <li class="nav-item">
+                <a class="nav-link" href="/inventory">Inventory</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/addProduct">Add Product</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/admin/deliveries">Deliveries</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/admin/users">Manage Users</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/logout">Logout</a>
+              </li>
+              <% } else { %>
+                <li class="nav-item">
+                  <a class="nav-link" href="/shopping">Shop</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="/cart">Cart</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link active" href="/fit-assistant">Fit Assistant</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="/orders/history">Purchase History</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="/logout">Logout</a>
+                </li>
+                <% } %>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-section fit-hero">
+    <div class="container">
+      <div class="hero-card fit-hero-card">
+        <div class="row g-4 align-items-center">
+          <div class="col-12 col-lg-7">
+            <div class="hero-body">
+              <span class="badge rounded-pill bg-dark-subtle text-dark">Inclusive sizing</span>
+              <h1 class="mt-3">Find your perfect fit</h1>
+              <p class="lead text-muted mb-4">
+                Use a few quick measurements to get a size recommendation across our unisex, petite, tall, and curve-friendly fits.
+                Designed to build confidence before you personalize.
+              </p>
+              <div class="d-flex flex-wrap gap-2">
+                <span class="fit-pill">XS - 4XL size coverage</span>
+                <span class="fit-pill">Session-only privacy</span>
+                <span class="fit-pill">Clear returns eligibility</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="fit-hero-panel">
+              <h5 class="mb-3">Why it matters</h5>
+              <p class="text-muted mb-0">
+                Real measurements reduce sizing mistakes, improve confidence, and make post-purchase exchanges smoother.
+                You're always in control of what you share.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-section pt-0">
+    <div class="container">
+      <% if (errors && errors.length) { %>
+        <div class="alert alert-danger">
+          <strong>We need a bit more detail.</strong>
+          <ul class="mb-0">
+            <% errors.forEach(function(error) { %>
+              <li><%= error %></li>
+              <% }); %>
+          </ul>
+        </div>
+        <% } %>
+
+          <div class="row g-4">
+            <div class="col-12 col-lg-6">
+              <div class="card fit-card">
+                <div class="card-body">
+                  <h3 class="mb-3">Fit details</h3>
+                  <p class="text-muted">Enter any measurements you have. Chest size gives the most accurate results.</p>
+                  <form action="/fit-assistant" method="POST" class="row g-3">
+                    <div class="col-12 col-md-6">
+                      <label for="heightCm" class="form-label">Height (cm)</label>
+                      <input type="number" class="form-control" id="heightCm" name="heightCm" step="0.1"
+                        value="<%= profile.heightCm || '' %>">
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label for="weightKg" class="form-label">Weight (kg)</label>
+                      <input type="number" class="form-control" id="weightKg" name="weightKg" step="0.1"
+                        value="<%= profile.weightKg || '' %>">
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label for="chestCm" class="form-label">Chest circumference (cm)</label>
+                      <input type="number" class="form-control" id="chestCm" name="chestCm" step="0.1"
+                        value="<%= profile.chestCm || '' %>">
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label for="waistCm" class="form-label">Waist circumference (cm)</label>
+                      <input type="number" class="form-control" id="waistCm" name="waistCm" step="0.1"
+                        value="<%= profile.waistCm || '' %>">
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label for="fitPreference" class="form-label">Fit preference</label>
+                      <select class="form-select" id="fitPreference" name="fitPreference">
+                        <option value="regular" <%= profile.fitPreference === 'regular' ? 'selected' : '' %>>Regular</option>
+                        <option value="relaxed" <%= profile.fitPreference === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
+                        <option value="slim" <%= profile.fitPreference === 'slim' ? 'selected' : '' %>>Slim</option>
+                      </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label for="lengthPreference" class="form-label">Length preference</label>
+                      <select class="form-select" id="lengthPreference" name="lengthPreference">
+                        <option value="no-preference" <%= profile.lengthPreference === 'no-preference' ? 'selected' : '' %>>No preference</option>
+                        <option value="petite" <%= profile.lengthPreference === 'petite' ? 'selected' : '' %>>Petite</option>
+                        <option value="regular" <%= profile.lengthPreference === 'regular' ? 'selected' : '' %>>Regular</option>
+                        <option value="tall" <%= profile.lengthPreference === 'tall' ? 'selected' : '' %>>Tall</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label for="fitLine" class="form-label">Inclusive fit line</label>
+                      <select class="form-select" id="fitLine" name="fitLine">
+                        <option value="unisex" <%= profile.fitLine === 'unisex' ? 'selected' : '' %>>Unisex / Non-binary</option>
+                        <option value="curve" <%= profile.fitLine === 'curve' ? 'selected' : '' %>>Curve-friendly</option>
+                        <option value="straight" <%= profile.fitLine === 'straight' ? 'selected' : '' %>>Straight classic</option>
+                        <option value="boxy" <%= profile.fitLine === 'boxy' ? 'selected' : '' %>>Boxy relaxed</option>
+                      </select>
+                    </div>
+                    <div class="col-12 d-grid mt-2">
+                      <button type="submit" class="btn btn-primary btn-lg">Get my recommendation</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+              <% if (result) { %>
+                <div class="card fit-card fit-result">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <span class="text-uppercase small text-muted">Recommended size</span>
+                        <h2 class="display-6 fw-semibold mb-2"><%= result.recommendedSize %></h2>
+                        <p class="text-muted mb-3">Alternate size: <strong><%= result.alternateSize %></strong></p>
+                      </div>
+                      <span class="badge bg-success-subtle text-success">Confidence: <%= result.confidence %></span>
+                    </div>
+
+                    <div class="fit-summary-grid">
+                      <div>
+                        <span class="text-uppercase small text-muted">Fit line</span>
+                        <p class="mb-0 fw-semibold"><%= result.fitLineLabel %></p>
+                      </div>
+                      <div>
+                        <span class="text-uppercase small text-muted">Length</span>
+                        <p class="mb-0 fw-semibold"><%= result.length %></p>
+                      </div>
+                      <div>
+                        <span class="text-uppercase small text-muted">Next step</span>
+                        <p class="mb-0 fw-semibold">Apply this size at checkout</p>
+                      </div>
+                    </div>
+
+                    <div class="mt-4">
+                      <h5 class="mb-3">Fit notes</h5>
+                      <ul class="fit-list">
+                        <% result.notes.forEach(function(note) { %>
+                          <li><%= note %></li>
+                          <% }); %>
+                      </ul>
+                    </div>
+
+                    <div class="mt-4">
+                      <h5 class="mb-3">Measurement tips</h5>
+                      <ul class="fit-list">
+                        <% result.tips.forEach(function(tip) { %>
+                          <li><%= tip %></li>
+                          <% }); %>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <% } else { %>
+                  <div class="card fit-card fit-placeholder">
+                    <div class="card-body">
+                      <h3 class="mb-3">How it works</h3>
+                      <ol class="fit-steps">
+                        <li>Share any measurements you have. Chest gives the most accurate sizing.</li>
+                        <li>Choose your preferred fit line and length.</li>
+                        <li>We recommend a size and show the closest alternative.</li>
+                      </ol>
+                      <p class="text-muted mb-0">You can update this anytime before checkout.</p>
+                    </div>
+                  </div>
+                  <% } %>
+            </div>
+          </div>
+
+          <div class="row g-4 mt-1">
+            <div class="col-12 col-lg-7">
+              <div class="card fit-card">
+                <div class="card-body">
+                  <h4 class="mb-3">Inclusive size chart (chest)</h4>
+                  <div class="table-responsive">
+                    <table class="table table-modern fit-table align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th scope="col">Size</th>
+                          <th scope="col">Chest range (cm)</th>
+                          <th scope="col">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% chart.forEach(function(row) { %>
+                          <tr>
+                            <td class="fw-semibold"><%= row.size %></td>
+                            <td>
+                              <% if (row.maxChest >= 1000) { %>
+                                <%= row.minChest %>+ cm
+                                <% } else { %>
+                                  <%= row.minChest %> - <%= row.maxChest %> cm
+                                  <% } %>
+                            </td>
+                            <td class="text-muted">Designed to layer with personalization.</td>
+                          </tr>
+                          <% }); %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-5">
+              <div class="card fit-card fit-trust">
+                <div class="card-body">
+                  <h4 class="mb-3">Confidence & care</h4>
+                  <ul class="fit-list">
+                    <% (result ? result.trust : [
+                      'Inclusive sizing and fit notes on every product page.',
+                      'Clear return eligibility shown in your order history.',
+                      'Secure payments processed by trusted gateways.'
+                    ]).forEach(function(item) { %>
+                      <li><%= item %></li>
+                      <% }); %>
+                  </ul>
+                  <div class="fit-callout">
+                    <strong>Need extra help?</strong>
+                    <p class="mb-0">Contact support through your order history for tailored fit guidance.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+    </div>
+  </main>
+</body>
+
+</html>

@@ -21,7 +21,7 @@ const create = (userData, callback) => {
         role = 'customer'
     } = userData;
 
-    const sql = `INSERT INTO users (username, email, password, first_name, last_name, address, city, state, zip_code, country, contact, role)
+    const sql = `INSERT INTO users (username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role)
                  VALUES (?, ?, SHA1(?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const values = [username, email, password, first_name, last_name, address, city, state, zip_code, country, contact, role];
@@ -37,7 +37,7 @@ const create = (userData, callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findByEmail = (email, callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, contact, role, created_at, updated_at
+    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, phone AS contact, role, created_at, updated_at
                  FROM users WHERE email = ?`;
     db.query(sql, [email], callback);
 };
@@ -49,7 +49,7 @@ const findByEmail = (email, callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findByEmailAndPassword = (email, password, callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, contact, role, created_at, updated_at
+    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, phone AS contact, role, created_at, updated_at
                  FROM users WHERE email = ? AND password = SHA1(?)`;
     db.query(sql, [email, password], callback);
 };
@@ -59,7 +59,7 @@ const findByEmailAndPassword = (email, password, callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findAll = (callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, role, contact, address, city, state, zip_code, country, created_at, updated_at FROM users`;
+    const sql = `SELECT id, username, email, first_name, last_name, role, phone AS contact, address, city, state, zip_code, country, created_at, updated_at FROM users`;
     db.query(sql, callback);
 };
 
@@ -69,7 +69,7 @@ const findAll = (callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findById = (id, callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, role, contact, address, city, state, zip_code, country, created_at, updated_at FROM users WHERE id = ?`;
+    const sql = `SELECT id, username, email, first_name, last_name, role, phone AS contact, address, city, state, zip_code, country, created_at, updated_at FROM users WHERE id = ?`;
     db.query(sql, [id], callback);
 };
 
@@ -117,7 +117,7 @@ const update = (id, data, callback) => {
 
     const sql = `
         UPDATE users
-        SET username = ?, email = ?, first_name = ?, last_name = ?, address = ?, city = ?, state = ?, zip_code = ?, country = ?, contact = ?, role = ?, updated_at = NOW()
+        SET username = ?, email = ?, first_name = ?, last_name = ?, address = ?, city = ?, state = ?, zip_code = ?, country = ?, phone = ?, role = ?, updated_at = NOW()
         WHERE id = ?
     `;
 

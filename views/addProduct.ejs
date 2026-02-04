@@ -102,6 +102,61 @@
                             <small class="text-muted">Optional message shown to shoppers alongside any discount.</small>
                           </div>
 
+                          <div class="mb-3">
+                            <label for="description" class="form-label">Shirt description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                              placeholder="Describe the fit, feel, and style of this shirt."></textarea>
+                          </div>
+
+                          <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                              <div class="mb-3">
+                                <label for="fitType" class="form-label">Fit type</label>
+                                <select class="form-select" id="fitType" name="fitType">
+                                  <option value="">Select fit</option>
+                                  <option value="Regular">Regular</option>
+                                  <option value="Oversized">Oversized</option>
+                                  <option value="Slim">Slim</option>
+                                  <option value="Relaxed">Relaxed</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <div class="mb-3">
+                                <label for="material" class="form-label">Material</label>
+                                <select class="form-select" id="material" name="material">
+                                  <option value="">Select material</option>
+                                  <option value="100% Cotton">100% Cotton</option>
+                                  <option value="Cotton Blend">Cotton Blend</option>
+                                  <option value="Dry-fit">Dry-fit</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                              <div class="mb-3">
+                                <label for="color" class="form-label">Color</label>
+                                <input type="text" class="form-control" id="color" name="color"
+                                  placeholder="e.g. Midnight Navy">
+                              </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <div class="mb-3">
+                                <label for="sizeRange" class="form-label">Size range</label>
+                                <input type="text" class="form-control" id="sizeRange" name="sizeRange"
+                                  placeholder="e.g. XS-3XL">
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="mb-3">
+                            <label for="care" class="form-label">Care instructions</label>
+                            <input type="text" class="form-control" id="care" name="care"
+                              placeholder="e.g. Machine wash cold, tumble dry low">
+                          </div>
+
                           <div class="mb-4">
                             <label for="image" class="form-label">Product image</label>
                             <input class="form-control" type="file" id="image" name="image" accept="image/*" required>
