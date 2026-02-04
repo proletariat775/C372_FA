@@ -85,8 +85,8 @@
                             <div class="mb-3">
                               <label for="discount" class="form-label">Discount (%)</label>
                               <input type="number" class="form-control" id="discount" name="discount" min="0" max="100"
-                                step="0.01" value="<%= Number(product.discountPercentage || 0).toFixed(2) %>">
-                              <small class="text-muted">Set to 0 to remove any discount. Maximum 100.</small>
+                                step="1" value="<%= Math.round(Number(product.discountPercentage || 0)) %>">
+                              <small class="text-muted">Whole numbers only (0 to 100).</small>
                             </div>
 
                             <div class="mb-3">

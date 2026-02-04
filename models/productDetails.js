@@ -25,6 +25,13 @@ const ProductDetails = {
         const sql = `
             INSERT INTO product_details (product_id, description, fit_type, material, color, size_range, care)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                description = VALUES(description),
+                fit_type = VALUES(fit_type),
+                material = VALUES(material),
+                color = VALUES(color),
+                size_range = VALUES(size_range),
+                care = VALUES(care)
         `;
 
         const values = [
