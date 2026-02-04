@@ -10,11 +10,17 @@
   <title>
     <%= product ? product.productName : 'Shirt' %> | Shirt Shop
   </title>
-  <% // meta helpers: prefer explicit product fields, fallback to site defaults const metaTitle=product ?
-    (product.productName + ' | Shirt Shop' ) : 'Shirt Shop - Quality Shirts' ; const metaDescription=product ?
-    (product.offerMessage || product.description || ('Buy ' + product.productName + ' at Shirt Shop'))
-    : 'Shirt Shop - quality shirts for every occasion.' ; const metaImage=product && product.image ? '/images/' +
-    product.image : '/images/shirt-sample-1.svg' ; const metaUrl=(typeof host !=='undefined' ) ? host : '' ; %>
+  <%# meta helpers: prefer explicit product fields, fallback to site defaults %>
+  <% const metaTitle = product
+    ? (product.productName + ' | Shirt Shop')
+    : 'Shirt Shop - Quality Shirts';
+  const metaDescription = product
+    ? (product.offerMessage || product.description || ('Buy ' + product.productName + ' at Shirt Shop'))
+    : 'Shirt Shop - quality shirts for every occasion.';
+  const metaImage = product && product.image
+    ? '/images/' + product.image
+    : '/images/shirt-sample-1.svg';
+  const metaUrl = (typeof host !== 'undefined') ? host : ''; %>
     <meta name="description" content="<%= metaDescription %>">
     <meta property="og:title" content="<%= metaTitle %>">
     <meta property="og:description" content="<%= metaDescription %>">
@@ -155,6 +161,21 @@
                                         </div>
                                         <% } %>
 
+                                          <div class="border rounded-3 p-3 bg-light mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                              <h5 class="mb-0">Fit Assistant</h5>
+                                              <a href="#size-guide" class="small text-decoration-none">View size guide</a>
+                                            </div>
+                                            <% if (typeof recommendedSize !== 'undefined' && recommendedSize) { %>
+                                              <p class="mb-1">Recommended size: <strong><%= recommendedSize %></strong></p>
+                                              <p class="text-muted mb-0">Confidence: <%= typeof confidence !== 'undefined' ? confidence : '-' %></p>
+                                              <% } else { %>
+                                                <p class="text-muted mb-2">Get a personalized size recommendation based on your measurements.</p>
+                                                <a href="/fit-assistant"
+                                                  class="btn btn-outline-primary btn-sm">Enter measurements for size recommendation</a>
+                                                <% } %>
+                                          </div>
+
                                           <% if (user && user.role==='user' ) { %>
                                             <form action="/add-to-cart/<%= product.id %>" method="POST"
                                               class="d-flex flex-column flex-sm-row gap-3">
@@ -177,6 +198,119 @@
                                               <% } %>
                               </div>
                             </div>
+                          </div>
+                        </div>
+
+                        <div class="row g-4 mt-4">
+                          <div class="col-12 col-lg-7">
+                            <div class="card shadow-sm">
+                              <div class="card-body">
+                                <% const detail = productDetails || {}; %>
+                                <h3 class="card-title mb-3">About this shirt</h3>
+                                <p class="text-muted mb-3"><%= detail.description ? detail.description : 'Not provided' %></p>
+                                <p class="mb-2"><strong>Fit &amp; material:</strong>
+                                  <%= detail.fitType ? detail.fitType : 'Not provided' %> / <%= detail.material ? detail.material : 'Not provided' %>
+                                </p>
+                                <p class="mb-2"><strong>Available sizes:</strong>
+                                  <%= detail.sizeRange ? detail.sizeRange : 'Not provided' %>
+                                </p>
+                                <p class="mb-3"><strong>Color:</strong>
+                                  <%= detail.color ? detail.color : 'Not provided' %>
+                                </p>
+                                <div class="text-muted">
+                                  <div>Care instructions:</div>
+                                  <% if (detail.care) { %>
+                                    <div><%= detail.care %></div>
+                                    <% } else { %>
+                                      <div>Not provided</div>
+                                      <% } %>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="card shadow-sm mt-4" id="size-guide">
+                              <div class="card-body">
+                                <h3 class="card-title mb-3">Size guide</h3>
+                                <p class="text-muted mb-3">Use chest measurement as the most accurate indicator.</p>
+                                <div class="row g-2">
+                                  <div class="col-6 col-md-4">
+                                    <div class="border rounded-3 p-2 text-center">XS - 84 cm</div>
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <div class="border rounded-3 p-2 text-center">S - 84-92 cm</div>
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <div class="border rounded-3 p-2 text-center">M - 92-100 cm</div>
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <div class="border rounded-3 p-2 text-center">L - 100-108 cm</div>
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <div class="border rounded-3 p-2 text-center">XL - 108-116 cm</div>
+                                  </div>
+                                  <div class="col-6 col-md-4">
+                                    <div class="border rounded-3 p-2 text-center">2XL+ - 116 cm+</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="col-12 col-lg-5">
+                            <div class="card shadow-sm">
+                              <div class="card-body">
+                                <h3 class="card-title mb-3">Delivery & returns</h3>
+                                <p class="text-muted mb-2">Delivery estimate: 2-4 business days within Singapore.</p>
+                                <p class="text-muted mb-3">Returns accepted within 14 days for unworn items with tags.</p>
+                                <% if (typeof canReturn !== 'undefined' && canReturn && typeof orderId !== 'undefined') { %>
+                                  <a href="/order/<%= orderId %>/return" class="btn btn-outline-primary">Request return/exchange</a>
+                                  <% } %>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="row g-4 mt-4">
+                          <div class="col-12">
+                            <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
+                              <div>
+                                <h3 class="mb-1">You may also like</h3>
+                                <p class="text-muted mb-0">More styles curated for your next look.</p>
+                              </div>
+                            </div>
+                            <% if (relatedProducts && relatedProducts.length) { %>
+                              <div class="row g-3">
+                                <% relatedProducts.slice(0, 3).forEach(function(item) { %>
+                                  <div class="col-12 col-md-6 col-lg-4">
+                                    <div class="card h-100 shadow-sm">
+                                      <% if (item.image) { %>
+                                        <img src="/images/<%= item.image %>" class="card-img-top"
+                                          alt="<%= item.productName || item.name %>">
+                                        <% } else { %>
+                                          <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                                            style="height: 200px;">
+                                            <span class="text-muted">No image available</span>
+                                          </div>
+                                          <% } %>
+                                      <div class="card-body d-flex flex-column">
+                                        <h5 class="card-title">
+                                          <a href="/product/<%= item.id %>" class="text-decoration-none text-dark">
+                                            <%= item.productName || item.name %>
+                                          </a>
+                                        </h5>
+                                        <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
+                                        <div class="mt-auto">
+                                          <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2) %></span>
+                                          <a href="/product/<%= item.id %>" class="btn btn-outline-primary w-100 mt-2">View product</a>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <% }); %>
+                              </div>
+                              <% } else { %>
+                                <div class="alert alert-light border">More styles coming soon</div>
+                                <% } %>
                           </div>
                         </div>
 

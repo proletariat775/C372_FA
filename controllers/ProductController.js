@@ -1,6 +1,7 @@
 const Product = require('../models/product');
 const Review = require('../models/review');
 const Order = require('../models/order');
+const ProductDetails = require('../models/productDetails');
 
 const toCurrency = (value, precision = 2) => {
     const numberValue = Number.parseFloat(value);
@@ -148,6 +149,14 @@ const ProductController = {
     addProduct: (req, res) => {
         const image = req.file ? req.file.filename : null;
         const productData = buildProductPayload(req.body, image);
+        const detailsData = {
+            description: req.body.description,
+            fitType: req.body.fitType,
+            material: req.body.material,
+            color: req.body.color,
+            sizeRange: req.body.sizeRange,
+            care: req.body.care
+        };
 
         if (!productData.name) {
             req.flash('error', 'Product name is required.');
@@ -159,8 +168,22 @@ const ProductController = {
                 console.error("Error adding product:", error);
                 res.status(500).send('Error adding product');
             } else {
-                req.flash('success', `Product "${productData.name}" added successfully.`);
-                res.redirect('/inventory');
+                const productId = results && results.insertId ? results.insertId : null;
+                if (!productId) {
+                    req.flash('success', `Product "${productData.name}" added successfully.`);
+                    return res.redirect('/inventory');
+                }
+
+                // TEAM START - insert shirt-specific details
+                ProductDetails.create(productId, detailsData, (detailErr) => {
+                    if (detailErr) {
+                        console.error('Error saving product details:', detailErr);
+                        req.flash('error', 'Product added, but shirt details could not be saved.');
+                    }
+                    req.flash('success', `Product "${productData.name}" added successfully.`);
+                    return res.redirect('/inventory');
+                });
+                // TEAM END - insert shirt-specific details
             }
         });
     },
@@ -232,28 +255,37 @@ const ProductController = {
             if (error) throw error;
             if (results.length > 0) {
                 const product = enhanceProductRecord(results[0]);
-                Review.findByProduct(productId, (reviewError, reviewResults) => {
-                    if (reviewError) {
-                        console.error('Error fetching reviews for product:', reviewError);
+                ProductDetails.findByProductId(productId, (detailError, detailResults) => {
+                    if (detailError) {
+                        console.error('Error fetching product details:', detailError);
                     }
 
-                    const reviews = reviewResults || [];
-                    const averageRating = reviews.length
-                        ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length)
-                        : null;
+                    const productDetails = detailResults && detailResults.length ? detailResults[0] : null;
 
-                    const userReview = req.session.user
-                        ? reviews.find(review => review.user_id === req.session.user.id)
-                        : null;
+                    Review.findByProduct(productId, (reviewError, reviewResults) => {
+                        if (reviewError) {
+                            console.error('Error fetching reviews for product:', reviewError);
+                        }
 
-                    res.render('product', {
-                        product,
-                        user: req.session.user,
-                        reviews,
-                        averageRating,
-                        userReview,
-                        messages: req.flash('success'),
-                        errors: req.flash('error')
+                        const reviews = reviewResults || [];
+                        const averageRating = reviews.length
+                            ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length)
+                            : null;
+
+                        const userReview = req.session.user
+                            ? reviews.find(review => review.user_id === req.session.user.id)
+                            : null;
+
+                        res.render('product', {
+                            product,
+                            productDetails,
+                            user: req.session.user,
+                            reviews,
+                            averageRating,
+                            userReview,
+                            messages: req.flash('success'),
+                            errors: req.flash('error')
+                        });
                     });
                 });
             } else {
