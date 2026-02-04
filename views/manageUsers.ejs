@@ -1,68 +1,82 @@
-<%- include('partial/header', { title: 'Manage Users | Shirt Shop' }) %>
-<%- include('partial/adminNavbar', { user: user }) %>
+<%- include('partials/header', { title: 'Manage Users | Shirt Shop' }) %>
+  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-  <section class="page-section">
-    <div class="container">
-      <div class="form-card">
-        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
-          <div>
-            <h1 class="mb-1">Customer directory</h1>
-            <p class="text-muted mb-0">View customer contact details and order history.</p>
-          </div>
-          <div class="badge bg-secondary fs-6">Total: <%= users ? users.length : 0 %></div>
-        </div>
-
-        <% if (errors && errors.length) { %>
-          <% errors.forEach(function(error) { %>
-            <div class="alert alert-danger">
-              <%= error %>
+    <section class="page-section">
+      <div class="container">
+        <div class="form-card">
+          <div
+            class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+            <div>
+              <h1 class="mb-1">Customer directory</h1>
+              <p class="text-muted mb-0">View customer contact details and order history.</p>
             </div>
-            <% }); %>
-              <% } %>
+            <div class="badge bg-secondary fs-6">Total: <%= users ? users.length : 0 %>
+            </div>
+          </div>
 
-                <% if (messages && messages.length) { %>
-                  <% messages.forEach(function(message) { %>
-                    <div class="alert alert-success">
-                      <%= message %>
-                    </div>
-                    <% }); %>
-                      <% } %>
+          <% if (errors && errors.length) { %>
+            <% errors.forEach(function(error) { %>
+              <div class="alert alert-danger">
+                <%= error %>
+              </div>
+              <% }); %>
+                <% } %>
 
-                        <% if (!users || users.length===0) { %>
-                          <div class="alert alert-info mb-0">No users found.</div>
-                          <% } else { %>
-                            <div class="table-responsive">
-                              <table class="table align-middle">
-                                <thead>
-                                  <tr>
-                                    <th scope="col">Customer</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Phone</th>
-                                    <th scope="col">Address</th>
-                                    <th scope="col" class="text-end">Actions</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <% users.forEach(function (managedUser) { %>
+                  <% if (messages && messages.length) { %>
+                    <% messages.forEach(function(message) { %>
+                      <div class="alert alert-success">
+                        <%= message %>
+                      </div>
+                      <% }); %>
+                        <% } %>
+
+                          <% if (!users || users.length===0) { %>
+                            <div class="alert alert-info mb-0">No users found.</div>
+                            <% } else { %>
+                              <div class="table-responsive">
+                                <table class="table align-middle">
+                                  <thead>
                                     <tr>
-                                      <td>
-                                        <strong><%= managedUser.username %></strong>
-                                        <div class="text-muted small"><%= managedUser.first_name || '' %> <%= managedUser.last_name || '' %></div>
-                                      </td>
-                                      <td><%= managedUser.email %></td>
-                                      <td><%= managedUser.phone || 'Not provided' %></td>
-                                      <td><%= managedUser.address || 'Not provided' %></td>
-                                      <td class="text-end">
-                                        <a href="/admin/deliveries?userId=<%= managedUser.id %>" class="btn btn-sm btn-outline-secondary">View orders</a>
-                                      </td>
+                                      <th scope="col">Customer</th>
+                                      <th scope="col">Email</th>
+                                      <th scope="col">Phone</th>
+                                      <th scope="col">Address</th>
+                                      <th scope="col" class="text-end">Actions</th>
                                     </tr>
-                                  <% }); %>
-                                </tbody>
-                              </table>
-                            </div>
-                            <% } %>
+                                  </thead>
+                                  <tbody>
+                                    <% users.forEach(function (managedUser) { %>
+                                      <tr>
+                                        <td>
+                                          <strong>
+                                            <%= managedUser.username %>
+                                          </strong>
+                                          <div class="text-muted small">
+                                            <%= managedUser.first_name || '' %>
+                                              <%= managedUser.last_name || '' %>
+                                          </div>
+                                        </td>
+                                        <td>
+                                          <%= managedUser.email %>
+                                        </td>
+                                        <td>
+                                          <%= managedUser.phone || 'Not provided' %>
+                                        </td>
+                                        <td>
+                                          <%= managedUser.address || 'Not provided' %>
+                                        </td>
+                                        <td class="text-end">
+                                          <a href="/admin/deliveries?userId=<%= managedUser.id %>"
+                                            class="btn btn-sm btn-outline-secondary">View orders</a>
+                                        </td>
+                                      </tr>
+                                      <% }); %>
+                                  </tbody>
+                                </table>
+                              </div>
+                              <% } %>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-<%- include('partial/footer') %>
+    <%- include('partials/footer') %>

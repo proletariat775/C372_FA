@@ -1,55 +1,69 @@
-<%- include('partial/header', { title: 'Customer Details | Shirt Shop' }) %>
-<%- include('partial/adminNavbar', { user: user }) %>
+<%- include('partials/header', { title: 'Edit User | Shirt Shop' }) %>
+  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-<section class="page-section">
-  <div class="container">
-    <div class="form-card">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
-        <div>
-          <h1 class="mb-1">Customer details</h1>
-          <p class="text-muted mb-0">Viewing customer profile (editing is disabled).</p>
+    <section class="page-section">
+      <div class="container">
+        <div class="form-card">
+          <div
+            class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
+            <div>
+              <h1 class="mb-1">Customer details</h1>
+              <p class="text-muted mb-0">Viewing customer profile (editing is disabled).</p>
+            </div>
+            <a href="/admin/users" class="btn btn-outline-secondary">Back to users</a>
+          </div>
+
+          <% if (errors && errors.length) { %>
+            <% errors.forEach(function(error) { %>
+              <div class="alert alert-danger">
+                <%= error %>
+              </div>
+              <% }); %>
+                <% } %>
+
+                  <% if (messages && messages.length) { %>
+                    <% messages.forEach(function(message) { %>
+                      <div class="alert alert-success">
+                        <%= message %>
+                      </div>
+                      <% }); %>
+                        <% } %>
+
+                          <div class="row g-3">
+                            <div class="col-12 col-lg-6">
+                              <div class="p-3 bg-light rounded h-100">
+                                <h5 class="mb-2">
+                                  <%= managedUser.username %>
+                                </h5>
+                                <div class="text-muted">
+                                  <%= managedUser.first_name || '' %>
+                                    <%= managedUser.last_name || '' %>
+                                </div>
+                                <div class="mt-2"><strong>Email:</strong>
+                                  <%= managedUser.email %>
+                                </div>
+                                <div><strong>Phone:</strong>
+                                  <%= managedUser.phone || 'Not provided' %>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                              <div class="p-3 bg-light rounded h-100">
+                                <div class="mb-2"><strong>Address:</strong></div>
+                                <div>
+                                  <%= managedUser.address || 'Not provided' %>
+                                </div>
+                                <div class="text-muted small mt-2">Editing customer details is disabled for this admin
+                                  view.</div>
+                              </div>
+                            </div>
+                            <div class="col-12">
+                              <a href="/admin/deliveries?userId=<%= managedUser.id %>"
+                                class="btn btn-outline-primary">View customer orders</a>
+                            </div>
+                          </div>
         </div>
-        <a href="/admin/users" class="btn btn-outline-secondary">Back to users</a>
       </div>
+    </section>
 
-      <% if (errors && errors.length) { %>
-        <% errors.forEach(function(error) { %>
-          <div class="alert alert-danger">
-            <%= error %>
-          </div>
-        <% }); %>
-      <% } %>
-
-      <% if (messages && messages.length) { %>
-        <% messages.forEach(function(message) { %>
-          <div class="alert alert-success">
-            <%= message %>
-          </div>
-        <% }); %>
-      <% } %>
-
-      <div class="row g-3">
-        <div class="col-12 col-lg-6">
-          <div class="p-3 bg-light rounded h-100">
-            <h5 class="mb-2"><%= managedUser.username %></h5>
-            <div class="text-muted"><%= managedUser.first_name || '' %> <%= managedUser.last_name || '' %></div>
-            <div class="mt-2"><strong>Email:</strong> <%= managedUser.email %></div>
-            <div><strong>Phone:</strong> <%= managedUser.phone || 'Not provided' %></div>
-          </div>
-        </div>
-        <div class="col-12 col-lg-6">
-          <div class="p-3 bg-light rounded h-100">
-            <div class="mb-2"><strong>Address:</strong></div>
-            <div><%= managedUser.address || 'Not provided' %></div>
-            <div class="text-muted small mt-2">Editing customer details is disabled for this admin view.</div>
-          </div>
-        </div>
-        <div class="col-12">
-          <a href="/admin/deliveries?userId=<%= managedUser.id %>" class="btn btn-outline-primary">View customer orders</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<%- include('partial/footer') %>
+    <%- include('partials/footer') %>

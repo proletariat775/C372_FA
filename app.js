@@ -74,6 +74,9 @@ app.post('/register', userController.register);
 app.get('/login', userController.showLogin);
 app.post('/login', userController.login);
 
+app.get('/user', checkAuthenticated, userController.showUserDashboard);
+app.post('/user/update', checkAuthenticated, userController.updateUserProfile);
+
 app.get('/admin/users', checkAuthenticated, checkAdmin, userController.listUsers);
 app.get('/admin/users/:id/edit', checkAuthenticated, checkAdmin, userController.editUserForm);
 app.post('/admin/users/:id', checkAuthenticated, checkAdmin, userController.updateUserRole);

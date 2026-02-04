@@ -1,0 +1,290 @@
+<%- include('partials/header', { title: 'User | Shirt Shop' }) %>
+    <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
+
+        <main class="page-section">
+            <div class="container">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                    <div>
+                        <p class="mb-1 text-muted">Account</p>
+                        <h2 class="mb-0">User dashboard</h2>
+                    </div>
+                </div>
+
+                <% if (messages && messages.length) { %>
+                    <% messages.forEach(function(message) { %>
+                        <div class="alert alert-success">
+                            <%= message %>
+                        </div>
+                        <% }); %>
+                            <% } %>
+
+                                <% if (errors && errors.length) { %>
+                                    <% errors.forEach(function(error) { %>
+                                        <div class="alert alert-danger">
+                                            <%= error %>
+                                        </div>
+                                        <% }); %>
+                                            <% } %>
+
+                                                <ul class="nav nav-tabs" id="userTabs" role="tablist">
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link active" id="tab-user-info"
+                                                            data-bs-toggle="tab" data-bs-target="#panel-user-info"
+                                                            type="button" role="tab" aria-controls="panel-user-info"
+                                                            aria-selected="true">User Info</button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link" id="tab-purchase-history"
+                                                            data-bs-toggle="tab"
+                                                            data-bs-target="#panel-purchase-history" type="button"
+                                                            role="tab" aria-controls="panel-purchase-history"
+                                                            aria-selected="false">Purchase History</button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link" id="tab-request-return"
+                                                            data-bs-toggle="tab" data-bs-target="#panel-request-return"
+                                                            type="button" role="tab"
+                                                            aria-controls="panel-request-return"
+                                                            aria-selected="false">Request Return</button>
+                                                    </li>
+                                                </ul>
+
+                                                <div class="tab-content border border-top-0 rounded-bottom p-4 bg-white"
+                                                    id="userTabsContent">
+                                                    <div class="tab-pane fade show active" id="panel-user-info"
+                                                        role="tabpanel" aria-labelledby="tab-user-info">
+                                                        <h4 class="mb-3">User Info</h4>
+                                                        <form action="/user/update" method="POST" class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <label for="username"
+                                                                    class="form-label">Username</label>
+                                                                <input type="text" id="username" name="username"
+                                                                    class="form-control" required
+                                                                    value="<%= profile.username || '' %>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="email" class="form-label">Email</label>
+                                                                <input type="email" id="email" name="email"
+                                                                    class="form-control" required
+                                                                    value="<%= profile.email || '' %>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="first_name" class="form-label">First
+                                                                    name</label>
+                                                                <input type="text" id="first_name" name="first_name"
+                                                                    class="form-control"
+                                                                    value="<%= profile.first_name || '' %>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="last_name" class="form-label">Last
+                                                                    name</label>
+                                                                <input type="text" id="last_name" name="last_name"
+                                                                    class="form-control"
+                                                                    value="<%= profile.last_name || '' %>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="phone" class="form-label">Phone</label>
+                                                                <input type="text" id="phone" name="phone"
+                                                                    class="form-control" required
+                                                                    value="<%= profile.phone || '' %>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="address" class="form-label">Address</label>
+                                                                <input type="text" id="address" name="address"
+                                                                    class="form-control"
+                                                                    value="<%= profile.address || '' %>">
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label for="city" class="form-label">City</label>
+                                                                <input type="text" id="city" name="city"
+                                                                    class="form-control"
+                                                                    value="<%= profile.city || '' %>">
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label for="state" class="form-label">State</label>
+                                                                <input type="text" id="state" name="state"
+                                                                    class="form-control"
+                                                                    value="<%= profile.state || '' %>">
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label for="zip_code" class="form-label">ZIP /
+                                                                    Postal</label>
+                                                                <input type="text" id="zip_code" name="zip_code"
+                                                                    class="form-control"
+                                                                    value="<%= profile.zip_code || '' %>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label for="country" class="form-label">Country</label>
+                                                                <input type="text" id="country" name="country"
+                                                                    class="form-control"
+                                                                    value="<%= profile.country || '' %>">
+                                                            </div>
+                                                            <div class="col-12 d-flex justify-content-end">
+                                                                <button type="submit" class="btn btn-primary">Save
+                                                                    changes</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+
+                                                    <div class="tab-pane fade" id="panel-purchase-history"
+                                                        role="tabpanel" aria-labelledby="tab-purchase-history">
+                                                        <h4 class="mb-3">Purchase History</h4>
+                                                        <p class="text-muted">Review your past orders, delivery status,
+                                                            and invoices.</p>
+
+                                                        <% if (!orders || !orders.length) { %>
+                                                            <div class="alert alert-info mb-0">No orders yet.</div>
+                                                            <% } else { %>
+                                                                <div class="accordion" id="user-orders">
+                                                                    <% orders.forEach(function(order, index) { %>
+                                                                        <div class="accordion-item">
+                                                                            <h2 class="accordion-header"
+                                                                                id="user-order-heading-<%= order.id %>">
+                                                                                <button
+                                                                                    class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
+                                                                                    type="button"
+                                                                                    data-bs-toggle="collapse"
+                                                                                    data-bs-target="#user-order-<%= order.id %>"
+                                                                                    aria-expanded="<%= index === 0 ? 'true' : 'false' %>"
+                                                                                    aria-controls="user-order-<%= order.id %>">
+                                                                                    <div
+                                                                                        class="w-100 d-flex flex-column flex-md-row justify-content-between gap-2">
+                                                                                        <div>
+                                                                                            <span
+                                                                                                class="fw-semibold">Order
+                                                                                                #<%= order.id %></span>
+                                                                                            <span
+                                                                                                class="text-muted small ms-2">
+                                                                                                <%= new
+                                                                                                    Date(order.created_at).toLocaleString()
+                                                                                                    %>
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <div
+                                                                                            class="d-flex flex-wrap gap-2">
+                                                                                            <span
+                                                                                                class="badge bg-primary-subtle text-primary text-uppercase">Status:
+                                                                                                <%= order.status %>
+                                                                                            </span>
+                                                                                            <span
+                                                                                                class="badge bg-dark-subtle text-dark">Total:
+                                                                                                $<%= Number(order.total).toFixed(2)
+                                                                                                    %></span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </button>
+                                                                            </h2>
+                                                                            <div id="user-order-<%= order.id %>"
+                                                                                class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
+                                                                                aria-labelledby="user-order-heading-<%= order.id %>"
+                                                                                data-bs-parent="#user-orders">
+                                                                                <div class="accordion-body">
+                                                                                    <% const items=orderItems[order.id]
+                                                                                        || []; %>
+                                                                                        <% if (items.length) { %>
+                                                                                            <div
+                                                                                                class="table-responsive">
+                                                                                                <table
+                                                                                                    class="table align-middle mb-0">
+                                                                                                    <thead>
+                                                                                                        <tr>
+                                                                                                            <th>Product
+                                                                                                            </th>
+                                                                                                            <th
+                                                                                                                class="text-center">
+                                                                                                                Qty</th>
+                                                                                                            <th
+                                                                                                                class="text-end">
+                                                                                                                Price
+                                                                                                            </th>
+                                                                                                        </tr>
+                                                                                                    </thead>
+                                                                                                    <tbody>
+                                                                                                        <% items.forEach(function(item)
+                                                                                                            { %>
+                                                                                                            <tr>
+                                                                                                                <td>
+                                                                                                                    <%= item.productName
+                                                                                                                        %>
+                                                                                                                </td>
+                                                                                                                <td
+                                                                                                                    class="text-center">
+                                                                                                                    <%= item.quantity
+                                                                                                                        %>
+                                                                                                                </td>
+                                                                                                                <td
+                                                                                                                    class="text-end">
+                                                                                                                    $<%= Number(item.price).toFixed(2)
+                                                                                                                        %>
+                                                                                                                </td>
+                                                                                                            </tr>
+                                                                                                            <% }); %>
+                                                                                                    </tbody>
+                                                                                                </table>
+                                                                                            </div>
+                                                                                            <% } else { %>
+                                                                                                <p
+                                                                                                    class="text-muted mb-0">
+                                                                                                    No items recorded
+                                                                                                    for this order.</p>
+                                                                                                <% } %>
+
+                                                                                                    <div
+                                                                                                        class="d-flex flex-wrap gap-2 mt-3">
+                                                                                                        <a href="/order/<%= order.id %>"
+                                                                                                            class="btn btn-outline-secondary btn-sm">View
+                                                                                                            details</a>
+                                                                                                        <a href="/orders/<%= order.id %>/invoice"
+                                                                                                            class="btn btn-outline-secondary btn-sm"
+                                                                                                            target="_blank"
+                                                                                                            rel="noopener">Invoice</a>
+                                                                                                        <a href="/order/<%= order.id %>/track"
+                                                                                                            class="btn btn-outline-primary btn-sm">Track</a>
+                                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <% }); %>
+                                                                </div>
+                                                                <% } %>
+                                                    </div>
+
+                                                    <div class="tab-pane fade" id="panel-request-return" role="tabpanel"
+                                                        aria-labelledby="tab-request-return">
+                                                        <h4 class="mb-3">Request Return</h4>
+                                                        <p class="text-muted">Start a return request from a delivered
+                                                            order.</p>
+
+                                                        <% const returnableOrders=(orders || []).filter(order=>
+                                                            order.status === 'delivered'); %>
+                                                            <% if (!returnableOrders.length) { %>
+                                                                <div class="alert alert-info mb-0">No delivered orders
+                                                                    available for return yet.</div>
+                                                                <% } else { %>
+                                                                    <div class="list-group">
+                                                                        <% returnableOrders.forEach(function(order) { %>
+                                                                            <div
+                                                                                class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                                                                                <div>
+                                                                                    <div class="fw-semibold">Order #<%=
+                                                                                            order.id %>
+                                                                                    </div>
+                                                                                    <div class="text-muted small">
+                                                                                        Delivered • <%= new
+                                                                                            Date(order.created_at).toLocaleDateString()
+                                                                                            %>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <a href="/order/<%= order.id %>/return"
+                                                                                    class="btn btn-outline-primary btn-sm">Request
+                                                                                    return</a>
+                                                                            </div>
+                                                                            <% }); %>
+                                                                    </div>
+                                                                    <% } %>
+                                                    </div>
+                                                </div>
+            </div>
+        </main>
+
+        <%- include('partials/footer') %>

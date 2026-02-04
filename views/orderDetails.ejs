@@ -1,180 +1,202 @@
-<%- include('partial/header', { title: 'Order Details | Shirt Shop' }) %>
-<%- include('partial/navbar', { user: user }) %>
+<%- include('partials/header', { title: 'Order Details | Shirt Shop' }) %>
+  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-<main class="page-section">
-    <div class="container">
-      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
-        <div>
-          <p class="mb-1 text-muted">Order summary</p>
-          <h2 class="mb-0">Order #<%= order.id %></h2>
-          <p class="text-muted mb-0">
-            Placed on <%= new Date(order.created_at).toLocaleString() %>
-          </p>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          <span class="badge bg-primary-subtle text-primary text-uppercase">Status: <%= order.status %></span>
-          <span class="badge bg-dark-subtle text-dark text-uppercase">Payment: <%= order.payment_status %></span>
-        </div>
-      </div>
-
-      <% if (messages && messages.length) { %>
-        <% messages.forEach(function(message) { %>
-          <div class="alert alert-success">
-            <%= message %>
+    <main class="page-section">
+      <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+          <div>
+            <h2 class="mb-0">Order #<%= order.id %>
+            </h2>
+            <p class="text-muted mb-0">
+              Placed on <%= new Date(order.created_at).toLocaleString() %>
+            </p>
           </div>
-          <% }); %>
-            <% } %>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge bg-primary-subtle text-primary text-uppercase">Status: <%= order.status %></span>
+            <span class="badge bg-dark-subtle text-dark text-uppercase">Payment: <%= order.payment_status %></span>
+          </div>
+        </div>
 
-              <% if (errors && errors.length) { %>
-                <% errors.forEach(function(error) { %>
-                  <div class="alert alert-danger">
-                    <%= error %>
-                  </div>
-                  <% }); %>
-                    <% } %>
+        <% if (messages && messages.length) { %>
+          <% messages.forEach(function(message) { %>
+            <div class="alert alert-success">
+              <%= message %>
+            </div>
+            <% }); %>
+              <% } %>
 
-                      <div class="card shadow-sm mb-4">
-                        <div class="card-body">
-                          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-                            <div>
-                              <h5 class="mb-2">Delivery details</h5>
-                              <% if (order.shipping_address) { %>
-                                <p class="mb-1"><strong>Address:</strong> <%= order.shipping_address %></p>
-                                <% } else { %>
-                                  <p class="mb-1 text-muted">Pickup order</p>
-                                  <% } %>
-                                    <p class="mb-0 text-muted">Payment method: <%= order.payment_method %></p>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2">
-                              <a href="/order/<%= order.id %>/track" class="btn btn-outline-primary">Track order</a>
-                              <a href="/order/<%= order.id %>/review" class="btn btn-outline-secondary <%= canReview ? '' : 'disabled' %>">
-                                Leave review
-                              </a>
-                              <a href="/order/<%= order.id %>/return" class="btn btn-outline-dark <%= returnEligibility.allowed ? '' : 'disabled' %>">
-                                Request return
-                              </a>
+                <% if (errors && errors.length) { %>
+                  <% errors.forEach(function(error) { %>
+                    <div class="alert alert-danger">
+                      <%= error %>
+                    </div>
+                    <% }); %>
+                      <% } %>
+
+                        <div class="card shadow-sm mb-4">
+                          <div class="card-body">
+                            <div
+                              class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                              <div>
+                                <h5 class="mb-2">Delivery details</h5>
+                                <% if (order.shipping_address) { %>
+                                  <p class="mb-1"><strong>Address:</strong>
+                                    <%= order.shipping_address %>
+                                  </p>
+                                  <% } else { %>
+                                    <p class="mb-1 text-muted">Pickup order</p>
+                                    <% } %>
+                                      <p class="mb-0 text-muted">Payment method: <%= order.payment_method %>
+                                      </p>
+                              </div>
+                              <div class="d-flex flex-wrap gap-2">
+                                <a href="/order/<%= order.id %>/track" class="btn btn-outline-primary">Track order</a>
+                                <a href="/order/<%= order.id %>/review"
+                                  class="btn btn-outline-secondary <%= canReview ? '' : 'disabled' %>">
+                                  Leave review
+                                </a>
+                                <a href="/order/<%= order.id %>/return"
+                                  class="btn btn-outline-dark <%= returnEligibility.allowed ? '' : 'disabled' %>">
+                                  Request return
+                                </a>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div class="card shadow-sm mb-4">
-                        <div class="card-body">
-                          <h5 class="mb-3">Items in this order</h5>
-                          <% if (items && items.length) { %>
-                            <div class="table-responsive">
-                              <table class="table align-middle">
-                                <thead>
-                                  <tr>
-                                    <th>Product</th>
-                                    <th>Variant</th>
-                                    <th class="text-center">Qty</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Total</th>
-                                    <th class="text-end">Wishlist</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <% items.forEach(function(item) { %>
-                                    <tr class="<%= item.is_deleted ? 'table-warning' : '' %>">
-                                      <td>
-                                        <div class="d-flex align-items-center gap-3">
-                                          <% if (item.image && !item.is_deleted) { %>
-                                            <img src="/images/<%= item.image %>" alt="<%= item.productName %>" width="50" height="50" class="rounded">
-                                            <% } %>
-                                              <div>
-                                                <% if (item.is_deleted) { %>
-                                                  <span class="text-muted">Deleted product</span>
-                                                  <% } else { %>
-                                                    <a href="/product/<%= item.product_id %>" class="text-decoration-none">
-                                                      <%= item.productName %>
-                                                    </a>
-                                                    <% } %>
-                                              </div>
-                                        </div>
-                                      </td>
-                                      <td>
-                                        <span class="text-muted"><%= item.size || 'Standard' %> / <%= item.color || 'Default' %></span>
-                                      </td>
-                                      <td class="text-center"><%= item.quantity %></td>
-                                      <td class="text-end">$<%= Number(item.price).toFixed(2) %></td>
-                                      <td class="text-end">$<%= Number(item.total_price || (Number(item.price) * Number(item.quantity))).toFixed(2) %></td>
-                                      <td class="text-end">
-                                        <% if (!item.is_deleted && item.product_id) { %>
-                                          <form action="/wishlist/<%= item.product_id %>/add" method="POST">
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Save</button>
-                                          </form>
-                                          <% } else { %>
-                                            <span class="text-muted">N/A</span>
-                                            <% } %>
-                                      </td>
+                        <div class="card shadow-sm mb-4">
+                          <div class="card-body">
+                            <h5 class="mb-3">Items in this order</h5>
+                            <% if (items && items.length) { %>
+                              <div class="table-responsive">
+                                <table class="table align-middle">
+                                  <thead>
+                                    <tr>
+                                      <th>Product</th>
+                                      <th>Variant</th>
+                                      <th class="text-center">Qty</th>
+                                      <th class="text-end">Price</th>
+                                      <th class="text-end">Total</th>
+                                      <th class="text-end">Wishlist</th>
                                     </tr>
-                                    <% }); %>
-                                </tbody>
-                              </table>
-                            </div>
-                            <% } else { %>
-                              <p class="text-muted mb-0">No items found for this order.</p>
-                              <% } %>
-                        </div>
-                      </div>
-
-                      <div class="row g-3">
-                        <div class="col-12 col-lg-6">
-                          <div class="card shadow-sm">
-                            <div class="card-body">
-                              <h5 class="mb-3">Totals</h5>
-                              <div class="d-flex justify-content-between mb-2">
-                                <span>Subtotal</span>
-                                <strong>$<%= totals.subtotal.toFixed(2) %></strong>
-                              </div>
-                              <div class="d-flex justify-content-between mb-2">
-                                <span>Tax</span>
-                                <strong>$<%= totals.tax.toFixed(2) %></strong>
-                              </div>
-                              <div class="d-flex justify-content-between mb-2">
-                                <span>Shipping</span>
-                                <strong>$<%= totals.shipping.toFixed(2) %></strong>
-                              </div>
-                              <div class="d-flex justify-content-between mb-2">
-                                <span>Discount</span>
-                                <strong>-$<%= totals.discount.toFixed(2) %></strong>
-                              </div>
-                              <div class="d-flex justify-content-between border-top pt-2">
-                                <span>Total</span>
-                                <strong>$<%= totals.total.toFixed(2) %></strong>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="col-12 col-lg-6">
-                          <div class="card shadow-sm">
-                            <div class="card-body">
-                              <h5 class="mb-3">Return request status</h5>
-                              <% if (returnRequest) { %>
-                                <p class="mb-2 text-muted">Type: <strong><%= returnRequest.requestType %></strong></p>
-                                <p class="mb-2 text-muted">Reason: <%= returnRequest.reason %></p>
-                                <% if (returnRequest.notes) { %>
-                                  <p class="mb-3 text-muted">Notes: <%= returnRequest.notes %></p>
-                                  <% } %>
-                                <% } else { %>
-                                  <p class="text-muted">No return or exchange request yet.</p>
-                                  <% } %>
-                                    <div class="list-group">
-                                      <% (returnTimeline || []).forEach(function(step) { %>
-                                        <div class="list-group-item d-flex justify-content-between align-items-center <%= step.active ? 'list-group-item-success' : '' %>">
-                                          <span><%= step.label %></span>
-                                          <span class="badge <%= step.active ? 'bg-success' : 'bg-secondary' %>">
-                                            <%= step.active ? 'Active' : 'Pending' %>
+                                  </thead>
+                                  <tbody>
+                                    <% items.forEach(function(item) { %>
+                                      <tr class="<%= item.is_deleted ? 'table-warning' : '' %>">
+                                        <td>
+                                          <div class="d-flex align-items-center gap-3">
+                                            <% if (item.image && !item.is_deleted) { %>
+                                              <img src="/images/<%= item.image %>" alt="<%= item.productName %>"
+                                                width="50" height="50" class="rounded">
+                                              <% } %>
+                                                <div>
+                                                  <% if (item.is_deleted) { %>
+                                                    <span class="text-muted">Deleted product</span>
+                                                    <% } else { %>
+                                                      <a href="/product/<%= item.product_id %>"
+                                                        class="text-decoration-none">
+                                                        <%= item.productName %>
+                                                      </a>
+                                                      <% } %>
+                                                </div>
+                                          </div>
+                                        </td>
+                                        <td>
+                                          <span class="text-muted">
+                                            <%= item.size || 'Standard' %> / <%= item.color || 'Default' %>
                                           </span>
-                                        </div>
-                                        <% }); %>
-                                    </div>
+                                        </td>
+                                        <td class="text-center">
+                                          <%= item.quantity %>
+                                        </td>
+                                        <td class="text-end">$<%= Number(item.price).toFixed(2) %>
+                                        </td>
+                                        <td class="text-end">$<%= Number(item.total_price || (Number(item.price) *
+                                            Number(item.quantity))).toFixed(2) %>
+                                        </td>
+                                        <td class="text-end">
+                                          <% if (!item.is_deleted && item.product_id) { %>
+                                            <form action="/wishlist/<%= item.product_id %>/add" method="POST">
+                                              <button type="submit"
+                                                class="btn btn-sm btn-outline-secondary">Save</button>
+                                            </form>
+                                            <% } else { %>
+                                              <span class="text-muted">N/A</span>
+                                              <% } %>
+                                        </td>
+                                      </tr>
+                                      <% }); %>
+                                  </tbody>
+                                </table>
+                              </div>
+                              <% } else { %>
+                                <p class="text-muted mb-0">No items found for this order.</p>
+                                <% } %>
+                          </div>
+                        </div>
+
+                        <div class="row g-3">
+                          <div class="col-12 col-lg-6">
+                            <div class="card shadow-sm">
+                              <div class="card-body">
+                                <h5 class="mb-3">Totals</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                  <span>Subtotal</span>
+                                  <strong>$<%= totals.subtotal.toFixed(2) %></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                  <span>Tax</span>
+                                  <strong>$<%= totals.tax.toFixed(2) %></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                  <span>Shipping</span>
+                                  <strong>$<%= totals.shipping.toFixed(2) %></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                  <span>Discount</span>
+                                  <strong>-$<%= totals.discount.toFixed(2) %></strong>
+                                </div>
+                                <div class="d-flex justify-content-between border-top pt-2">
+                                  <span>Total</span>
+                                  <strong>$<%= totals.total.toFixed(2) %></strong>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-12 col-lg-6">
+                            <div class="card shadow-sm">
+                              <div class="card-body">
+                                <h5 class="mb-3">Return request status</h5>
+                                <% if (returnRequest) { %>
+                                  <p class="mb-2 text-muted">Type: <strong>
+                                      <%= returnRequest.requestType %>
+                                    </strong></p>
+                                  <p class="mb-2 text-muted">Reason: <%= returnRequest.reason %>
+                                  </p>
+                                  <% if (returnRequest.notes) { %>
+                                    <p class="mb-3 text-muted">Notes: <%= returnRequest.notes %>
+                                    </p>
+                                    <% } %>
+                                      <% } else { %>
+                                        <p class="text-muted">No return or exchange request yet.</p>
+                                        <% } %>
+                                          <div class="list-group">
+                                            <% (returnTimeline || []).forEach(function(step) { %>
+                                              <div
+                                                class="list-group-item d-flex justify-content-between align-items-center <%= step.active ? 'list-group-item-success' : '' %>">
+                                                <span>
+                                                  <%= step.label %>
+                                                </span>
+                                                <span class="badge <%= step.active ? 'bg-success' : 'bg-secondary' %>">
+                                                  <%= step.active ? 'Active' : 'Pending' %>
+                                                </span>
+                                              </div>
+                                              <% }); %>
+                                          </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-    </div>
-  </main>
-<%- include('partial/footer') %>
-
+      </div>
+    </main>
+    <%- include('partials/footer') %>
