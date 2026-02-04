@@ -269,15 +269,15 @@
                           </div>
                         </div>
 
-                        <div class="row g-4 mt-4">
-                          <div class="col-12">
-                            <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
-                              <div>
-                                <h3 class="mb-1">You may also like</h3>
-                                <p class="text-muted mb-0">More styles curated for your next look.</p>
+                        <% if (typeof relatedProducts !== 'undefined' && relatedProducts && relatedProducts.length) { %>
+                          <div class="row g-4 mt-4">
+                            <div class="col-12">
+                              <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
+                                <div>
+                                  <h3 class="mb-1">You may also like</h3>
+                                  <p class="text-muted mb-0">More styles curated for your next look.</p>
+                                </div>
                               </div>
-                            </div>
-                            <% if (typeof relatedProducts !== 'undefined' && relatedProducts && relatedProducts.length) { %>
                               <div class="row g-3">
                                 <% relatedProducts.slice(0, 3).forEach(function(item) { %>
                                   <div class="col-12 col-md-6 col-lg-4">
@@ -307,13 +307,9 @@
                                   </div>
                                   <% }); %>
                               </div>
-                              <% } else { %>
-                                <div class="card shadow-sm">
-                                  <div class="card-body text-muted">More styles coming soon</div>
-                                </div>
-                                <% } %>
+                            </div>
                           </div>
-                        </div>
+                          <% } %>
 
                         <div class="row g-4 mt-4">
                           <div class="col-12">
