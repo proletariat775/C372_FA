@@ -1,5 +1,5 @@
 <%- include('partials/header', { title: 'Add Shirt | Shirt Shop' }) %>
-  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
+  <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
 
     <section class="page-section">
       <div class="container">
@@ -303,4 +303,4 @@
         updateTotalQty();
       });
     </script>
-    <%- include('partial/footer') %>
+    <%- include('partials/footer') %>

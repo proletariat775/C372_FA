@@ -63,7 +63,8 @@
                                                       <% if (item.hasDiscount) { %>
                                                         <p class="mb-1">
                                                           <span class="text-muted text-decoration-line-through">Price: $
-                                                            <%= Number(item.originalPrice).toFixed(2) %></span><br>
+                                                            <%= Number(item.originalPrice).toFixed(2) %>
+                                                          </span><br>
                                                           <span class="text-success">Discounted: $<%=
                                                               Number(item.price).toFixed(2) %> (<%=
                                                                 Number(item.discountPercentage).toFixed(2) %>%
@@ -266,4 +267,4 @@
       </div>
     </section>
 
-    <%- include('partial/footer') %>
+    <%- include('partials/footer') %>

@@ -1,525 +1,453 @@
-<% const metaTitle=product ? (product.productName + ' | Shirt Shop' ) : 'Shirt Shop - Quality Shirts' ; const
-  metaDescription=product ? (product.offerMessage || product.description || ('Buy ' + product.productName + ' at Shirt
-  Shop')) : 'Shirt Shop - quality shirts for every occasion.' ; const metaImage=product && product.image ? '/images/' +
-  product.image : '/images/shirt-sample-1.svg' ; const escapeAttr=(value)=> String(value || '')
-  .replace(/&/g, '&amp;')
-  .replace(/"/g, '&quot;')
-  .replace(/</g, '&lt;' ) .replace( />/g, '&gt;');
-  const structuredData = {
-  "@context": "https://schema.org/",
-  "@type": "Product",
-  name: product ? product.productName : 'Shirt Shop Product',
-  image: [metaImage],
-  description: metaDescription,
-  offers: {
-  "@type": "Offer",
-  priceCurrency: "USD",
-  price: product ? Number(product.effectivePrice || product.price).toFixed(2) : '0.00',
-  availability: product && product.quantity > 0
-  ? 'https://schema.org/InStock'
-  : 'https://schema.org/OutOfStock'
-  }
-  };
-  const headContent = `
-  <meta name="description" content="${escapeAttr(metaDescription)}">
-  <meta property="og:title" content="${escapeAttr(metaTitle)}">
-  <meta property="og:description" content="${escapeAttr(metaDescription)}">
-  <meta property="og:image" content="${escapeAttr(metaImage)}">
-  <meta property="og:type" content="product">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${escapeAttr(metaTitle)}">
-  <meta name="twitter:description" content="${escapeAttr(metaDescription)}">
-  <meta name="twitter:image" content="${escapeAttr(metaImage)}">
-  <script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>
-  `;
-  %>
-  <%- include('partial/header', { title: metaTitle, headContent }) %>
-    <%- include('partial/navbar', { user: user }) %>
+<%- include('partials/header', { title: metaTitle, extraHead: extraHead }) %>
+  <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-      <section class="page-section product-page">
-        <div class="container">
-          <% if (messages && messages.length) { %>
-            <% messages.forEach(function(message) { %>
-              <div class="alert alert-success">
-                <%= message %>
-              </div>
-              <% }); %>
-                <% } %>
+    <section class="page-section product-page">
+      <div class="container">
+        <% if (messages && messages.length) { %>
+          <% messages.forEach(function(message) { %>
+            <div class="alert alert-success">
+              <%= message %>
+            </div>
+            <% }); %>
+              <% } %>
 
-                  <% if (errors && errors.length) { %>
-                    <% errors.forEach(function(error) { %>
-                      <div class="alert alert-danger">
-                        <%= error %>
-                      </div>
-                      <% }); %>
-                        <% } %>
+                <% if (errors && errors.length) { %>
+                  <% errors.forEach(function(error) { %>
+                    <div class="alert alert-danger">
+                      <%= error %>
+                    </div>
+                    <% }); %>
+                      <% } %>
 
-                          <% if (product) { %>
-                            <% const detail=productDetails || {}; %>
-                              <% const gallery=(productImages && productImages.length) ? productImages : (product.image
-                                ? [{ image_url: product.image, is_primary: 1 }] : []); %>
-                                <% const sizeOrder=['3XS', '2XS' , 'XS' , 'S' , 'M' , 'L' , 'XL' , '2XL' , '3XL'
-                                  , 'One-Size' ]; %>
-                                  <% const normalizeSize=(value)=> {
-                                    if (!value) return '';
-                                    const cleaned = String(value).trim().toUpperCase().replace(/_/g, '-');
-                                    if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') return 'One-Size';
-                                    return cleaned;
-                                    }; %>
-                                    <% const variantOptions=(productVariants && productVariants.length) ?
-                                      productVariants : []; %>
-                                      <% const sortedVariants=variantOptions.slice().sort((a, b)=> {
-                                        const aIndex = sizeOrder.indexOf(normalizeSize(a.size));
-                                        const bIndex = sizeOrder.indexOf(normalizeSize(b.size));
-                                        if (aIndex === -1 && bIndex === -1) return 0;
-                                        if (aIndex === -1) return 1;
-                                        if (bIndex === -1) return -1;
-                                        return aIndex - bIndex;
-                                        }); %>
-                                        <% const parseSizeRange=(range)=> {
-                                          if (!range) return null;
-                                          const trimmed = String(range).trim();
-                                          if (!trimmed) return null;
-                                          const normalized = normalizeSize(trimmed);
-                                          if (normalized === 'One-Size') return ['One-Size'];
-                                          if (trimmed.indexOf(',') !== -1) {
-                                          return trimmed.split(',').map(item => normalizeSize(item)).filter(Boolean);
-                                          }
-                                          if (trimmed.indexOf('-') !== -1) {
-                                          const parts = trimmed.split('-').map(item => normalizeSize(item));
-                                          if (parts.length >= 2) {
-                                          const startIndex = sizeOrder.indexOf(parts[0]);
-                                          const endIndex = sizeOrder.indexOf(parts[1]);
-                                          if (startIndex !== -1 && endIndex !== -1) {
-                                          const from = Math.min(startIndex, endIndex);
-                                          const to = Math.max(startIndex, endIndex);
-                                          return sizeOrder.slice(from, to + 1);
-                                          }
-                                          }
-                                          }
-                                          return null;
-                                          }; %>
-                                          <% const sizeOptions=parseSizeRange(detail.sizeRange) || []; %>
-                                            <% const fallbackSizes=sortedVariants.map(variant=>
-                                              normalizeSize(variant.size)).filter(Boolean); %>
-                                              <% const sizesToShow=sizeOptions.length ? sizeOptions : Array.from(new
-                                                Set(fallbackSizes)); %>
-                                                <% const variantSizeList=fallbackSizes.join(', '); %>
+                        <% if (product) { %>
+                          <% const detail=productDetails || {}; %>
+                            <% const gallery=(productImages && productImages.length) ? productImages : (product.image ?
+                              [{ image_url: product.image, is_primary: 1 }] : []); %>
+                              <% const sizeOrder=['3XS', '2XS' , 'XS' , 'S' , 'M' , 'L' , 'XL' , '2XL' , '3XL'
+                                , 'One-Size' ]; %>
+                                <% const normalizeSize=(value)=> {
+                                  if (!value) return '';
+                                  const cleaned = String(value).trim().toUpperCase().replace(/_/g, '-');
+                                  if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') return 'One-Size';
+                                  return cleaned;
+                                  }; %>
+                                  <% const variantOptions=(productVariants && productVariants.length) ? productVariants
+                                    : []; %>
+                                    <% const sortedVariants=variantOptions.slice().sort((a, b)=> {
+                                      const aIndex = sizeOrder.indexOf(normalizeSize(a.size));
+                                      const bIndex = sizeOrder.indexOf(normalizeSize(b.size));
+                                      if (aIndex === -1 && bIndex === -1) return 0;
+                                      if (aIndex === -1) return 1;
+                                      if (bIndex === -1) return -1;
+                                      return aIndex - bIndex;
+                                      }); %>
+                                      <% const parseSizeRange=(range)=> {
+                                        if (!range) return null;
+                                        const trimmed = String(range).trim();
+                                        if (!trimmed) return null;
+                                        const normalized = normalizeSize(trimmed);
+                                        if (normalized === 'One-Size') return ['One-Size'];
+                                        if (trimmed.indexOf(',') !== -1) {
+                                        return trimmed.split(',').map(item => normalizeSize(item)).filter(Boolean);
+                                        }
+                                        if (trimmed.indexOf('-') !== -1) {
+                                        const parts = trimmed.split('-').map(item => normalizeSize(item));
+                                        if (parts.length >= 2) {
+                                        const startIndex = sizeOrder.indexOf(parts[0]);
+                                        const endIndex = sizeOrder.indexOf(parts[1]);
+                                        if (startIndex !== -1 && endIndex !== -1) {
+                                        const from = Math.min(startIndex, endIndex);
+                                        const to = Math.max(startIndex, endIndex);
+                                        return sizeOrder.slice(from, to + 1);
+                                        }
+                                        }
+                                        }
+                                        return null;
+                                        }; %>
+                                        <% const sizeOptions=parseSizeRange(detail.sizeRange) || []; %>
+                                          <% const fallbackSizes=sortedVariants.map(variant=>
+                                            normalizeSize(variant.size)).filter(Boolean); %>
+                                            <% const sizesToShow=sizeOptions.length ? sizeOptions : Array.from(new
+                                              Set(fallbackSizes)); %>
+                                              <% const variantSizeList=fallbackSizes.join(', '); %>
 
                       <div class="product-hero-grid">
                         <div class="product-gallery">
                           <div class="product-image-grid <%= gallery.length > 1 ? ' two-up' : 'one-up' %>">
-                                                  <% if (gallery.length) { %>
-                                                    <% gallery.slice(0, 2).forEach(function(img, index) { %>
-                                                      <div class="image-tile">
-                                                        <img src="/images/<%= img.image_url %>"
-                                                          alt="<%= product.productName %> view <%= index + 1 %>">
-                                                        <span class="image-label">
-                                                          <%= index===0 ? 'Front' : 'Back' %>
-                                                        </span>
-                                                      </div>
-                                                      <% }); %>
-                                                        <% } else { %>
-                                                          <div class="image-tile placeholder">
-                                                            <span class="text-muted">No image available</span>
-                                                          </div>
-                                                          <% } %>
-        </div>
+                                                <% if (gallery.length) { %>
+                                                  <% gallery.slice(0, 2).forEach(function(img, index) { %>
+                                                    <div class="image-tile">
+                                                      <img src="/images/<%= img.image_url %>"
+                                                        alt="<%= product.productName %> view <%= index + 1 %>">
+                                                      <span class="image-label">
+                                                        <%= index===0 ? 'Front' : 'Back' %>
+                                                      </span>
+                                                    </div>
+                                                    <% }); %>
+                                                      <% } else { %>
+                                                        <div class="image-tile placeholder">
+                                                          <span class="text-muted">No image available</span>
+                                                        </div>
+                                                        <% } %>
+      </div>
 
-        <div class="gallery-detail-block">
-          <h4 class="mb-2">Product highlights</h4>
-          <% if (detail.description) { %>
-            <p class="text-muted mb-3">
-              <%= detail.description %>
-            </p>
-            <% } %>
-              <div class="row g-3">
-                <div class="col-6">
-                  <div class="text-muted small">Fit type</div>
-                  <div class="fw-semibold">
-                    <%= detail.fitType ? detail.fitType : 'Not specified' %>
-                  </div>
-                </div>
-                <div class="col-6">
-                  <div class="text-muted small">Material</div>
-                  <div class="fw-semibold">
-                    <%= detail.material ? detail.material : 'Not specified' %>
-                  </div>
-                </div>
-                <div class="col-6">
-                  <div class="text-muted small">Color</div>
-                  <div class="fw-semibold">
-                    <%= detail.color ? detail.color : 'Not specified' %>
-                  </div>
-                </div>
-                <div class="col-6">
-                  <div class="text-muted small">Care</div>
-                  <div class="fw-semibold">
-                    <%= detail.care ? detail.care : 'Not specified' %>
-                  </div>
-                </div>
-                <div class="col-12">
-                  <div class="text-muted small">Available sizes</div>
-                  <div class="fw-semibold">
-                    <%= variantSizeList || (detail.sizeRange ? detail.sizeRange : 'Not specified' ) %>
-                  </div>
-                </div>
-              </div>
-        </div>
-        </div>
-
-        <div class="product-detail-panel">
-          <div class="product-meta">
-            <% if (product.brand) { %>
-              <span class="product-brand">
-                <%= product.brand %>
-              </span>
-              <% } %>
-                <span class="text-muted">in <%= product.category || 'General' %></span>
-          </div>
-          <h1 class="product-title">
-            <%= product.productName %>
-          </h1>
-
-          <div class="price-stack">
-            <% if (product.hasDiscount) { %>
-              <span class="price-current text-danger">$<%= Number(product.effectivePrice).toFixed(2) %></span>
-              <span class="text-muted text-decoration-line-through">$<%= Number(product.price).toFixed(2) %></span>
-              <% } else { %>
-                <span class="price-current">$<%= Number(product.price).toFixed(2) %></span>
-                <% } %>
-          </div>
-          <div class="gst-note">GST included</div>
-
-          <% if (product.offerMessage) { %>
-            <div class="promo-box">
-              <strong>Offer</strong>
-              <p class="mb-0">
-                <%= product.offerMessage %>
-              </p>
-            </div>
-            <% } %>
-
-              <div class="product-option">
-                <span class="option-label">Color</span>
-                <p class="mb-0">
-                  <%= detail.color ? detail.color : 'Not specified' %>
-                </p>
-              </div>
-
-              <% if (user && user.role==='customer' ) { %>
-                <% if (product.quantity <=0) { %>
-                  <div class="alert alert-warning mt-3">Out of stock - we will restock soon.</div>
-                  <% } %>
-                    <div class="action-row">
-                      <form action="/add-to-cart/<%= product.id %>" method="POST" class="action-form">
-                        <div class="product-option">
-                          <span class="option-label">Size</span>
-                          <% if (sizesToShow.length) { %>
-                            <% let requiredAdded=false; %>
-                              <div class="size-choice-group">
-                                <% sizesToShow.forEach(function(sizeLabel) { %>
-                                  <% const variant=sortedVariants.find(v=> normalizeSize(v.size) ===
-                                    normalizeSize(sizeLabel)); %>
-                                    <% const variantId=variant ? variant.id : null; %>
-                                      <% const stockQty=variant ? Number(variant.quantity || 0) : 0; %>
-                                        <% const inStock=stockQty> 0; %>
-                                          <% const hasVariant=Boolean(variantId); %>
-                                            <input class="btn-check" type="radio" name="variantId"
-                                              id="size-<%= (variantId || sizeLabel).toString().replace(/\\s+/g, '-') %>"
-                                              value="<%= variantId || '' %>" data-qty="<%= stockQty %>" <%=hasVariant &&
-                                              !requiredAdded ? 'required' : '' %>
-                                            <%= hasVariant ? '' : 'disabled' %>>
-                                              <label
-                                                class="size-option <%= hasVariant ? (inStock ? '' : 'out-of-stock') : 'disabled' %>"
-                                                for="size-<%= (variantId || sizeLabel).toString().replace(/\\s+/g, '-') %>">
-                                                <%= sizeLabel %>
-                                              </label>
-                                              <% if (hasVariant && !requiredAdded) { requiredAdded=true; } %>
-                                                <% }); %>
-                              </div>
-                              <div id="size-availability" class="text-muted small mt-2">Select a size to see
-                                availability.</div>
-                              <div class="option-links">
-                                <a href="#size-guide" class="option-link">View size guide</a>
-                                <span class="dot-sep">|</span>
-                                <a href="/fit-assistant" class="option-link">Find your size</a>
-                              </div>
-                              <% } else { %>
-                                <p class="text-muted mb-0">Sizes not specified</p>
-                                <div class="option-links">
-                                  <a href="/fit-assistant" class="option-link">Find your size</a>
-                                </div>
-                                <% } %>
-                        </div>
-                        <label for="detail-qty" class="form-label">Quantity</label>
-                        <div class="d-flex gap-2">
-                          <input type="number" class="form-control" id="detail-qty" name="quantity" min="1"
-                            max="<%= product.quantity %>" value="1" required>
-                          <button type="submit" class="btn btn-primary flex-grow-1" id="add-to-bag-button"
-                            <%=product.quantity <=0 ? 'disabled' : '' %>>Add to bag</button>
-                        </div>
-                      </form>
-                      <form action="/wishlist/<%= product.id %>/add" method="POST" class="wishlist-form">
-                        <button type="submit" class="btn btn-outline-dark w-100">Add to wish list</button>
-                      </form>
-                    </div>
-                    <% } else { %>
-                      <div class="d-flex gap-2 mt-4">
-                        <a href="/updateProduct/<%= product.id %>" class="btn btn-primary">Edit product</a>
-                        <a href="/inventory" class="btn btn-secondary">Back to inventory</a>
-                      </div>
-                      <% } %>
-
-                        <div class="fit-helper">
-                          <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Fit Assistant</h5>
-                            <a href="/fit-assistant" class="small text-decoration-none">Try it</a>
-                          </div>
-                          <% if (typeof recommendedSize !=='undefined' && recommendedSize) { %>
-                            <p class="mb-1">Recommended size: <strong>
-                                <%= recommendedSize %>
-                              </strong></p>
-                            <p class="text-muted mb-0">Confidence: <%= typeof confidence !=='undefined' ? confidence
-                                : '-' %>
-                            </p>
-                            <% } else { %>
-                              <p class="text-muted mb-0">Get a personalised fit based on your measurements.</p>
-                              <% } %>
-                        </div>
-        </div>
-        </div>
-
-        <div class="size-guide" id="size-guide">
-          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 mb-3">
-            <div>
-              <h3 class="mb-1">Size guide</h3>
-              <p class="text-muted mb-0">Measurements shown in cm with inches in parentheses.</p>
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-modern align-middle mb-0">
-              <thead>
-                <tr>
-                  <th scope="col">Size</th>
-                  <th scope="col">Chest width</th>
-                  <th scope="col">Shoulder</th>
-                  <th scope="col">Length</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% (sizeChart || []).forEach(function(row) { %>
-                  <tr>
-                    <td class="fw-semibold">
-                      <%= row.size %>
-                    </td>
-                    <td>
-                      <%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)
-                    </td>
-                    <td>
-                      <%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)
-                    </td>
-                    <td>
-                      <%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)
-                    </td>
-                  </tr>
-                  <% }); %>
-              </tbody>
-            </table>
-          </div>
-          <p class="text-muted small mb-0 mt-2">
-            <%= sizeGuideDisclaimer %>
+      <div class="gallery-detail-block">
+        <h4 class="mb-2">Product highlights</h4>
+        <% if (detail.description) { %>
+          <p class="text-muted mb-3">
+            <%= detail.description %>
           </p>
+          <% } %>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="text-muted small">Fit type</div>
+                <div class="fw-semibold">
+                  <%= detail.fitType ? detail.fitType : 'Not specified' %>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Material</div>
+                <div class="fw-semibold">
+                  <%= detail.material ? detail.material : 'Not specified' %>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Color</div>
+                <div class="fw-semibold">
+                  <%= detail.color ? detail.color : 'Not specified' %>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Care</div>
+                <div class="fw-semibold">
+                  <%= detail.care ? detail.care : 'Not specified' %>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="text-muted small">Available sizes</div>
+                <div class="fw-semibold">
+                  <%= variantSizeList || (detail.sizeRange ? detail.sizeRange : 'Not specified' ) %>
+                </div>
+              </div>
+            </div>
+      </div>
+      </div>
+
+      <div class="product-detail-panel">
+        <div class="product-meta">
+          <% if (product.brand) { %>
+            <span class="product-brand">
+              <%= product.brand %>
+            </span>
+            <% } %>
+              <span class="text-muted">in <%= product.category || 'General' %></span>
         </div>
+        <h1 class="product-title">
+          <%= product.productName %>
+        </h1>
 
-        <div class="review-section mt-5">
-          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
-            <div>
-              <h3 class="mb-1">Customer reviews</h3>
-              <p class="text-muted mb-0">See what other shoppers say about this style.</p>
-            </div>
-          </div>
-
-          <div class="review-overview">
-            <% const totalReviews=reviewSummary && reviewSummary.total ? reviewSummary.total : 0; %>
-              <div class="review-score">
-                <div class="review-score-value">
-                  <%= typeof averageRating==='number' ? averageRating.toFixed(1) : '0.0' %>
-                </div>
-                <div class="review-stars" aria-label="Average rating">
-                  <% const roundedRating=typeof averageRating==='number' ? Math.round(averageRating) : 0; %>
-                    <% for (let i=1; i <=5; i++) { %>
-                      <span class="star <%= i <= roundedRating ? 'filled' : '' %>">★</span>
-                      <% } %>
-                </div>
-                <p class="text-muted mb-0">Based on <%= totalReviews %> reviews</p>
-              </div>
-
-              <div class="review-summary-grid">
-                <% [5,4,3,2,1].forEach(function(score) { %>
-                  <% const count=reviewSummary && reviewSummary.counts ? reviewSummary.counts[score] : 0; %>
-                    <% const percent=totalReviews ? (count / totalReviews) * 100 : 0; %>
-                      <div class="review-bar-row">
-                        <span class="review-label">
-                          <%= score %> star
-                        </span>
-                        <div class="review-bar">
-                          <span style="width: <%= percent %>%;"></span>
-                        </div>
-                        <span class="review-count">
-                          <%= count %>
-                        </span>
-                      </div>
-                      <% }); %>
-              </div>
-          </div>
-
-          <div class="mt-4">
-            <% if (user && user.role==='customer' && userReview) { %>
-              <div class="alert alert-light border">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong>Your review</strong>
-                  <span class="badge bg-warning text-dark">
-                    <%= userReview.rating %> / 5
-                  </span>
-                </div>
-                <p class="mb-0 text-muted">
-                  <%= userReview.comment || 'No comments provided.' %>
-                </p>
-              </div>
-              <% } else if (user && user.role==='customer' ) { %>
-                <div class="alert alert-info">
-                  Submit reviews from Purchase History after your order is completed.
-                </div>
-                <% } else { %>
-                  <p class="text-muted">Sign in as a shopper to view or submit reviews.</p>
-                  <% } %>
-          </div>
-
-          <% if (reviews && reviews.length) { %>
-            <div class="review-list">
-              <% reviews.forEach(function(review) { %>
-                <div class="review-item">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <strong>
-                      <%= review.username %>
-                    </strong>
-                    <span class="badge bg-warning text-dark">
-                      <%= review.rating %> / 5
-                    </span>
-                  </div>
-                  <small class="text-muted">
-                    <%= new Date(review.created_at).toLocaleString() %>
-                  </small>
-                  <p class="mb-0 mt-2">
-                    <%= review.comment || 'No comments provided.' %>
-                  </p>
-                </div>
-                <% }); %>
-            </div>
+        <div class="price-stack">
+          <% if (product.hasDiscount) { %>
+            <span class="price-current text-danger">$<%= Number(product.effectivePrice).toFixed(2) %></span>
+            <span class="text-muted text-decoration-line-through">$<%= Number(product.price).toFixed(2) %></span>
             <% } else { %>
-              <p class="text-muted mb-0">No reviews yet. Be the first to share your experience!</p>
+              <span class="price-current">$<%= Number(product.price).toFixed(2) %></span>
               <% } %>
         </div>
+        <div class="gst-note">GST included</div>
 
-        <% if (typeof relatedProducts !=='undefined' && relatedProducts && relatedProducts.length) { %>
-          <div class="row g-4 mt-5">
-            <div class="col-12">
-              <h3 class="mb-3">You may also like</h3>
-              <div class="row g-3">
-                <% relatedProducts.slice(0, 3).forEach(function(item) { %>
-                  <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card h-100 shadow-sm">
-                      <% if (item.image) { %>
-                        <img src="/images/<%= item.image %>" class="card-img-top"
-                          alt="<%= item.productName || item.name %>">
-                        <% } else { %>
-                          <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
-                            style="height: 200px;">
-                            <span class="text-muted">No image available</span>
-                          </div>
-                          <% } %>
-                            <div class="card-body d-flex flex-column">
-                              <h5 class="card-title">
-                                <a href="/product/<%= item.id %>" class="text-decoration-none text-dark">
-                                  <%= item.productName || item.name %>
-                                </a>
-                              </h5>
-                              <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
-                              <div class="mt-auto">
-                                <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2)
-                                    %></span>
-                                <a href="/product/<%= item.id %>" class="btn btn-outline-primary w-100 mt-2">View
-                                  product</a>
-                              </div>
-                            </div>
-                    </div>
-                  </div>
-                  <% }); %>
-              </div>
-            </div>
+        <% if (product.offerMessage) { %>
+          <div class="promo-box">
+            <strong>Offer</strong>
+            <p class="mb-0">
+              <%= product.offerMessage %>
+            </p>
           </div>
           <% } %>
 
-            <% } else { %>
-              <div class="empty-state">
-                <h3>Product not found</h3>
-                <p class="text-muted">The product you are looking for is no longer available.</p>
-                <a href="/shopping" class="btn btn-primary">Browse shirts</a>
+            <div class="product-option">
+              <span class="option-label">Color</span>
+              <p class="mb-0">
+                <%= detail.color ? detail.color : 'Not specified' %>
+              </p>
+            </div>
+
+            <% if (user && user.role==='customer' ) { %>
+              <% if (product.quantity <=0) { %>
+                <div class="alert alert-warning mt-3">Out of stock - we will restock soon.</div>
+                <% } %>
+                  <div class="action-row">
+                    <form action="/add-to-cart/<%= product.id %>" method="POST" class="action-form">
+                      <div class="product-option">
+                        <span class="option-label">Size</span>
+                        <% if (sizesToShow.length) { %>
+                          <% let requiredAdded=false; %>
+                            <div class="size-choice-group">
+                              <% sizesToShow.forEach(function(sizeLabel) { %>
+                                <% const variant=sortedVariants.find(v=> normalizeSize(v.size) ===
+                                  normalizeSize(sizeLabel)); %>
+                                  <% const variantId=variant ? variant.id : null; %>
+                                    <% const stockQty=variant ? Number(variant.quantity || 0) : 0; %>
+                                      <% const inStock=stockQty> 0; %>
+                                        <% const hasVariant=Boolean(variantId); %>
+                                          <input class="btn-check" type="radio" name="variantId"
+                                            id="size-<%= (variantId || sizeLabel).toString().replace(/\\s+/g, '-') %>"
+                                            value="<%= variantId || '' %>" data-qty="<%= stockQty %>" <%=hasVariant &&
+                                            !requiredAdded ? 'required' : '' %>
+                                          <%= hasVariant ? '' : 'disabled' %>>
+                                            <label
+                                              class="size-option <%= hasVariant ? (inStock ? '' : 'out-of-stock') : 'disabled' %>"
+                                              for="size-<%= (variantId || sizeLabel).toString().replace(/\\s+/g, '-') %>">
+                                              <%= sizeLabel %>
+                                            </label>
+                                            <% if (hasVariant && !requiredAdded) { requiredAdded=true; } %>
+                                              <% }); %>
+                            </div>
+                            <div id="size-availability" class="text-muted small mt-2">Select a size to see
+                              availability.</div>
+                            <div class="option-links">
+                              <a href="#size-guide" class="option-link">View size guide</a>
+                              <span class="dot-sep">|</span>
+                              <a href="/fit-assistant" class="option-link">Find your size</a>
+                            </div>
+                            <% } else { %>
+                              <p class="text-muted mb-0">Sizes not specified</p>
+                              <div class="option-links">
+                                <a href="/fit-assistant" class="option-link">Find your size</a>
+                              </div>
+                              <% } %>
+                      </div>
+                      <label for="detail-qty" class="form-label">Quantity</label>
+                      <div class="d-flex gap-2">
+                        <input type="number" class="form-control" id="detail-qty" name="quantity" min="1"
+                          max="<%= product.quantity %>" value="1" required>
+                        <button type="submit" class="btn btn-primary flex-grow-1" id="add-to-bag-button"
+                          <%=product.quantity <=0 ? 'disabled' : '' %>>Add to bag</button>
+                      </div>
+                    </form>
+                    <form action="/wishlist/<%= product.id %>/add" method="POST" class="wishlist-form">
+                      <button type="submit" class="btn btn-outline-dark w-100">Add to wish list</button>
+                    </form>
+                  </div>
+                  <% } else { %>
+                    <div class="d-flex gap-2 mt-4">
+                      <a href="/updateProduct/<%= product.id %>" class="btn btn-primary">Edit product</a>
+                      <a href="/inventory" class="btn btn-secondary">Back to inventory</a>
+                    </div>
+                    <% } %>
+
+                      <div class="fit-helper">
+                        <div class="d-flex justify-content-between align-items-center">
+                          <h5 class="mb-0">Fit Assistant</h5>
+                          <a href="/fit-assistant" class="small text-decoration-none">Try it</a>
+                        </div>
+                        <% if (typeof recommendedSize !=='undefined' && recommendedSize) { %>
+                          <p class="mb-1">Recommended size: <strong>
+                              <%= recommendedSize %>
+                            </strong></p>
+                          <p class="text-muted mb-0">Confidence: <%= typeof confidence !=='undefined' ? confidence : '-'
+                              %>
+                          </p>
+                          <% } else { %>
+                            <p class="text-muted mb-0">Get a personalised fit based on your measurements.</p>
+                            <% } %>
+                      </div>
+      </div>
+      </div>
+
+      <div class="size-guide" id="size-guide">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <h3 class="mb-1">Size guide</h3>
+            <p class="text-muted mb-0">Measurements shown in cm with inches in parentheses.</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-modern align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Size</th>
+                <th scope="col">Chest width</th>
+                <th scope="col">Shoulder</th>
+                <th scope="col">Length</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% (sizeChart || []).forEach(function(row) { %>
+                <tr>
+                  <td class="fw-semibold">
+                    <%= row.size %>
+                  </td>
+                  <td>
+                    <%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)
+                  </td>
+                  <td>
+                    <%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)
+                  </td>
+                  <td>
+                    <%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)
+                  </td>
+                </tr>
+                <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-muted small mb-0 mt-2">
+          <%= sizeGuideDisclaimer %>
+        </p>
+      </div>
+
+      <div class="review-section mt-5">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+          <div>
+            <h3 class="mb-1">Customer reviews</h3>
+            <p class="text-muted mb-0">See what other shoppers say about this style.</p>
+          </div>
+        </div>
+
+        <div class="review-overview">
+          <% const totalReviews=reviewSummary && reviewSummary.total ? reviewSummary.total : 0; %>
+            <div class="review-score">
+              <div class="review-score-value">
+                <%= typeof averageRating==='number' ? averageRating.toFixed(1) : '0.0' %>
               </div>
-              <% } %>
+              <div class="review-stars" aria-label="Average rating">
+                <% const roundedRating=typeof averageRating==='number' ? Math.round(averageRating) : 0; %>
+                  <% for (let i=1; i <=5; i++) { %>
+                    <span class="star <%= i <= roundedRating ? 'filled' : '' %>">★</span>
+                    <% } %>
+              </div>
+              <p class="text-muted mb-0">Based on <%= totalReviews %> reviews</p>
+            </div>
+
+            <div class="review-summary-grid">
+              <% [5,4,3,2,1].forEach(function(score) { %>
+                <% const count=reviewSummary && reviewSummary.counts ? reviewSummary.counts[score] : 0; %>
+                  <% const percent=totalReviews ? (count / totalReviews) * 100 : 0; %>
+                    <div class="review-bar-row">
+                      <span class="review-label">
+                        <%= score %> star
+                      </span>
+                      <div class="review-bar">
+                        <span style="width: <%= percent %>%;"></span>
+                      </div>
+                      <span class="review-count">
+                        <%= count %>
+                      </span>
+                    </div>
+                    <% }); %>
+            </div>
+        </div>
+
+        <div class="mt-4">
+          <% if (user && user.role==='customer' && userReview) { %>
+            <div class="alert alert-light border">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Your review</strong>
+                <span class="badge bg-warning text-dark">
+                  <%= userReview.rating %> / 5
+                </span>
+              </div>
+              <p class="mb-0 text-muted">
+                <%= userReview.comment || 'No comments provided.' %>
+              </p>
+            </div>
+            <% } else if (user && user.role==='customer' ) { %>
+              <div class="alert alert-info">
+                Submit reviews from Purchase History after your order is completed.
+              </div>
+              <% } else { %>
+                <p class="text-muted">Sign in as a shopper to view or submit reviews.</p>
+                <% } %>
+        </div>
+
+        <% if (reviews && reviews.length) { %>
+          <div class="review-list">
+            <% reviews.forEach(function(review) { %>
+              <div class="review-item">
+                <div class="d-flex justify-content-between align-items-center">
+                  <strong>
+                    <%= review.username %>
+                  </strong>
+                  <span class="badge bg-warning text-dark">
+                    <%= review.rating %> / 5
+                  </span>
                 </div>
-      </section>
+                <small class="text-muted">
+                  <%= new Date(review.created_at).toLocaleString() %>
+                </small>
+                <p class="mb-0 mt-2">
+                  <%= review.comment || 'No comments provided.' %>
+                </p>
+              </div>
+              <% }); %>
+          </div>
+          <% } else { %>
+            <p class="text-muted mb-0">No reviews yet. Be the first to share your experience!</p>
+            <% } %>
+      </div>
 
-      <script>
-        document.addEventListener('DOMContentLoaded', function () {
-          var availability = document.getElementById('size-availability');
-          var sizeRadios = document.querySelectorAll('input[name="variantId"]');
-          var addButton = document.getElementById('add-to-bag-button');
-          var qtyInput = document.getElementById('detail-qty');
+      <% if (typeof relatedProducts !=='undefined' && relatedProducts && relatedProducts.length) { %>
+        <div class="row g-4 mt-5">
+          <div class="col-12">
+            <h3 class="mb-3">You may also like</h3>
+            <div class="row g-3">
+              <% relatedProducts.slice(0, 3).forEach(function(item) { %>
+                <div class="col-12 col-md-6 col-lg-4">
+                  <div class="card h-100 shadow-sm">
+                    <% if (item.image) { %>
+                      <img src="/images/<%= item.image %>" class="card-img-top"
+                        alt="<%= item.productName || item.name %>">
+                      <% } else { %>
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                          style="height: 200px;">
+                          <span class="text-muted">No image available</span>
+                        </div>
+                        <% } %>
+                          <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">
+                              <a href="/product/<%= item.id %>" class="text-decoration-none text-dark">
+                                <%= item.productName || item.name %>
+                              </a>
+                            </h5>
+                            <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
+                            <div class="mt-auto">
+                              <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2)
+                                  %></span>
+                              <a href="/product/<%= item.id %>" class="btn btn-outline-primary w-100 mt-2">View
+                                product</a>
+                            </div>
+                          </div>
+                  </div>
+                </div>
+                <% }); %>
+            </div>
+          </div>
+        </div>
+        <% } %>
 
-          if (!availability || !sizeRadios.length) {
-            return;
-          }
+          <% } else { %>
+            <div class="empty-state">
+              <h3>Product not found</h3>
+              <p class="text-muted">The product you are looking for is no longer available.</p>
+              <a href="/shopping" class="btn btn-primary">Browse shirts</a>
+            </div>
+            <% } %>
+              </div>
+    </section>
 
-          var updateAvailability = function (event) {
-            var target = event && event.target ? event.target : document.querySelector('input[name="variantId"]:checked');
-            if (!target) {
-              availability.textContent = 'Select a size to see availability.';
-              if (addButton) {
-                addButton.disabled = true;
-              }
-              return;
-            }
-            var qty = Number(target.getAttribute('data-qty') || 0);
-            if (qty > 0) {
-              availability.textContent = 'Available quantity: ' + qty;
-              if (addButton) {
-                addButton.disabled = false;
-              }
-              if (qtyInput) {
-                qtyInput.max = qty;
-                if (Number(qtyInput.value) > qty) {
-                  qtyInput.value = qty;
-                }
-              }
-            } else {
-              availability.textContent = 'Out of stock for this size.';
-              if (addButton) {
-                addButton.disabled = true;
-              }
-              if (qtyInput) {
-                qtyInput.max = 0;
-              }
-            }
-          };
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var availability = document.getElementById('size-availability');
+        var sizeRadios = document.querySelectorAll('input[name="variantId"]');
+        var addButton = document.getElementById('add-to-bag-button');
+        var qtyInput = document.getElementById('detail-qty');
 
-          sizeRadios.forEach(function (radio) {
-            radio.addEventListener('change', updateAvailability);
-          });
+        if (!availability || !sizeRadios.length) {
+          return;
+        }
 
-          updateAvailability();
-        });
-      </script>
-
-      <%- include('partials/footer') %>
+        var updateAvailability = function (event) {
+          var target = event && event.target ? event.target : document.querySelector('input[name="variantId"]:checked');
+          if (!target) {
+            availability.textContent = 'Select a size to see availability.';
