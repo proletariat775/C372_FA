@@ -85,7 +85,7 @@
     </div>
   </nav>
 
-  <section class="page-section">
+  <section class="page-section product-page">
     <div class="container">
       <% if (messages && messages.length) { %>
         <% messages.forEach(function(message) { %>
@@ -106,20 +106,19 @@
                       <% if (product) { %>
                         <div class="row g-4 align-items-start">
                           <div class="col-12 col-lg-6">
-                            <div class="card shadow-sm">
+                            <div class="card shadow-sm h-100">
                               <% if (product.image) { %>
-                                <img src="/images/<%= product.image %>" class="card-img-top"
+                                <img src="/images/<%= product.image %>" class="card-img-top product-hero-image"
                                   alt="<%= product.productName %>">
                                 <% } else { %>
-                                  <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
-                                    style="height: 260px;">
+                                  <div class="card-img-top bg-light d-flex align-items-center justify-content-center product-hero-image">
                                     <span class="text-muted">No image available</span>
                                   </div>
                                   <% } %>
                             </div>
                           </div>
                           <div class="col-12 col-lg-6">
-                            <div class="card shadow-sm">
+                            <div class="card shadow-sm h-100">
                               <div class="card-body">
                                 <span class="badge bg-primary text-uppercase mb-3">
                                   <%= user.role %>
@@ -203,7 +202,7 @@
 
                         <div class="row g-4 mt-4">
                           <div class="col-12 col-lg-7">
-                            <div class="card shadow-sm">
+                            <div class="card shadow-sm h-100">
                               <div class="card-body">
                                 <% const detail = productDetails || {}; %>
                                 <h3 class="card-title mb-3">About this shirt</h3>
@@ -309,13 +308,15 @@
                                   <% }); %>
                               </div>
                               <% } else { %>
-                                <div class="alert alert-light border">More styles coming soon</div>
+                                <div class="card shadow-sm">
+                                  <div class="card-body text-muted">More styles coming soon</div>
+                                </div>
                                 <% } %>
                           </div>
                         </div>
 
                         <div class="row g-4 mt-4">
-                          <div class="col-12 col-lg-6">
+                          <div class="col-12">
                             <div class="card shadow-sm">
                               <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">

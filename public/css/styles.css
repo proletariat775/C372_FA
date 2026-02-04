@@ -251,6 +251,16 @@ a:hover {
   color: var(--brand-muted);
 }
 
+.product-page .card-body {
+  padding: 1.35rem;
+}
+
+.product-hero-image {
+  width: 100%;
+  height: 320px;
+  object-fit: cover;
+}
+
 @media (max-width: 576px) {
   .hero-card .hero-body {
     padding: 2rem;
@@ -258,5 +268,9 @@ a:hover {
 
   .form-card {
     padding: 2.2rem 1.75rem;
+  }
+
+  .product-hero-image {
+    height: 220px;
   }
 }
