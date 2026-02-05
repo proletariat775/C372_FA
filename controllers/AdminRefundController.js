@@ -93,8 +93,8 @@ const applyRefundLoyaltyClawback = async ({ req, request, requestId, amount }) =
             result
         };
     } catch (error) {
-        console.error('Error reversing loyalty points for refund:', error);
-        req.flash('error', 'Refund completed, but loyalty reversal could not be applied.');
+        console.error('Error reversing EcoPoints for refund:', error);
+        req.flash('error', 'Refund completed, but EcoPoints reversal could not be applied.');
         return {
             ok: false,
             error
@@ -263,7 +263,7 @@ module.exports = {
                                 }).then((clawback) => {
                                     const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
                                     const successMessage = clawedPoints > 0
-                                        ? `Refund processed through PayPal. Reversed ${clawedPoints} loyalty points.`
+                                        ? `Refund processed through PayPal. Reversed ${clawedPoints} EcoPoints.`
                                         : 'Refund processed through PayPal.';
 
                                     return finalizeRefund(
@@ -326,7 +326,7 @@ module.exports = {
                     }).then((clawback) => {
                         const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
                         const successMessage = clawedPoints > 0
-                            ? `Refund marked as completed. Reversed ${clawedPoints} loyalty points.`
+                            ? `Refund marked as completed. Reversed ${clawedPoints} EcoPoints.`
                             : 'Refund marked as completed.';
 
                         return finalizeRefund(

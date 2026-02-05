@@ -167,18 +167,18 @@
                   </div>
                   <% if (loyalty && Number(loyalty.loyaltyDiscountAmount || 0) > 0) { %>
                     <div class="d-flex justify-content-between mb-2 text-success">
-                      <span>Loyalty Points Discount</span>
+                      <span>EcoPoints discount</span>
                       <span class="fw-semibold">- $<%= Number(loyalty.loyaltyDiscountAmount).toFixed(2) %></span>
                     </div>
                     <% } %>
                       <% if (loyalty && (Number(loyalty.earnedPoints || 0) > 0 || Number(loyalty.redeemedPoints || 0) > 0)) { %>
                         <div class="d-flex justify-content-between small text-muted mb-1">
-                          <span>Points earned</span>
-                          <span>+<%= Number(loyalty.earnedPoints || 0) %></span>
+                          <span>EcoPoints earned</span>
+                          <span>+<%= Number(loyalty.earnedPoints || 0) %> EcoPoints</span>
                         </div>
                         <div class="d-flex justify-content-between small text-muted mb-2">
-                          <span>Points redeemed</span>
-                          <span>-<%= Number(loyalty.redeemedPoints || 0) %></span>
+                          <span>EcoPoints redeemed</span>
+                          <span>-<%= Number(loyalty.redeemedPoints || 0) %> EcoPoints</span>
                         </div>
                         <% } %>
                   <hr>

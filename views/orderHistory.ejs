@@ -129,31 +129,31 @@
                                             <% } %>
 
                                               <div class="mt-3 p-3 rounded border bg-light-subtle">
-                                                <h6 class="mb-2">Loyalty points</h6>
+                                                <h6 class="mb-2">EcoPoints</h6>
                                                 <% const earnedPoints = Number(order.loyalty_points_earned || 0); %>
                                                   <% const redeemedPoints = Number(order.loyalty_points_redeemed || 0); %>
                                                     <% const loyaltyDiscount = Number(order.loyalty_discount_amount || 0); %>
                                                       <% if (earnedPoints > 0 || redeemedPoints > 0) { %>
                                                         <% if (earnedPoints > 0) { %>
                                                           <div class="d-flex justify-content-between">
-                                                            <span class="text-muted">Points earned</span>
-                                                            <span class="fw-semibold text-success">+<%= earnedPoints %></span>
+                                                            <span class="text-muted">EcoPoints earned</span>
+                                                            <span class="fw-semibold text-success">+<%= earnedPoints %> EcoPoints</span>
                                                           </div>
                                                           <% } %>
                                                             <% if (redeemedPoints > 0) { %>
                                                               <div class="d-flex justify-content-between">
-                                                                <span class="text-muted">Points redeemed</span>
-                                                                <span class="fw-semibold text-danger">-<%= redeemedPoints %></span>
+                                                                <span class="text-muted">EcoPoints redeemed</span>
+                                                                <span class="fw-semibold text-danger">-<%= redeemedPoints %> EcoPoints</span>
                                                               </div>
                                                               <% } %>
                                                                 <% if (loyaltyDiscount > 0) { %>
                                                                   <div class="d-flex justify-content-between">
-                                                                    <span class="text-muted">Loyalty Points Discount</span>
+                                                                    <span class="text-muted">EcoPoints discount</span>
                                                                     <span class="fw-semibold text-success">- $<%= loyaltyDiscount.toFixed(2) %></span>
                                                                   </div>
                                                                   <% } %>
                                                                     <% } else { %>
-                                                                      <p class="text-muted mb-0">No loyalty point activity for this order.</p>
+                                                                      <p class="text-muted mb-0">No EcoPoints activity for this order.</p>
                                                                       <% } %>
                                               </div>
 

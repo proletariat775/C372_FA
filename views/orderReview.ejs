@@ -60,15 +60,18 @@
 
                                             <div class="row g-3">
                                               <div class="col-12 col-md-4">
-                                                <label class="form-label">Rating</label>
-                                                <select name="rating" class="form-select" required>
+                                                <label class="form-label d-block">Rating</label>
+                                                <div class="star-rating" aria-label="Select rating">
                                                   <% for (let score=5; score>=1; score--) { %>
-                                                    <option value="<%= score %>" <%=existing &&
-                                                      Number(existing.rating)===score ? 'selected' : '' %>>
-                                                      <%= score %> star<%= score>1 ? 's' : '' %>
-                                                    </option>
+                                                    <input type="radio"
+                                                      id="rating-<%= item.id %>-<%= score %>" name="rating"
+                                                      value="<%= score %>"
+                                                      <%= existing && Number(existing.rating)===score ? 'checked' : '' %>
+                                                      required>
+                                                    <label for="rating-<%= item.id %>-<%= score %>"
+                                                      title="<%= score %> star<%= score > 1 ? 's' : '' %>">&#9733;</label>
                                                     <% } %>
-                                                </select>
+                                                </div>
                                               </div>
                                               <div class="col-12 col-md-8">
                                                 <label class="form-label">Comment</label>

@@ -4,6 +4,7 @@ const OrderItem = require('../models/orderItem');
 const Wishlist = require('../models/wishlist');
 const OrderReview = require('../models/orderReview');
 const ReturnRequest = require('../models/returnRequest');
+const loyaltyService = require('../services/loyaltyService');
 
 const normalisePrice = (value) => {
     const parsed = Number.parseFloat(value);
@@ -389,6 +390,18 @@ const submitReview = (req, res) => {
                     req.flash('error', 'Unable to submit review.');
                     return res.redirect(`/order/${orderId}/review`);
                 }
+                loyaltyService.awardPointsForReview({
+                    userId: sessionUser.id,
+                    orderId,
+                    orderItemId,
+                    productId
+                }).then((award) => {
+                    if (req.session.user && Number.isFinite(award.balance)) {
+                        req.session.user.loyalty_points = award.balance;
+                    }
+                }).catch((awardErr) => {
+                    console.error('Error awarding EcoPoints for review:', awardErr);
+                });
                 req.flash('success', 'Thanks for sharing your feedback.');
                 return res.redirect(`/order/${orderId}/review`);
             });

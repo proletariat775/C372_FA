@@ -310,10 +310,10 @@ const viewCart = async (req, res) => {
     try {
         loyaltyBalance = await loyaltyService.getBalance(req.session.user && req.session.user.id);
         if (req.session.user) {
-            req.session.user.loyalty_points_balance = loyaltyBalance;
+            req.session.user.loyalty_points = loyaltyBalance;
         }
     } catch (error) {
-        console.error('Error loading loyalty balance for cart:', error);
+        console.error('Error loading EcoPoints balance for cart:', error);
     }
 
     // Cart estimate excludes delivery because delivery method/fee is selected at checkout.

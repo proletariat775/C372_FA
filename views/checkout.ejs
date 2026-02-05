@@ -87,7 +87,7 @@
                                         <% } %>
                                           <% if (loyaltyDiscountAmount && Number(loyaltyDiscountAmount) > 0) { %>
                                             <div class="d-flex justify-content-between text-success">
-                                              <span>Loyalty Points Discount</span>
+                                              <span>EcoPoints discount</span>
                                               <span>- $<%= Number(loyaltyDiscountAmount).toFixed(2) %></span>
                                             </div>
                                             <% } %>
@@ -116,7 +116,7 @@
 
                                 <div class="mt-4 p-3 rounded border bg-light-subtle">
                                   <div class="d-flex justify-content-between">
-                                    <span class="text-muted">Loyalty points balance</span>
+                                    <span class="text-muted">EcoPoints balance</span>
                                     <span class="fw-semibold"><%= Number(loyaltyBalance || 0) %> pts</span>
                                   </div>
                                 </div>
@@ -166,17 +166,17 @@
 
                                 <% if (loyaltyRedemptionEnabled) { %>
                                   <div class="mb-3">
-                                    <h4 class="mb-2">Loyalty points</h4>
-                                    <label for="loyaltyPointsToRedeem" class="form-label">Redeem points (optional)</label>
+                                    <h4 class="mb-2">EcoPoints</h4>
+                                    <label for="loyaltyPointsToRedeem" class="form-label">Redeem EcoPoints (optional)</label>
                                     <input type="number" id="loyaltyPointsToRedeem" name="loyaltyPointsToRedeem"
-                                      class="form-control" min="0" step="1"
+                                      class="form-control" min="0" step="100"
                                       value="<%= Number(loyaltyPointsToRedeem || 0) %>">
-                                    <small class="text-muted d-block mt-1" id="loyalty-redeem-help">100 points = $1.00 discount. Available: <%= Number(loyaltyBalance || 0) %> points.</small>
+                                    <small class="text-muted d-block mt-1" id="loyalty-redeem-help">100 EcoPoints = $5.00 discount. Available: <%= Number(loyaltyBalance || 0) %> EcoPoints.</small>
                                   </div>
                                 <% } else { %>
                                   <input type="hidden" name="loyaltyPointsToRedeem" value="0">
                                   <div class="alert alert-secondary py-2">
-                                    Loyalty redemption is currently disabled. You still earn points on paid orders.
+                                    EcoPoints redemption is currently disabled. You still earn EcoPoints on paid orders.
                                   </div>
                                 <% } %>
 
@@ -199,7 +199,7 @@
 
                                 <div class="mb-3">
                                   <div class="d-flex justify-content-between text-success d-none" id="loyalty-discount-row">
-                                    <span>Loyalty Points Discount</span>
+                                    <span>EcoPoints discount</span>
                                     <span id="loyalty-discount-amount">- $0.00</span>
                                   </div>
                                   <div class="d-flex justify-content-between">
@@ -209,12 +209,14 @@
                                       data-delivery-fee="<%= Number(deliveryFee || 0).toFixed(2) %>"
                                       data-loyalty-balance="<%= Number(loyaltyBalance || 0) %>"
                                       data-redemption-enabled="<%= loyaltyRedemptionEnabled ? '1' : '0' %>"
-                                      data-loyalty-points-per-dollar="100">
+                                      data-loyalty-points-per-dollar="20"
+                                      data-eco-bonus="50"
+                                      data-eco-step="100">
                                       $<%= Number(baseTotal || 0).toFixed(2) %>
                                     </span>
                                   </div>
                                   <div class="small text-muted mt-1 text-end">
-                                    Loyalty reward after payment:
+                                    EcoPoints reward after payment:
                                     <span class="text-success fw-semibold" id="checkout-estimated-points">+<%= Number(estimatedPointsToEarn || 0) %> pts</span>
                                   </div>
                                 </div>
@@ -273,7 +275,9 @@
     var deliveryFee = Number(totalEl.dataset.deliveryFee || 0);
     var loyaltyBalance = Number(totalEl.dataset.loyaltyBalance || 0);
     var redemptionEnabled = totalEl.dataset.redemptionEnabled === '1';
-    var pointsPerDollar = Number(totalEl.dataset.loyaltyPointsPerDollar || 100);
+    var pointsPerDollar = Number(totalEl.dataset.loyaltyPointsPerDollar || 20);
+    var ecoBonus = Number(totalEl.dataset.ecoBonus || 0);
+    var ecoStep = Number(totalEl.dataset.ecoStep || 100);
 
     var toWholeNumber = function (value) {
       var parsed = parseInt(value, 10);
@@ -295,13 +299,22 @@
       }
 
       var maxPointsByAmount = Math.floor(Math.max(0, maxDiscountableAmount) * pointsPerDollar);
-      var maxRedeemable = Math.max(0, Math.min(loyaltyBalance, maxPointsByAmount));
+      var maxRedeemable = Math.floor(Math.min(loyaltyBalance, maxPointsByAmount) / ecoStep) * ecoStep;
       if (maxRedeemable <= 0) {
         return {
           requested: requested,
           points: 0,
           discount: 0,
-          message: 'This order is not eligible for loyalty redemption.'
+          message: 'This order is not eligible for EcoPoints redemption.'
+        };
+      }
+
+      if (requested % ecoStep !== 0) {
+        return {
+          requested: requested,
+          points: 0,
+          discount: 0,
+          message: 'EcoPoints can be redeemed in ' + ecoStep + '-point increments.'
         };
       }
 
@@ -310,16 +323,16 @@
           requested: requested,
           points: 0,
           discount: 0,
-          message: 'You requested more points than your available balance.'
+          message: 'You requested more EcoPoints than your available balance.'
         };
       }
 
-      if (requested > maxPointsByAmount) {
+      if (requested > maxRedeemable) {
         return {
           requested: requested,
           points: 0,
           discount: 0,
-          message: 'Requested points exceed this order total.'
+          message: 'Requested EcoPoints exceed this order total.'
         };
       }
 
@@ -349,11 +362,13 @@
       }
 
       if (estimatedPointsEl) {
-        estimatedPointsEl.textContent = '+' + Math.floor(nextTotal) + ' pts';
+        var basePoints = Math.max(0, Math.floor(nextTotal));
+        var estimated = nextTotal > 0 ? basePoints + ecoBonus : 0;
+        estimatedPointsEl.textContent = '+' + estimated + ' pts';
       }
 
       if (loyaltyHelp) {
-        loyaltyHelp.textContent = loyalty.message || ('100 points = $1.00 discount. Available: ' + loyaltyBalance + ' points.');
+        loyaltyHelp.textContent = loyalty.message || ('100 EcoPoints = $5.00 discount. Available: ' + loyaltyBalance + ' EcoPoints.');
       }
     };
 

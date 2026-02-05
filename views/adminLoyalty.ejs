@@ -1,4 +1,4 @@
-<%- include('partials/header', { title: 'Loyalty Directory | Shirt Shop' }) %>
+<%- include('partials/header', { title: 'EcoPoints Directory | Shirt Shop' }) %>
   <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
 
     <section class="page-section">
@@ -6,18 +6,14 @@
         <div class="form-card">
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
             <div>
-              <h1 class="mb-1">Loyalty directory</h1>
-              <p class="text-muted mb-0">Adjust customer loyalty balances with ledger tracking.</p>
+              <h1 class="mb-1">EcoPoints directory</h1>
+              <p class="text-muted mb-0">Read-only view of customer EcoPoints activity.</p>
             </div>
             <div class="d-flex flex-column align-items-md-end">
               <span class="badge bg-secondary fs-6">Customers: <%= customers ? customers.length : 0 %></span>
-              <small class="text-muted mt-1">Total points in circulation: <%= Number(totalPoints || 0) %></small>
+              <small class="text-muted mt-1">Total EcoPoints in circulation: <%= Number(totalPoints || 0) %></small>
+              <small class="text-muted">Total EcoPoints issued: <%= Number(totalIssuedPoints || 0) %></small>
             </div>
-          </div>
-
-          <div class="alert alert-info py-2">
-            Use positive values to add points (e.g. <strong>50</strong>) and negative values to deduct (e.g.
-            <strong>-50</strong>).
           </div>
 
           <% if (errors && errors.length) { %>
@@ -45,8 +41,7 @@
                                     <tr>
                                       <th scope="col">Customer</th>
                                       <th scope="col">Email</th>
-                                      <th scope="col">Current points</th>
-                                      <th scope="col" style="min-width: 380px;">Adjust points</th>
+                                      <th scope="col">Current EcoPoints</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -66,24 +61,8 @@
                                         </td>
                                         <td>
                                           <span class="badge bg-primary-subtle text-primary fs-6">
-                                            <%= Number(customer.loyalty_points_balance || 0) %> pts
+                                            <%= Number(customer.loyalty_points || 0) %> pts
                                           </span>
-                                        </td>
-                                        <td>
-                                          <form action="/admin/loyalty/<%= customer.id %>/adjust" method="POST"
-                                            class="row g-2 align-items-center">
-                                            <div class="col-12 col-md-4">
-                                              <input type="number" name="pointsChange" class="form-control" step="1" required
-                                                placeholder="+50 or -50">
-                                            </div>
-                                            <div class="col-12 col-md-5">
-                                              <input type="text" name="note" class="form-control" maxlength="80"
-                                                placeholder="Optional note (promo, correction, etc.)">
-                                            </div>
-                                            <div class="col-12 col-md-3 d-grid">
-                                              <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
-                                            </div>
-                                          </form>
                                         </td>
                                       </tr>
                                       <% }); %>

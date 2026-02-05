@@ -118,6 +118,7 @@ app.post('/cart/apply-coupon', checkAuthenticated, checkRoles('customer'), cartC
 app.post('/cart/remove-coupon', checkAuthenticated, checkRoles('customer'), cartController.removeCoupon);
 app.get('/coupons', checkAuthenticated, checkRoles('customer'), couponController.availablePage);
 app.get('/user/coupons', checkAuthenticated, checkRoles('customer'), couponController.availablePage);
+app.post('/user/ecopoints/redeem', checkAuthenticated, checkRoles('customer'), couponController.redeemEcoPointsVoucher);
 app.get('/api/coupons/available', checkAuthenticated, checkRoles('customer'), couponController.availableJson);
 app.get('/checkout', checkAuthenticated, checkRoles('customer'), orderController.showCheckout);
 app.post('/checkout', checkAuthenticated, checkRoles('customer'), orderController.checkout);

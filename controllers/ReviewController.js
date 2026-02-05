@@ -1,5 +1,6 @@
 const Review = require('../models/review');
 const Order = require('../models/order');
+const loyaltyService = require('../services/loyaltyService');
 
 /**
  * Create or update a review for a product by the logged-in user.
@@ -57,6 +58,18 @@ const upsert = (req, res) => {
                         console.error('Error creating review:', createError);
                         req.flash('error', 'Unable to submit review.');
                     } else {
+                        loyaltyService.awardPointsForReview({
+                            userId: user.id,
+                            orderId: null,
+                            orderItemId: null,
+                            productId
+                        }).then((award) => {
+                            if (req.session.user && Number.isFinite(award.balance)) {
+                                req.session.user.loyalty_points = award.balance;
+                            }
+                        }).catch((awardErr) => {
+                            console.error('Error awarding EcoPoints for review:', awardErr);
+                        });
                         req.flash('success', 'Thanks for sharing your thoughts!');
                     }
                     return res.redirect(`/product/${productId}`);

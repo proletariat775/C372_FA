@@ -13,7 +13,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS invoice_items;
 DROP TABLE IF EXISTS invoice;
 DROP TABLE IF EXISTS coupon_usage;
-DROP TABLE IF EXISTS loyalty_points_transactions;
+DROP TABLE IF EXISTS loyalty_transactions;
 DROP TABLE IF EXISTS product_details;
 DROP TABLE IF EXISTS product_reviews;
 DROP TABLE IF EXISTS reviews;
@@ -48,7 +48,7 @@ CREATE TABLE users (
   phone VARCHAR(30) NULL,
   role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
   free_delivery TINYINT(1) NOT NULL DEFAULT 0,
-  loyalty_points_balance INT NOT NULL DEFAULT 0,
+  loyalty_points INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
@@ -244,6 +244,7 @@ CREATE TABLE coupons (
   usage_limit INT NULL,
   per_user_limit INT NULL,
   brand_id INT NULL,
+  owner_user_id INT NULL,
   usage_count INT NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -251,7 +252,10 @@ CREATE TABLE coupons (
   UNIQUE KEY uq_coupons_code (code),
   KEY idx_coupons_active_dates (is_active, start_date, end_date),
   KEY idx_coupons_brand (brand_id),
+  KEY idx_coupons_owner_user (owner_user_id),
   CONSTRAINT fk_coupons_brand FOREIGN KEY (brand_id) REFERENCES brands(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_coupons_owner_user FOREIGN KEY (owner_user_id) REFERENCES users(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
  
@@ -272,7 +276,7 @@ CREATE TABLE coupon_usage (
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE loyalty_points_transactions (
+CREATE TABLE loyalty_transactions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   order_id INT NULL,

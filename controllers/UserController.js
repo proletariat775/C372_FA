@@ -1,5 +1,7 @@
 const User = require('../models/user');
 const Order = require('../models/order');
+const OrderReview = require('../models/orderReview');
+const refundRequestModel = require('../models/refundRequest');
 
 const normaliseOrderItem = (item) => {
     if (!item) {
@@ -12,6 +14,44 @@ const normaliseOrderItem = (item) => {
         productName: name,
         is_deleted: isDeleted ? 1 : 0
     };
+};
+
+const buildUserReviewList = (orderItemsByOrder = {}, reviewRows = []) => {
+    const itemMap = {};
+    Object.values(orderItemsByOrder).forEach((items) => {
+        (items || []).forEach((item) => {
+            if (item && item.id) {
+                itemMap[item.id] = item;
+            }
+        });
+    });
+
+    const getTime = (value) => {
+        if (!value) return 0;
+        const time = new Date(value).getTime();
+        return Number.isNaN(time) ? 0 : time;
+    };
+
+    return (reviewRows || []).map((review) => {
+        const item = itemMap[review.order_item_id] || {};
+        return {
+            id: review.id,
+            rating: Number(review.rating || 0),
+            comment: review.comment || '',
+            createdAt: review.created_at,
+            updatedAt: review.updated_at,
+            orderItemId: review.order_item_id,
+            orderId: item.order_id || null,
+            productId: item.product_id || review.product_id || null,
+            productName: item.productName || 'Product',
+            size: item.size || '',
+            color: item.color || ''
+        };
+    }).sort((a, b) => {
+        const aTime = getTime(a.createdAt || a.updatedAt);
+        const bTime = getTime(b.createdAt || b.updatedAt);
+        return bTime - aTime;
+    });
 };
 
 const showRegister = (req, res) => {
@@ -129,18 +169,49 @@ const showUserDashboard = (req, res) => {
             return res.redirect('/shopping');
         }
 
+        const renderDashboard = (orders, orderItems) => {
+            const orderItemIds = new Set();
+            Object.values(orderItems || {}).forEach((items) => {
+                (items || []).forEach((item) => {
+                    if (item && item.id) {
+                        orderItemIds.add(item.id);
+                    }
+                });
+            });
+
+            refundRequestModel.getByUser(userId, (refundErr, requests = []) => {
+                if (refundErr) {
+                    console.error('Error loading refund requests:', refundErr);
+                    requests = [];
+                }
+
+                OrderReview.findByUserAndOrderItems(userId, Array.from(orderItemIds), (reviewErr, reviewRows = []) => {
+                    if (reviewErr) {
+                        console.error('Error loading user reviews:', reviewErr);
+                        reviewRows = [];
+                    }
+
+                    const userReviews = buildUserReviewList(orderItems, reviewRows);
+
+                    return res.render('userDashboard', {
+                        user: req.session.user,
+                        profile: results[0],
+                        orders,
+                        orderItems,
+                        refundRequests: requests,
+                        userReviews,
+                        errors: req.flash('error'),
+                        messages: req.flash('success')
+                    });
+                });
+            });
+        };
+
         Order.findByUser(userId, (orderErr, orderRows) => {
             if (orderErr) {
                 console.error('Error fetching user orders:', orderErr);
                 req.flash('error', 'Unable to load your orders.');
-                return res.render('userDashboard', {
-                    user: req.session.user,
-                    profile: results[0],
-                    orders: [],
-                    orderItems: {},
-                    errors: req.flash('error'),
-                    messages: req.flash('success')
-                });
+                return renderDashboard([], {});
             }
 
             const orders = (orderRows || []).map((order) => ({
@@ -153,28 +224,14 @@ const showUserDashboard = (req, res) => {
             const orderIds = orders.map(order => order.id);
 
             if (!orderIds.length) {
-                return res.render('userDashboard', {
-                    user: req.session.user,
-                    profile: results[0],
-                    orders,
-                    orderItems: {},
-                    errors: req.flash('error'),
-                    messages: req.flash('success')
-                });
+                return renderDashboard(orders, {});
             }
 
             Order.findItemsByOrderIds(orderIds, (itemsErr, itemRows) => {
                 if (itemsErr) {
                     console.error('Error fetching order items:', itemsErr);
                     req.flash('error', 'Unable to load order items.');
-                    return res.render('userDashboard', {
-                        user: req.session.user,
-                        profile: results[0],
-                        orders,
-                        orderItems: {},
-                        errors: req.flash('error'),
-                        messages: req.flash('success')
-                    });
+                    return renderDashboard(orders, {});
                 }
 
                 const itemsByOrder = orderIds.reduce((acc, id) => {
@@ -190,14 +247,7 @@ const showUserDashboard = (req, res) => {
                     itemsByOrder[safeItem.order_id].push(safeItem);
                 });
 
-                return res.render('userDashboard', {
-                    user: req.session.user,
-                    profile: results[0],
-                    orders,
-                    orderItems: itemsByOrder,
-                    errors: req.flash('error'),
-                    messages: req.flash('success')
-                });
+                return renderDashboard(orders, itemsByOrder);
             });
         });
     });

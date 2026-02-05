@@ -44,14 +44,14 @@ const buildLoyaltyFlashMessage = (earnedPoints, redeemedPoints) => {
     }
 
     if (safeEarned && safeRedeemed) {
-        return `Loyalty update: redeemed ${safeRedeemed} points and earned ${safeEarned} points.`;
+        return `EcoPoints update: redeemed ${safeRedeemed} points and earned ${safeEarned} points.`;
     }
 
     if (safeEarned) {
-        return `You earned ${safeEarned} loyalty points from this order.`;
+        return `You earned ${safeEarned} EcoPoints from this order.`;
     }
 
-    return `You redeemed ${safeRedeemed} loyalty points on this order.`;
+    return `You redeemed ${safeRedeemed} EcoPoints on this order.`;
 };
 
 const decorateProduct = (product) => {
@@ -435,10 +435,10 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
     try {
         loyaltyBalance = await loyaltyService.getBalance(req.session.user.id);
         if (req.session && req.session.user) {
-            req.session.user.loyalty_points_balance = loyaltyBalance;
+            req.session.user.loyalty_points = loyaltyBalance;
         }
     } catch (error) {
-        console.error('Error loading loyalty balance for checkout snapshot:', error);
+        console.error('Error loading EcoPoints balance for checkout snapshot:', error);
     }
 
     let loyaltyPointsRequested = 0;
@@ -453,9 +453,9 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
             maxDiscountableAmount: totalBeforeLoyalty
         });
 
-        // Server-side loyalty validation to prevent over-redemption.
+        // Server-side EcoPoints validation to prevent over-redemption.
         if (!redemption.valid && redemption.requestedPoints > 0) {
-            return { error: redemption.message || 'Invalid loyalty redemption request.' };
+            return { error: redemption.message || 'Invalid EcoPoints redemption request.' };
         }
 
         loyaltyPointsRedeemed = redemption.pointsToRedeem;
@@ -543,8 +543,8 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
                     pointsToRedeem: loyaltyPointsRedeemed
                 });
             } catch (loyaltyError) {
-                // Loyalty must not block successful order placement/payment completion.
-                console.error('Error redeeming loyalty points:', loyaltyError);
+                // EcoPoints must not block successful order placement/payment completion.
+                console.error('Error redeeming EcoPoints:', loyaltyError);
             }
         }
 
@@ -559,15 +559,15 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
                 orderStatus: 'processing'
             });
         } catch (loyaltyError) {
-            // Loyalty is additive-only and should not fail payment flow.
-            console.error('Error awarding loyalty points:', loyaltyError);
+            // EcoPoints are additive-only and should not fail payment flow.
+            console.error('Error awarding EcoPoints:', loyaltyError);
         }
 
         const resolvedBalance = Number.isFinite(loyaltyAwardResult.balance)
             ? loyaltyAwardResult.balance
             : (Number.isFinite(loyaltyRedeemResult.balance) ? loyaltyRedeemResult.balance : null);
         if (req.session.user && Number.isFinite(resolvedBalance)) {
-            req.session.user.loyalty_points_balance = resolvedBalance;
+            req.session.user.loyalty_points = resolvedBalance;
         }
 
         req.session.lastLoyaltyOrder = {
@@ -670,10 +670,10 @@ const showCheckout = async (req, res) => {
         try {
             loyaltyBalance = await loyaltyService.getBalance(req.session.user.id);
             if (req.session.user) {
-                req.session.user.loyalty_points_balance = loyaltyBalance;
+                req.session.user.loyalty_points = loyaltyBalance;
             }
         } catch (loyaltyError) {
-            console.error('Error loading loyalty balance for checkout page:', loyaltyError);
+            console.error('Error loading EcoPoints balance for checkout page:', loyaltyError);
         }
 
         const estimatedPointsToEarn = loyaltyService.calculateEarnPoints(baseTotal);
@@ -776,7 +776,7 @@ const checkout = (req, res) => {
             const createOrderWithLoyalty = () => loyaltyService.getBalance(req.session.user.id)
                 .then((loyaltyBalance) => {
                     if (req.session.user) {
-                        req.session.user.loyalty_points_balance = loyaltyBalance;
+                        req.session.user.loyalty_points = loyaltyBalance;
                     }
 
                     const totalBeforeLoyalty = Number(Math.max(0, subtotal - discountAmount - bundleDiscount) + (deliveryMethod === 'delivery' ? deliveryFee : 0));
@@ -792,7 +792,7 @@ const checkout = (req, res) => {
 
                         // Server-side validation prevents invalid point redemption requests.
                         if (!redemption.valid && redemption.requestedPoints > 0) {
-                            req.flash('error', redemption.message || 'Invalid loyalty redemption request.');
+                            req.flash('error', redemption.message || 'Invalid EcoPoints redemption request.');
                             return res.redirect('/checkout');
                         }
 
@@ -820,8 +820,8 @@ const checkout = (req, res) => {
                     });
                 })
                 .catch((loyaltyError) => {
-                    console.error('Error processing loyalty redemption during checkout:', loyaltyError);
-                    req.flash('error', 'Unable to validate loyalty points right now.');
+                    console.error('Error processing EcoPoints redemption during checkout:', loyaltyError);
+                    req.flash('error', 'Unable to validate EcoPoints right now.');
                     return res.redirect('/checkout');
                 });
 
@@ -927,10 +927,10 @@ const createOrderWithCoupon = ({
                 });
                 redeemedPoints = Number(loyaltyResult.redeemedPoints || 0);
                 if (req.session.user && Number.isFinite(loyaltyResult.balance)) {
-                    req.session.user.loyalty_points_balance = loyaltyResult.balance;
+                    req.session.user.loyalty_points = loyaltyResult.balance;
                 }
             } catch (loyaltyError) {
-                console.error('Error redeeming loyalty points for direct checkout:', loyaltyError);
+                console.error('Error redeeming EcoPoints for direct checkout:', loyaltyError);
             }
         }
 
@@ -1048,7 +1048,7 @@ const history = (req, res) => {
                 })
                     .then(renderWithLoyalty)
                     .catch((loyaltyErr) => {
-                        console.error('Error loading loyalty summary for order history:', loyaltyErr);
+                        console.error('Error loading EcoPoints summary for order history:', loyaltyErr);
                         renderWithLoyalty({});
                     });
             };
@@ -1582,7 +1582,7 @@ const invoice = (req, res) => {
                     const orderLoyalty = loyaltySummary[orderId] || {};
                     const redeemedPoints = Number(orderLoyalty.redeemedPoints || order.loyalty_points_redeemed || 0);
                     const earnedPoints = Number(orderLoyalty.earnedPoints || 0);
-                    const loyaltyDiscountAmount = Number(order.loyalty_discount_amount || (redeemedPoints / 100) || 0);
+                    const loyaltyDiscountAmount = Number(order.loyalty_discount_amount || (redeemedPoints / 20) || 0);
 
                     res.render('invoice', {
                         user: sessionUser,
@@ -1608,7 +1608,7 @@ const invoice = (req, res) => {
                 })
                     .then(renderInvoice)
                     .catch((loyaltyErr) => {
-                        console.error('Error loading loyalty summary for invoice:', loyaltyErr);
+                        console.error('Error loading EcoPoints summary for invoice:', loyaltyErr);
                         renderInvoice({});
                     });
             });

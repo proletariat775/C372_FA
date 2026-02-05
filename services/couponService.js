@@ -151,6 +151,17 @@ const validateCoupon = async (code, userId, subtotal, cartItems) => {
         return { valid: false, message: 'Coupon code not found.' };
     }
 
+    if (coupon.owner_user_id) {
+        const ownerId = Number(coupon.owner_user_id);
+        const requesterId = Number(userId || 0);
+        if (!Number.isFinite(ownerId) || ownerId <= 0) {
+            return { valid: false, message: 'This coupon is not valid for your account.' };
+        }
+        if (!Number.isFinite(requesterId) || requesterId !== ownerId) {
+            return { valid: false, message: 'This coupon is tied to a different account.' };
+        }
+    }
+
     if (!coupon.is_active) {
         return { valid: false, message: 'This coupon is not active.' };
     }

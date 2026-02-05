@@ -50,6 +50,7 @@ const create = (data, callback) => {
         usage_limit,
         per_user_limit,
         brand_id,
+        owner_user_id = null,
         is_active
     } = data;
 
@@ -65,6 +66,7 @@ const create = (data, callback) => {
             usage_limit,
             per_user_limit,
             brand_id,
+            owner_user_id,
             is_active
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
@@ -80,6 +82,7 @@ const create = (data, callback) => {
         usage_limit,
         per_user_limit,
         brand_id,
+        owner_user_id,
         is_active
     ], callback);
 };
@@ -192,12 +195,13 @@ const listAvailableForUser = (userId, callback) => {
             (c.start_date <= UTC_TIMESTAMP() AND c.end_date >= UTC_TIMESTAMP())
             OR (DATE(c.start_date) <= UTC_DATE() AND DATE(c.end_date) >= UTC_DATE())
           )
+          AND (c.owner_user_id IS NULL OR c.owner_user_id = ?)
           AND ((c.usage_limit IS NULL OR c.usage_limit <= 0) OR c.usage_count < c.usage_limit)
           AND ((c.per_user_limit IS NULL OR c.per_user_limit <= 0) OR COALESCE(u.usage_count, 0) < c.per_user_limit)
         ORDER BY c.end_date ASC, c.created_at DESC
     `;
 
-    db.query(sql, [safeUserId], callback);
+    db.query(sql, [safeUserId, safeUserId], callback);
 };
 
 const incrementUsage = (couponId, callback) => {

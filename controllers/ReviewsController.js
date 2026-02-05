@@ -1,4 +1,5 @@
 const OrderReview = require('../models/orderReview');
+const loyaltyService = require('../services/loyaltyService');
 
 const createReview = (req, res) => {
     const user = req.session.user;
@@ -73,6 +74,19 @@ const createReview = (req, res) => {
                     }
                     return res.redirect('/orders/history');
                 }
+
+                loyaltyService.awardPointsForReview({
+                    userId: user.id,
+                    orderId: context.order_id,
+                    orderItemId,
+                    productId: context.product_id
+                }).then((award) => {
+                    if (req.session.user && Number.isFinite(award.balance)) {
+                        req.session.user.loyalty_points = award.balance;
+                    }
+                }).catch((awardErr) => {
+                    console.error('Error awarding EcoPoints for review:', awardErr);
+                });
 
                 req.flash('success', 'Thanks for sharing your review.');
                 return res.redirect('/orders/history');
