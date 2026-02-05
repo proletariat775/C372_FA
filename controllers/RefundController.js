@@ -267,7 +267,12 @@ module.exports = {
                     return res.redirect('/refunds');
                 }
 
-                refundRequestItemModel.getByRequestId(requestId, (itemsErr, items = []) => {
+                const latestRefund = refunds && refunds.length ? refunds[0] : null;
+                const requestStatus = String(request.status || '').toUpperCase();
+                const refundStatus = latestRefund ? String(latestRefund.status || '').toUpperCase() : '';
+                const shouldMarkCompleted = latestRefund && refundStatus === 'COMPLETED' && requestStatus !== 'COMPLETED';
+
+                const renderDetails = () => refundRequestItemModel.getByRequestId(requestId, (itemsErr, items = []) => {
                     if (itemsErr) {
                         console.error('Error loading refund items:', itemsErr);
                         req.flash('error', 'Unable to load refund request.');
@@ -281,6 +286,20 @@ module.exports = {
                         messages: req.flash('success'),
                         errors: req.flash('error')
                     });
+                });
+
+                if (!shouldMarkCompleted) {
+                    return renderDetails();
+                }
+
+                refundRequestModel.updateStatus(requestId, 'COMPLETED', null, (statusErr) => {
+                    if (statusErr) {
+                        console.error('Error reconciling refund status:', statusErr);
+                    } else {
+                        request.status = 'COMPLETED';
+                        request.adminNote = null;
+                    }
+                    return renderDetails();
                 });
             });
         });

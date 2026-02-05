@@ -184,6 +184,9 @@
                                 <div id="paypal-actions" class="d-none mt-2 d-grid">
                                   <button type="button" class="btn btn-primary" id="paypal-button">Pay with PayPal</button>
                                 </div>
+                                <div id="stripe-actions" class="d-none mt-2 d-grid">
+                                  <button type="button" class="btn btn-dark" id="stripe-button">Pay with Stripe</button>
+                                </div>
                               </div>
                             </form>
 
@@ -210,8 +213,10 @@
     var radios = document.querySelectorAll('input[name="deliveryMethod"]');
     var paymentRadios = document.querySelectorAll('input[name="paymentMethod"]');
     var paypalActions = document.getElementById('paypal-actions');
+    var stripeActions = document.getElementById('stripe-actions');
     var submitBtn = document.getElementById('checkout-submit');
     var paypalButton = document.getElementById('paypal-button');
+    var stripeButton = document.getElementById('stripe-button');
     var notice = document.getElementById('payment-notice');
     var checkoutForm = document.querySelector('form[action="/checkout"]');
 
@@ -256,10 +261,13 @@
     var updatePaymentActions = function () {
       var payment = currentPayment();
       if (submitBtn) {
-        submitBtn.classList.toggle('d-none', payment === 'paypal');
+        submitBtn.classList.toggle('d-none', payment === 'paypal' || payment === 'stripe');
       }
       if (paypalActions) {
         paypalActions.classList.toggle('d-none', payment !== 'paypal');
+      }
+      if (stripeActions) {
+        stripeActions.classList.toggle('d-none', payment !== 'stripe');
       }
       clearNotice();
     };
@@ -267,9 +275,9 @@
     if (checkoutForm) {
       checkoutForm.addEventListener('submit', function (event) {
         var payment = currentPayment();
-        if (payment === 'paypal') {
+        if (payment === 'paypal' || payment === 'stripe') {
           event.preventDefault();
-          showNotice('Please use the PayPal button to complete payment.', 'warning');
+          showNotice('Please use the PayPal or Stripe button to complete payment.', 'warning');
         }
       });
     }
@@ -330,6 +338,35 @@
           .catch(function () {
             paypalButton.disabled = false;
             showNotice('Unable to start PayPal checkout.', 'danger');
+          });
+      });
+    }
+
+    if (stripeButton) {
+      stripeButton.addEventListener('click', function () {
+        var payload = buildDeliveryPayload();
+        if (!payload) return;
+
+        showNotice('Redirecting to Stripe...', 'info');
+        stripeButton.disabled = true;
+
+        fetch('/payments/stripe/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data && data.url) {
+              window.location.href = data.url;
+              return;
+            }
+            stripeButton.disabled = false;
+            showNotice(data && data.message ? data.message : 'Unable to start Stripe checkout.', 'danger');
+          })
+          .catch(function () {
+            stripeButton.disabled = false;
+            showNotice('Unable to start Stripe checkout.', 'danger');
           });
       });
     }

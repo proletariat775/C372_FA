@@ -7,15 +7,15 @@ const couponService = require('../services/couponService');
 const bundleService = require('../services/bundleService');
 const sustainabilityService = require('../services/sustainabilityService');
 const paypalService = require('../services/paypalService');
+const stripeService = require('../services/stripe');
 
 const DELIVERY_FEE = 1.5;
 const ADMIN_STATUS_FLOW = ['pending', 'packed', 'shipped', 'delivered', 'completed'];
 const PAYMENT_METHODS = [
-    { value: 'card', label: 'Credit/Debit Card' },
     { value: 'paypal', label: 'PayPal (Sandbox)' },
-    { value: 'ewallet', label: 'E-Wallet' }
+    { value: 'stripe', label: 'Stripe (Card)' }
 ];
-const INLINE_PAYMENT_METHODS = ['card', 'ewallet'];
+const INLINE_PAYMENT_METHODS = [];
 
 const normalisePrice = (value) => {
     const parsed = Number.parseFloat(value);
@@ -558,7 +558,7 @@ const showCheckout = async (req, res) => {
             deliveryFee,
             impactSummary,
             paymentMethods: PAYMENT_METHODS,
-            selectedPayment: 'card',
+            selectedPayment: 'paypal',
             messages: req.flash('success'),
             errors: req.flash('error')
         });
@@ -596,8 +596,8 @@ const checkout = (req, res) => {
 
             const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
             const requestedPayment = String(req.body.paymentMethod || '').trim().toLowerCase();
-            if (requestedPayment === 'paypal') {
-                req.flash('error', 'Please complete payment using the PayPal button.');
+            if (requestedPayment === 'paypal' || requestedPayment === 'stripe') {
+                req.flash('error', 'Please complete payment using the PayPal or Stripe button.');
                 return res.redirect('/checkout');
             }
             const paymentMethod = resolvePaymentMethod(requestedPayment, INLINE_PAYMENT_METHODS);
@@ -1233,6 +1233,85 @@ const capturePayPalOrder = async (req, res) => {
     }
 };
 
+const createStripeSession = async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+        return res.status(403).json({ success: false, message: 'Only shoppers can complete payment.' });
+    }
+
+    try {
+        const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
+        const deliveryAddress = req.body.deliveryAddress ? String(req.body.deliveryAddress).trim() : '';
+        const orderNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
+        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes);
+
+        if (snapshot.error) {
+            return res.status(400).json({ success: false, message: snapshot.error, issues: snapshot.issues || [] });
+        }
+
+        const baseUrl = resolveBaseUrl(req);
+        const session = await stripeService.createCheckoutSession({
+            amount: snapshot.total,
+            currency: 'USD',
+            description: 'Shirt Shop Order',
+            successUrl: `${baseUrl}/payments/stripe/success`,
+            cancelUrl: `${baseUrl}/payments/stripe/cancel`,
+            metadata: { userId: req.session.user.id }
+        });
+
+        req.session.pendingPayment = {
+            method: 'stripe',
+            stripeSessionId: session.id,
+            snapshot,
+            createdAt: Date.now()
+        };
+
+        return res.json({ success: true, url: session.url });
+    } catch (error) {
+        console.error('Error creating Stripe session:', error);
+        return res.status(500).json({ success: false, message: 'Unable to start Stripe checkout.' });
+    }
+};
+
+const stripeSuccess = async (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+        req.flash('error', 'Only shoppers can complete payment.');
+        return res.redirect('/checkout');
+    }
+
+    const sessionId = String(req.query.session_id || '').trim();
+    const pending = req.session.pendingPayment;
+
+    if (!sessionId || !pending || pending.method !== 'stripe' || pending.stripeSessionId !== sessionId) {
+        req.flash('error', 'Stripe session expired. Please try again.');
+        return res.redirect('/checkout');
+    }
+
+    try {
+        const session = await stripeService.retrieveCheckoutSession(sessionId);
+        const paymentStatus = String(session.payment_status || '').toLowerCase();
+        const isPaid = paymentStatus === 'paid' || session.status === 'complete';
+
+        if (!isPaid) {
+            req.flash('error', 'Stripe payment was not completed.');
+            return res.redirect('/checkout');
+        }
+
+        await finalizePaidOrder(req, pending.snapshot, 'stripe');
+        delete req.session.pendingPayment;
+        req.flash('success', 'Payment completed.');
+        return res.redirect('/orders/history');
+    } catch (error) {
+        console.error('Error verifying Stripe payment:', error);
+        req.flash('error', 'Stripe verification failed.');
+        return res.redirect('/checkout');
+    }
+};
+
+const stripeCancel = (req, res) => {
+    req.flash('error', 'Stripe payment was cancelled. Please try again.');
+    return res.redirect('/checkout');
+};
+
 /**
  * Render a printable invoice for an order.
  */
@@ -1314,5 +1393,8 @@ module.exports = {
     updateAdminOrder,
     createPayPalOrder,
     capturePayPalOrder,
+    createStripeSession,
+    stripeSuccess,
+    stripeCancel,
     invoice
 };

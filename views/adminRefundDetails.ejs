@@ -48,7 +48,8 @@
               <div><%= request.reason %></div>
             </div>
           <% } %>
-          <% if (request.adminNote) { %>
+          <% const noteStatus = (request.status || '').toUpperCase(); %>
+          <% if (request.adminNote && (noteStatus === 'FAILED' || noteStatus === 'REJECTED')) { %>
             <div class="col-12">
               <div class="small text-muted">Admin note</div>
               <div><%= request.adminNote %></div>

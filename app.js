@@ -108,6 +108,9 @@ app.get('/checkout', checkAuthenticated, checkRoles('customer'), orderController
 app.post('/checkout', checkAuthenticated, checkRoles('customer'), orderController.checkout);
 app.post('/payments/paypal/create', checkAuthenticated, checkRoles('customer'), orderController.createPayPalOrder);
 app.post('/payments/paypal/capture', checkAuthenticated, checkRoles('customer'), orderController.capturePayPalOrder);
+app.post('/payments/stripe/create', checkAuthenticated, checkRoles('customer'), orderController.createStripeSession);
+app.get('/payments/stripe/success', checkAuthenticated, checkRoles('customer'), orderController.stripeSuccess);
+app.get('/payments/stripe/cancel', checkAuthenticated, checkRoles('customer'), orderController.stripeCancel);
 app.get('/orders/history', checkAuthenticated, checkRoles('customer', 'admin'), orderController.history);
 app.post('/orders/:id/delivery', checkAuthenticated, orderController.updateDeliveryDetails);
 app.get('/orders/:id/invoice', checkAuthenticated, orderController.invoice);
