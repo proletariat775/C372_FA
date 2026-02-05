@@ -21,6 +21,8 @@ const create = (userId, cartItems, options, callback) => {
         refunded_amount = 0.00,
         status = 'pending',
         discount_amount = 0.00,
+        loyalty_points_redeemed = 0,
+        loyalty_discount_amount = 0.00,
         promo_code = null,
         delivery_method = null,
         delivery_address = null,
@@ -59,6 +61,8 @@ const create = (userId, cartItems, options, callback) => {
                 tax_amount,
                 shipping_amount,
                 discount_amount,
+                loyalty_points_redeemed,
+                loyalty_discount_amount,
                 total_amount,
                 payment_method,
                 payment_status,
@@ -74,7 +78,7 @@ const create = (userId, cartItems, options, callback) => {
                 delivery_slot_window,
                 order_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         connection.query(orderSql, [
@@ -85,6 +89,8 @@ const create = (userId, cartItems, options, callback) => {
             tax_amount,
             shipping_amount_safe,
             discount_amount_safe,
+            Number.isFinite(loyalty_points_redeemed) ? Number(loyalty_points_redeemed) : 0,
+            Number.isFinite(loyalty_discount_amount) ? Number(loyalty_discount_amount) : 0,
             total_amount,
             payment_method,
             payment_status,
@@ -176,7 +182,7 @@ const create = (userId, cartItems, options, callback) => {
  */
 const findByUser = (userId, callback) => {
     const sql = `
-        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_method, payment_status, shipping_address, delivery_slot_date, delivery_slot_window, order_notes, created_at
+        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, loyalty_points_redeemed, loyalty_discount_amount, total_amount, payment_method, payment_status, shipping_address, delivery_slot_date, delivery_slot_window, order_notes, created_at
         FROM orders
         WHERE user_id = ?
             ORDER BY created_at DESC, id DESC
@@ -205,6 +211,8 @@ const findAllWithUsers = (callback) => {
             o.tax_amount,
             o.shipping_amount,
             o.discount_amount,
+            o.loyalty_points_redeemed,
+            o.loyalty_discount_amount,
             o.total_amount,
             o.payment_method,
             o.shipping_address,

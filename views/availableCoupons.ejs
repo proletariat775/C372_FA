@@ -1,0 +1,154 @@
+<%- include('partials/header', { title: 'Available Coupons | Shirt Shop' }) %>
+  <%- include('partials/navbar', { user: user }) %>
+
+    <section class="page-section">
+      <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+          <div>
+            <p class="mb-1 text-muted">Member offers</p>
+            <h2 class="mb-0">Available coupons</h2>
+          </div>
+          <a href="/shopping" class="btn btn-outline-secondary">Back to shopping</a>
+        </div>
+
+        <% if (messages && messages.length) { %>
+          <% messages.forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+          <% }); %>
+        <% } %>
+
+        <% if (errors && errors.length) { %>
+          <% errors.forEach(function(error) { %>
+            <div class="alert alert-danger"><%= error %></div>
+          <% }); %>
+        <% } %>
+
+        <% const formatMoney = (value) => '$' + Number(value || 0).toFixed(2); %>
+
+        <% if (!coupons || !coupons.length) { %>
+          <div class="empty-state">
+            <h3>No active coupons right now</h3>
+            <p class="text-muted">Check back soon for new offers.</p>
+            <a href="/shopping" class="btn btn-primary">Shop now</a>
+          </div>
+        <% } else { %>
+          <div class="coupon-grid">
+            <% coupons.forEach(function(coupon) { %>
+              <% const isPercentage = coupon.discountType === 'percentage'; %>
+              <% const endDate = coupon.endDate ? new Date(coupon.endDate) : null; %>
+              <article class="coupon-tile">
+                <div class="coupon-tile__discount">
+                  <strong>
+                    <% if (isPercentage) { %>
+                      <%= Number(coupon.discountValue || 0).toFixed(0) %>% OFF
+                    <% } else { %>
+                      <%= formatMoney(coupon.discountValue) %> OFF
+                    <% } %>
+                  </strong>
+                  <% if (coupon.minOrderAmount > 0) { %>
+                    <span>Min order <%= formatMoney(coupon.minOrderAmount) %></span>
+                  <% } else { %>
+                    <span>No minimum spend</span>
+                  <% } %>
+                </div>
+                <div class="coupon-tile__details">
+                  <h5><%= coupon.code %></h5>
+                  <p class="mb-1">
+                    <% if (coupon.maxDiscountAmount !== null) { %>
+                      Max discount: <%= formatMoney(coupon.maxDiscountAmount) %>
+                    <% } else { %>
+                      No max discount cap
+                    <% } %>
+                  </p>
+                  <p class="mb-1">
+                    <% if (coupon.brandName) { %>
+                      Brand: <%= coupon.brandName %>
+                    <% } else { %>
+                      Applies to all brands
+                    <% } %>
+                  </p>
+                  <p class="mb-2 small text-muted">
+                    Expires:
+                    <% if (endDate && !Number.isNaN(endDate.getTime())) { %>
+                      <span class="coupon-expiry" data-expiry="<%= endDate.toISOString() %>"><%= endDate.toLocaleString() %></span>
+                    <% } else { %>
+                      No expiry date
+                    <% } %>
+                  </p>
+                  <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button type="button" class="btn btn-sm btn-primary js-copy-coupon" data-code="<%= coupon.code %>">
+                      Copy code
+                    </button>
+                    <% if (coupon.userRemaining !== null) { %>
+                      <span class="badge bg-light text-dark">You can use <%= coupon.userRemaining %> more time(s)</span>
+                    <% } %>
+                  </div>
+                </div>
+              </article>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var copyButtons = document.querySelectorAll('.js-copy-coupon');
+        copyButtons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            var code = button.getAttribute('data-code') || '';
+            if (!code) return;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(code).then(function () {
+                button.textContent = 'Copied';
+                setTimeout(function () { button.textContent = 'Copy code'; }, 1200);
+              }).catch(function () {
+                button.textContent = code;
+                setTimeout(function () { button.textContent = 'Copy code'; }, 1600);
+              });
+              return;
+            }
+
+            button.textContent = code;
+            setTimeout(function () { button.textContent = 'Copy code'; }, 1600);
+          });
+        });
+
+        var expiryNodes = document.querySelectorAll('.coupon-expiry[data-expiry]');
+        var pad = function (value) { return String(value).padStart(2, '0'); };
+        var refreshExpiry = function () {
+          var now = Date.now();
+          expiryNodes.forEach(function (node) {
+            var raw = node.getAttribute('data-expiry');
+            var target = new Date(raw);
+            if (!raw || Number.isNaN(target.getTime())) {
+              return;
+            }
+
+            var diff = Math.floor((target.getTime() - now) / 1000);
+            if (diff <= 0) {
+              node.textContent = 'Expired';
+              return;
+            }
+
+            var days = Math.floor(diff / 86400);
+            var hours = Math.floor((diff % 86400) / 3600);
+            var minutes = Math.floor((diff % 3600) / 60);
+            var seconds = diff % 60;
+            if (days > 0) {
+              node.textContent = days + 'd ' + pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
+            } else {
+              node.textContent = pad(hours) + ':' + pad(minutes) + ':' + pad(seconds);
+            }
+          });
+        };
+
+        refreshExpiry();
+        if (expiryNodes.length) {
+          setInterval(refreshExpiry, 1000);
+        }
+      });
+    </script>
+
+    <%- include('partials/footer') %>

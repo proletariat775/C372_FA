@@ -62,6 +62,16 @@ app.use(session({
 }));
 
 app.use(flash());
+app.use((req, res, next) => {
+    res.locals.user = req.session.user || null;
+    res.locals.showCouponPopup = Boolean(req.session.showCouponPopup);
+
+    if (req.session.showCouponPopup) {
+        delete req.session.showCouponPopup;
+    }
+
+    next();
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -70,6 +80,8 @@ app.get('/', (req, res) => {
 
 app.get('/inventory', checkAuthenticated, checkAdmin, productController.showInventory);
 app.get('/admin/dashboard', checkAuthenticated, checkAdmin, adminController.dashboard);
+app.get('/admin/loyalty', checkAuthenticated, checkAdmin, adminController.loyaltyDirectory);
+app.post('/admin/loyalty/:id/adjust', checkAuthenticated, checkAdmin, adminController.adjustUserLoyalty);
 app.get('/admin/coupons', checkAuthenticated, checkAdmin, couponController.list);
 app.post('/admin/coupons', checkAuthenticated, checkAdmin, couponController.create);
 app.get('/admin/coupons/:id/edit', checkAuthenticated, checkAdmin, couponController.editForm);
@@ -104,6 +116,9 @@ app.post('/cart/update/:id', checkAuthenticated, checkRoles('customer'), cartCon
 app.post('/cart/remove/:id', checkAuthenticated, checkRoles('customer'), cartController.removeCartItem);
 app.post('/cart/apply-coupon', checkAuthenticated, checkRoles('customer'), cartController.applyCoupon);
 app.post('/cart/remove-coupon', checkAuthenticated, checkRoles('customer'), cartController.removeCoupon);
+app.get('/coupons', checkAuthenticated, checkRoles('customer'), couponController.availablePage);
+app.get('/user/coupons', checkAuthenticated, checkRoles('customer'), couponController.availablePage);
+app.get('/api/coupons/available', checkAuthenticated, checkRoles('customer'), couponController.availableJson);
 app.get('/checkout', checkAuthenticated, checkRoles('customer'), orderController.showCheckout);
 app.post('/checkout', checkAuthenticated, checkRoles('customer'), orderController.checkout);
 app.post('/payments/paypal/create', checkAuthenticated, checkRoles('customer'), orderController.createPayPalOrder);

@@ -189,6 +189,59 @@ const buildCouponPayload = (body) => {
     return { errors, payload, formData };
 };
 
+const toNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const mapAvailableCoupon = (coupon) => {
+    const endDate = coupon && coupon.end_date ? new Date(coupon.end_date) : null;
+    const nowMs = Date.now();
+    const expirySeconds = endDate && !Number.isNaN(endDate.getTime())
+        ? Math.max(0, Math.floor((endDate.getTime() - nowMs) / 1000))
+        : null;
+
+    return {
+        id: coupon.id,
+        code: coupon.code,
+        discountType: coupon.discount_type,
+        discountValue: toNumber(coupon.discount_value),
+        minOrderAmount: toNumber(coupon.min_order_amount),
+        maxDiscountAmount: coupon.max_discount_amount !== null && coupon.max_discount_amount !== undefined
+            ? toNumber(coupon.max_discount_amount)
+            : null,
+        brandName: coupon.brand_name || null,
+        usageLimit: coupon.usage_limit !== null && coupon.usage_limit !== undefined
+            ? toNumber(coupon.usage_limit)
+            : null,
+        usageCount: toNumber(coupon.usage_count),
+        perUserLimit: coupon.per_user_limit !== null && coupon.per_user_limit !== undefined
+            ? toNumber(coupon.per_user_limit)
+            : null,
+        userUsageCount: toNumber(coupon.user_usage_count),
+        globalRemaining: coupon.global_remaining !== null && coupon.global_remaining !== undefined
+            ? toNumber(coupon.global_remaining)
+            : null,
+        userRemaining: coupon.user_remaining !== null && coupon.user_remaining !== undefined
+            ? toNumber(coupon.user_remaining)
+            : null,
+        startDate: coupon.start_date,
+        endDate: coupon.end_date,
+        expirySeconds
+    };
+};
+
+const loadAvailableCoupons = (userId, callback) => {
+    Coupon.listAvailableForUser(userId, (err, rows) => {
+        if (err) {
+            return callback(err);
+        }
+
+        const coupons = (rows || []).map(mapAvailableCoupon);
+        return callback(null, coupons);
+    });
+};
+
 const CouponController = {
     list: (req, res) => {
         Product.getBrandsWithIds((brandErr, brandRows) => {
@@ -328,6 +381,48 @@ const CouponController = {
 
             req.flash('success', 'Coupon deleted successfully.');
             return res.redirect('/admin/coupons');
+        });
+    },
+
+    availablePage: (req, res) => {
+        const userId = req.session.user && req.session.user.id;
+        loadAvailableCoupons(userId, (err, coupons) => {
+            if (err) {
+                console.error('Error loading available coupons:', err);
+                req.flash('error', 'Unable to load available coupons right now.');
+                return res.render('availableCoupons', {
+                    user: req.session.user,
+                    coupons: [],
+                    messages: req.flash('success'),
+                    errors: req.flash('error')
+                });
+            }
+
+            return res.render('availableCoupons', {
+                user: req.session.user,
+                coupons,
+                messages: req.flash('success'),
+                errors: req.flash('error')
+            });
+        });
+    },
+
+    availableJson: (req, res) => {
+        const userId = req.session.user && req.session.user.id;
+        loadAvailableCoupons(userId, (err, coupons) => {
+            if (err) {
+                console.error('Error loading available coupons JSON:', err);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Unable to load available coupons right now.',
+                    coupons: []
+                });
+            }
+
+            return res.json({
+                success: true,
+                coupons
+            });
         });
     }
 };

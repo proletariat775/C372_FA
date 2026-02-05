@@ -4,6 +4,7 @@ const refundModel = require('../models/refund');
 const Order = require('../models/order');
 const Product = require('../models/product');
 const paypalRefund = require('../services/paypalRefund');
+const loyaltyService = require('../services/loyaltyService');
 
 const renderView = (res, name, data = {}) => res.render(name, { ...data, user: res.locals.user || res.req.session.user });
 
@@ -72,6 +73,33 @@ const finalizeRefund = (req, res, requestId, adminNote, restockItems, successMes
             return res.redirect(`/admin/refunds/${requestId}`);
         });
     });
+};
+
+const applyRefundLoyaltyClawback = async ({ req, request, requestId, amount }) => {
+    const previousRefunded = Number(request && request.refundedAmount ? request.refundedAmount : 0);
+    const safeAmount = Number(amount || 0);
+    const cumulativeRefunded = Number((Math.max(0, previousRefunded) + Math.max(0, safeAmount)).toFixed(2));
+
+    try {
+        const result = await loyaltyService.clawbackPointsForRefund({
+            userId: request.userId,
+            orderId: request.orderId,
+            cumulativeRefundedAmount: cumulativeRefunded,
+            orderTotalAmount: Number(request.total || 0),
+            refundReference: `request #${requestId}`
+        });
+        return {
+            ok: true,
+            result
+        };
+    } catch (error) {
+        console.error('Error reversing loyalty points for refund:', error);
+        req.flash('error', 'Refund completed, but loyalty reversal could not be applied.');
+        return {
+            ok: false,
+            error
+        };
+    }
 };
 
 module.exports = {
@@ -227,14 +255,26 @@ module.exports = {
                                     return res.redirect(`/admin/refunds/${requestId}`);
                                 }
 
-                                return finalizeRefund(
+                                return applyRefundLoyaltyClawback({
                                     req,
-                                    res,
+                                    request,
                                     requestId,
-                                    adminNote,
-                                    restockItems,
-                                    'Refund processed through PayPal.'
-                                );
+                                    amount
+                                }).then((clawback) => {
+                                    const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
+                                    const successMessage = clawedPoints > 0
+                                        ? `Refund processed through PayPal. Reversed ${clawedPoints} loyalty points.`
+                                        : 'Refund processed through PayPal.';
+
+                                    return finalizeRefund(
+                                        req,
+                                        res,
+                                        requestId,
+                                        adminNote,
+                                        restockItems,
+                                        successMessage
+                                    );
+                                });
                             });
                         });
                         return;
@@ -278,14 +318,26 @@ module.exports = {
                         return res.redirect(`/admin/refunds/${requestId}`);
                     }
 
-                    return finalizeRefund(
+                    return applyRefundLoyaltyClawback({
                         req,
-                        res,
+                        request,
                         requestId,
-                        adminNote,
-                        restockItems,
-                        'Refund marked as completed.'
-                    );
+                        amount
+                    }).then((clawback) => {
+                        const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
+                        const successMessage = clawedPoints > 0
+                            ? `Refund marked as completed. Reversed ${clawedPoints} loyalty points.`
+                            : 'Refund marked as completed.';
+
+                        return finalizeRefund(
+                            req,
+                            res,
+                            requestId,
+                            adminNote,
+                            restockItems,
+                            successMessage
+                        );
+                    });
                 });
             });
         });

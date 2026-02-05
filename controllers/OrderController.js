@@ -8,6 +8,7 @@ const bundleService = require('../services/bundleService');
 const sustainabilityService = require('../services/sustainabilityService');
 const paypalService = require('../services/paypalService');
 const stripeService = require('../services/stripe');
+const loyaltyService = require('../services/loyaltyService');
 
 const DELIVERY_FEE = 1.5;
 const ADMIN_STATUS_FLOW = ['pending', 'packed', 'shipped', 'delivered', 'completed'];
@@ -16,6 +17,7 @@ const PAYMENT_METHODS = [
     { value: 'stripe', label: 'Stripe (Card)' }
 ];
 const INLINE_PAYMENT_METHODS = [];
+const LOYALTY_REDEMPTION_ENABLED = loyaltyService.isRedemptionEnabled();
 
 const normalisePrice = (value) => {
     const parsed = Number.parseFloat(value);
@@ -23,6 +25,33 @@ const normalisePrice = (value) => {
         return 0;
     }
     return Number(parsed.toFixed(2));
+};
+
+const parseWholePoints = (value) => {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return 0;
+    }
+    return parsed;
+};
+
+const buildLoyaltyFlashMessage = (earnedPoints, redeemedPoints) => {
+    const safeEarned = Math.max(0, Number.parseInt(earnedPoints, 10) || 0);
+    const safeRedeemed = Math.max(0, Number.parseInt(redeemedPoints, 10) || 0);
+
+    if (!safeEarned && !safeRedeemed) {
+        return null;
+    }
+
+    if (safeEarned && safeRedeemed) {
+        return `Loyalty update: redeemed ${safeRedeemed} points and earned ${safeEarned} points.`;
+    }
+
+    if (safeEarned) {
+        return `You earned ${safeEarned} loyalty points from this order.`;
+    }
+
+    return `You redeemed ${safeRedeemed} loyalty points on this order.`;
 };
 
 const decorateProduct = (product) => {
@@ -319,7 +348,7 @@ const clearBundleIfEmpty = (req) => {
 
 const resolveBaseUrl = (req) => process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
 
-const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, orderNotes) => {
+const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, orderNotes, loyaltyPointsToRedeemInput = 0) => {
     const { cart, changed, issues } = await validateCartForCheckout(req);
     if (!cart.length) {
         clearBundleIfEmpty(req);
@@ -400,7 +429,41 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
     const safeNotes = normaliseOrderNotes(rawNotes);
 
     const deliveryFee = computeDeliveryFee(req.session.user, resolvedDeliveryMethod);
-    const total = Number((baseTotal + (resolvedDeliveryMethod === 'delivery' ? deliveryFee : 0)).toFixed(2));
+    const totalBeforeLoyalty = Number((baseTotal + (resolvedDeliveryMethod === 'delivery' ? deliveryFee : 0)).toFixed(2));
+
+    let loyaltyBalance = 0;
+    try {
+        loyaltyBalance = await loyaltyService.getBalance(req.session.user.id);
+        if (req.session && req.session.user) {
+            req.session.user.loyalty_points_balance = loyaltyBalance;
+        }
+    } catch (error) {
+        console.error('Error loading loyalty balance for checkout snapshot:', error);
+    }
+
+    let loyaltyPointsRequested = 0;
+    let loyaltyPointsRedeemed = 0;
+    let loyaltyDiscountAmount = 0;
+
+    if (LOYALTY_REDEMPTION_ENABLED) {
+        loyaltyPointsRequested = parseWholePoints(loyaltyPointsToRedeemInput);
+        const redemption = loyaltyService.calculateRedemption({
+            requestedPoints: loyaltyPointsRequested,
+            availablePoints: loyaltyBalance,
+            maxDiscountableAmount: totalBeforeLoyalty
+        });
+
+        // Server-side loyalty validation to prevent over-redemption.
+        if (!redemption.valid && redemption.requestedPoints > 0) {
+            return { error: redemption.message || 'Invalid loyalty redemption request.' };
+        }
+
+        loyaltyPointsRedeemed = redemption.pointsToRedeem;
+        loyaltyDiscountAmount = redemption.discountAmount;
+    }
+
+    const total = Number(Math.max(0, totalBeforeLoyalty - loyaltyDiscountAmount).toFixed(2));
+    const estimatedPointsToEarn = loyaltyService.calculateEarnPoints(total);
 
     return {
         cart: cart.map(item => ({ ...item })),
@@ -414,6 +477,13 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
         promoCode,
         couponId,
         couponDiscount: discountAmount,
+        loyaltyBalance,
+        loyaltyRedemptionEnabled: LOYALTY_REDEMPTION_ENABLED,
+        loyaltyPointsRequested,
+        loyaltyPointsRedeemed,
+        loyaltyDiscountAmount,
+        estimatedPointsToEarn,
+        totalBeforeLoyalty,
         deliveryMethod: resolvedDeliveryMethod,
         deliveryAddress: resolvedAddress,
         deliverySlot: slotValidation.slot,
@@ -422,13 +492,17 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
 };
 
 const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => new Promise((resolve, reject) => {
-    const discountTotal = Number(snapshot.discountAmount || 0) + Number(snapshot.bundleDiscount || 0);
+    const loyaltyDiscountAmount = Number(snapshot.loyaltyDiscountAmount || 0);
+    const loyaltyPointsRedeemed = Number(snapshot.loyaltyPointsRedeemed || 0);
+    const discountTotal = Number(snapshot.discountAmount || 0) + Number(snapshot.bundleDiscount || 0) + loyaltyDiscountAmount;
     const deliveryFee = snapshot.deliveryMethod === 'delivery' ? Number(snapshot.deliveryFee || 0) : 0;
 
     Order.create(req.session.user.id, snapshot.cart, {
         shipping_address: snapshot.deliveryMethod === 'delivery' ? snapshot.deliveryAddress : null,
         shipping_amount: deliveryFee,
         discount_amount: discountTotal,
+        loyalty_points_redeemed: loyaltyPointsRedeemed,
+        loyalty_discount_amount: loyaltyDiscountAmount,
         promo_code: snapshot.promoCode,
         delivery_method: snapshot.deliveryMethod,
         delivery_address: snapshot.deliveryMethod === 'delivery' ? snapshot.deliveryAddress : null,
@@ -440,7 +514,7 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
         delivery_slot_window: snapshot.deliverySlot ? snapshot.deliverySlot.window : null,
         order_notes: snapshot.orderNotes || null,
         paypal_capture_id: paymentMeta.paypalCaptureId || null
-    }, (error, result) => {
+    }, async (error, result) => {
         if (error) {
             return reject(error);
         }
@@ -460,6 +534,49 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
             });
         }
 
+        let loyaltyRedeemResult = { redeemedPoints: 0, balance: null };
+        if (loyaltyPointsRedeemed > 0) {
+            try {
+                loyaltyRedeemResult = await loyaltyService.redeemPointsForOrder({
+                    userId: req.session.user.id,
+                    orderId: result.orderId,
+                    pointsToRedeem: loyaltyPointsRedeemed
+                });
+            } catch (loyaltyError) {
+                // Loyalty must not block successful order placement/payment completion.
+                console.error('Error redeeming loyalty points:', loyaltyError);
+            }
+        }
+
+        let loyaltyAwardResult = { awardedPoints: 0, balance: null };
+        try {
+            // Earning flow: award points from the final paid amount after all discounts.
+            loyaltyAwardResult = await loyaltyService.awardPointsForPaidOrder({
+                userId: req.session.user.id,
+                orderId: result.orderId,
+                amountPaid: Number(result.total_amount || snapshot.total || 0),
+                paymentStatus: 'paid',
+                orderStatus: 'processing'
+            });
+        } catch (loyaltyError) {
+            // Loyalty is additive-only and should not fail payment flow.
+            console.error('Error awarding loyalty points:', loyaltyError);
+        }
+
+        const resolvedBalance = Number.isFinite(loyaltyAwardResult.balance)
+            ? loyaltyAwardResult.balance
+            : (Number.isFinite(loyaltyRedeemResult.balance) ? loyaltyRedeemResult.balance : null);
+        if (req.session.user && Number.isFinite(resolvedBalance)) {
+            req.session.user.loyalty_points_balance = resolvedBalance;
+        }
+
+        req.session.lastLoyaltyOrder = {
+            orderId: result.orderId,
+            earnedPoints: Number(loyaltyAwardResult.awardedPoints || 0),
+            redeemedPoints: Number(loyaltyRedeemResult.redeemedPoints || loyaltyPointsRedeemed || 0),
+            loyaltyDiscountAmount
+        };
+
         req.session.cart = [];
         if (req.session.bundleDefinitions) {
             delete req.session.bundleDefinitions;
@@ -468,7 +585,12 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
             delete req.session.bundle;
         }
 
-        return resolve(result);
+        return resolve({
+            ...result,
+            loyaltyAwardedPoints: Number(loyaltyAwardResult.awardedPoints || 0),
+            loyaltyRedeemedPoints: Number(loyaltyRedeemResult.redeemedPoints || loyaltyPointsRedeemed || 0),
+            loyaltyDiscountAmount
+        });
     });
 });
 
@@ -544,6 +666,17 @@ const showCheckout = async (req, res) => {
 
         const baseTotal = Math.max(0, subtotal - discountAmount - bundleDiscount);
         const deliveryFee = computeDeliveryFee(req.session.user, 'delivery');
+        let loyaltyBalance = 0;
+        try {
+            loyaltyBalance = await loyaltyService.getBalance(req.session.user.id);
+            if (req.session.user) {
+                req.session.user.loyalty_points_balance = loyaltyBalance;
+            }
+        } catch (loyaltyError) {
+            console.error('Error loading loyalty balance for checkout page:', loyaltyError);
+        }
+
+        const estimatedPointsToEarn = loyaltyService.calculateEarnPoints(baseTotal);
         const impactSummary = sustainabilityService.estimateImpact(cart);
 
         return res.render('checkout', {
@@ -556,6 +689,11 @@ const showCheckout = async (req, res) => {
             bundleInfo: bundleResult,
             baseTotal,
             deliveryFee,
+            loyaltyBalance,
+            loyaltyRedemptionEnabled: LOYALTY_REDEMPTION_ENABLED,
+            loyaltyDiscountAmount: 0,
+            loyaltyPointsToRedeem: 0,
+            estimatedPointsToEarn,
             impactSummary,
             paymentMethods: PAYMENT_METHODS,
             selectedPayment: 'paypal',
@@ -633,6 +771,59 @@ const checkout = (req, res) => {
             let discountAmount = 0;
             let promoCode = null;
             let couponId = null;
+            const requestedLoyaltyPoints = parseWholePoints(req.body.loyaltyPointsToRedeem);
+
+            const createOrderWithLoyalty = () => loyaltyService.getBalance(req.session.user.id)
+                .then((loyaltyBalance) => {
+                    if (req.session.user) {
+                        req.session.user.loyalty_points_balance = loyaltyBalance;
+                    }
+
+                    const totalBeforeLoyalty = Number(Math.max(0, subtotal - discountAmount - bundleDiscount) + (deliveryMethod === 'delivery' ? deliveryFee : 0));
+                    let loyaltyPointsRedeemed = 0;
+                    let loyaltyDiscountAmount = 0;
+
+                    if (LOYALTY_REDEMPTION_ENABLED) {
+                        const redemption = loyaltyService.calculateRedemption({
+                            requestedPoints: requestedLoyaltyPoints,
+                            availablePoints: loyaltyBalance,
+                            maxDiscountableAmount: totalBeforeLoyalty
+                        });
+
+                        // Server-side validation prevents invalid point redemption requests.
+                        if (!redemption.valid && redemption.requestedPoints > 0) {
+                            req.flash('error', redemption.message || 'Invalid loyalty redemption request.');
+                            return res.redirect('/checkout');
+                        }
+
+                        loyaltyPointsRedeemed = redemption.pointsToRedeem;
+                        loyaltyDiscountAmount = redemption.discountAmount;
+                    }
+
+                    return createOrderWithCoupon({
+                        req,
+                        res,
+                        cart,
+                        deliveryAddress,
+                        deliveryFee,
+                        deliveryMethod,
+                        paymentMethod,
+                        discountAmount: discountAmount + bundleDiscount + loyaltyDiscountAmount,
+                        couponDiscount: discountAmount,
+                        promoCode,
+                        couponId,
+                        loyaltyPointsRedeemed,
+                        loyaltyDiscountAmount,
+                        deliverySlotDate: null,
+                        deliverySlotWindow: null,
+                        orderNotes
+                    });
+                })
+                .catch((loyaltyError) => {
+                    console.error('Error processing loyalty redemption during checkout:', loyaltyError);
+                    req.flash('error', 'Unable to validate loyalty points right now.');
+                    return res.redirect('/checkout');
+                });
 
             if (appliedCoupon && subtotal > 0) {
                 return couponService.validateCoupon(appliedCoupon.code, req.session.user.id, subtotal, cart)
@@ -654,22 +845,7 @@ const checkout = (req, res) => {
                             req.session.appliedCoupon = cartContainer.appliedCoupon;
                         }
 
-                        return createOrderWithCoupon({
-                            req,
-                            res,
-                            cart,
-                            deliveryAddress,
-                            deliveryFee,
-                            deliveryMethod,
-                            paymentMethod,
-                            discountAmount: discountAmount + bundleDiscount,
-                            couponDiscount: discountAmount,
-                            promoCode,
-                            couponId,
-                            deliverySlotDate: null,
-                            deliverySlotWindow: null,
-                            orderNotes
-                        });
+                        return createOrderWithLoyalty();
                     })
                     .catch((error) => {
                         console.error('Error validating coupon during checkout:', error);
@@ -678,22 +854,7 @@ const checkout = (req, res) => {
                     });
             }
 
-            return createOrderWithCoupon({
-                req,
-                res,
-                cart,
-                deliveryAddress,
-                deliveryFee,
-                deliveryMethod,
-                paymentMethod,
-                discountAmount: discountAmount + bundleDiscount,
-                couponDiscount: discountAmount,
-                promoCode,
-                couponId,
-                deliverySlotDate: null,
-                deliverySlotWindow: null,
-                orderNotes
-            });
+            return createOrderWithLoyalty();
         })
         .catch((error) => {
             console.error('Error validating cart for checkout:', error);
@@ -714,6 +875,8 @@ const createOrderWithCoupon = ({
     couponDiscount,
     promoCode,
     couponId,
+    loyaltyPointsRedeemed = 0,
+    loyaltyDiscountAmount = 0,
     deliverySlotDate,
     deliverySlotWindow,
     orderNotes
@@ -722,6 +885,8 @@ const createOrderWithCoupon = ({
         shipping_address: deliveryAddress,
         shipping_amount: deliveryFee,
         discount_amount: discountAmount,
+        loyalty_points_redeemed: loyaltyPointsRedeemed,
+        loyalty_discount_amount: loyaltyDiscountAmount,
         promo_code: promoCode,
         delivery_method: deliveryMethod,
         delivery_address: deliveryAddress,
@@ -730,7 +895,7 @@ const createOrderWithCoupon = ({
         delivery_slot_date: deliverySlotDate,
         delivery_slot_window: deliverySlotWindow,
         order_notes: orderNotes || null
-    }, (error, result) => {
+    }, async (error, result) => {
         if (error) {
             console.error('Error during checkout:', error);
             req.flash('error', error.message || 'Unable to complete checkout. Please try again.');
@@ -752,6 +917,23 @@ const createOrderWithCoupon = ({
             });
         }
 
+        let redeemedPoints = 0;
+        if (Number(loyaltyPointsRedeemed) > 0) {
+            try {
+                const loyaltyResult = await loyaltyService.redeemPointsForOrder({
+                    userId: req.session.user.id,
+                    orderId: result.orderId,
+                    pointsToRedeem: Number(loyaltyPointsRedeemed)
+                });
+                redeemedPoints = Number(loyaltyResult.redeemedPoints || 0);
+                if (req.session.user && Number.isFinite(loyaltyResult.balance)) {
+                    req.session.user.loyalty_points_balance = loyaltyResult.balance;
+                }
+            } catch (loyaltyError) {
+                console.error('Error redeeming loyalty points for direct checkout:', loyaltyError);
+            }
+        }
+
         req.session.cart = [];
         if (req.session.bundleDefinitions) {
             delete req.session.bundleDefinitions;
@@ -759,7 +941,9 @@ const createOrderWithCoupon = ({
         if (req.session.bundle) {
             delete req.session.bundle;
         }
-        req.flash('success', `Thanks for your purchase! ${deliveryAddress ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}`);
+
+        const loyaltyMessage = buildLoyaltyFlashMessage(0, redeemedPoints || Number(loyaltyPointsRedeemed || 0));
+        req.flash('success', `Thanks for your purchase! ${deliveryAddress ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}${loyaltyMessage ? ` ${loyaltyMessage}` : ''}`);
         return res.redirect('/orders/history');
     });
 };
@@ -834,20 +1018,39 @@ const history = (req, res) => {
                     });
                 }
 
-                Order.getBestSellers(4, (bestErr, bestRows) => {
-                    if (bestErr) {
-                        console.error('Error fetching best sellers:', bestErr);
-                    }
-
-                    res.render('orderHistory', {
-                        user: sessionUser,
-                        orders,
-                        orderItems: itemsByOrder,
-                        bestSellers: (bestRows || []).map(decorateProduct),
-                        messages: req.flash('success'),
-                        errors: req.flash('error')
+                const renderWithLoyalty = (loyaltySummary = {}) => {
+                    orders.forEach((order) => {
+                        const summary = loyaltySummary[order.id] || {};
+                        order.loyalty_points_earned = Number(summary.earnedPoints || 0);
+                        order.loyalty_points_redeemed = Number(summary.redeemedPoints || order.loyalty_points_redeemed || 0);
+                        order.loyalty_points_net = Number(summary.netPoints || (order.loyalty_points_earned - order.loyalty_points_redeemed));
                     });
-                });
+
+                    Order.getBestSellers(4, (bestErr, bestRows) => {
+                        if (bestErr) {
+                            console.error('Error fetching best sellers:', bestErr);
+                        }
+
+                        res.render('orderHistory', {
+                            user: sessionUser,
+                            orders,
+                            orderItems: itemsByOrder,
+                            bestSellers: (bestRows || []).map(decorateProduct),
+                            messages: req.flash('success'),
+                            errors: req.flash('error')
+                        });
+                    });
+                };
+
+                loyaltyService.getOrderPointsSummary({
+                    orderIds,
+                    userId: isCustomer ? sessionUser.id : null
+                })
+                    .then(renderWithLoyalty)
+                    .catch((loyaltyErr) => {
+                        console.error('Error loading loyalty summary for order history:', loyaltyErr);
+                        renderWithLoyalty({});
+                    });
             };
 
             if (!isCustomer || itemIds.length === 0) {
@@ -1139,8 +1342,9 @@ const createPayPalOrder = async (req, res) => {
         const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
         const deliveryAddress = req.body.deliveryAddress ? String(req.body.deliveryAddress).trim() : '';
         const orderNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
+        const loyaltyPointsToRedeem = req.body.loyaltyPointsToRedeem;
         // Delivery slot input removed; keep the payload minimal.
-        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes);
+        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes, loyaltyPointsToRedeem);
 
         if (snapshot.error) {
             return res.status(400).json({ success: false, message: snapshot.error, issues: snapshot.issues || [] });
@@ -1223,8 +1427,13 @@ const capturePayPalOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Captured amount does not match order total.' });
         }
 
-        await finalizePaidOrder(req, pending.snapshot, 'paypal', { paypalCaptureId: captureId });
+        const finalized = await finalizePaidOrder(req, pending.snapshot, 'paypal', { paypalCaptureId: captureId });
         delete req.session.pendingPayment;
+
+        const loyaltyMessage = buildLoyaltyFlashMessage(finalized.loyaltyAwardedPoints, finalized.loyaltyRedeemedPoints);
+        if (loyaltyMessage) {
+            req.flash('success', loyaltyMessage);
+        }
 
         return res.json({ success: true, redirect: '/orders/history' });
     } catch (error) {
@@ -1242,7 +1451,8 @@ const createStripeSession = async (req, res) => {
         const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
         const deliveryAddress = req.body.deliveryAddress ? String(req.body.deliveryAddress).trim() : '';
         const orderNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
-        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes);
+        const loyaltyPointsToRedeem = req.body.loyaltyPointsToRedeem;
+        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes, loyaltyPointsToRedeem);
 
         if (snapshot.error) {
             return res.status(400).json({ success: false, message: snapshot.error, issues: snapshot.issues || [] });
@@ -1296,9 +1506,10 @@ const stripeSuccess = async (req, res) => {
             return res.redirect('/checkout');
         }
 
-        await finalizePaidOrder(req, pending.snapshot, 'stripe');
+        const finalized = await finalizePaidOrder(req, pending.snapshot, 'stripe');
         delete req.session.pendingPayment;
-        req.flash('success', 'Payment completed.');
+        const loyaltyMessage = buildLoyaltyFlashMessage(finalized.loyaltyAwardedPoints, finalized.loyaltyRedeemedPoints);
+        req.flash('success', loyaltyMessage ? `Payment completed. ${loyaltyMessage}` : 'Payment completed.');
         return res.redirect('/orders/history');
     } catch (error) {
         console.error('Error verifying Stripe payment:', error);
@@ -1367,18 +1578,39 @@ const invoice = (req, res) => {
                     .map(normaliseOrderItem);
                 const deliveryFee = Number(order.shipping_amount || 0);
                 const subtotal = Number(order.subtotal || 0);
+                const renderInvoice = (loyaltySummary = {}) => {
+                    const orderLoyalty = loyaltySummary[orderId] || {};
+                    const redeemedPoints = Number(orderLoyalty.redeemedPoints || order.loyalty_points_redeemed || 0);
+                    const earnedPoints = Number(orderLoyalty.earnedPoints || 0);
+                    const loyaltyDiscountAmount = Number(order.loyalty_discount_amount || (redeemedPoints / 100) || 0);
 
-                res.render('invoice', {
-                    user: sessionUser,
-                    order,
-                    customer,
-                    items,
-                    totals: {
-                        subtotal: subtotal < 0 ? 0 : Number(subtotal.toFixed(2)),
-                        deliveryFee: deliveryFee > 0 ? Number(deliveryFee.toFixed(2)) : 0,
-                        total: Number(order.total_amount || order.total || 0).toFixed(2)
-                    }
-                });
+                    res.render('invoice', {
+                        user: sessionUser,
+                        order,
+                        customer,
+                        items,
+                        loyalty: {
+                            redeemedPoints,
+                            earnedPoints,
+                            loyaltyDiscountAmount
+                        },
+                        totals: {
+                            subtotal: subtotal < 0 ? 0 : Number(subtotal.toFixed(2)),
+                            deliveryFee: deliveryFee > 0 ? Number(deliveryFee.toFixed(2)) : 0,
+                            total: Number(order.total_amount || order.total || 0).toFixed(2)
+                        }
+                    });
+                };
+
+                loyaltyService.getOrderPointsSummary({
+                    orderIds: [orderId],
+                    userId: null
+                })
+                    .then(renderInvoice)
+                    .catch((loyaltyErr) => {
+                        console.error('Error loading loyalty summary for invoice:', loyaltyErr);
+                        renderInvoice({});
+                    });
             });
         });
     });

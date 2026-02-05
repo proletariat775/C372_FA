@@ -13,6 +13,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS invoice_items;
 DROP TABLE IF EXISTS invoice;
 DROP TABLE IF EXISTS coupon_usage;
+DROP TABLE IF EXISTS loyalty_points_transactions;
 DROP TABLE IF EXISTS product_details;
 DROP TABLE IF EXISTS product_reviews;
 DROP TABLE IF EXISTS reviews;
@@ -47,6 +48,7 @@ CREATE TABLE users (
   phone VARCHAR(30) NULL,
   role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
   free_delivery TINYINT(1) NOT NULL DEFAULT 0,
+  loyalty_points_balance INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
@@ -179,6 +181,8 @@ CREATE TABLE orders (
   tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  loyalty_points_redeemed INT NOT NULL DEFAULT 0,
+  loyalty_discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   payment_method VARCHAR(50) NOT NULL DEFAULT 'cod',
   payment_status ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
@@ -266,6 +270,22 @@ CREATE TABLE coupon_usage (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_coupon_usage_order FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE loyalty_points_transactions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  order_id INT NULL,
+  points_change INT NOT NULL,
+  reason VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_loyalty_user_order_reason (user_id, order_id, reason),
+  KEY idx_loyalty_user_created (user_id, created_at),
+  KEY idx_loyalty_order (order_id),
+  CONSTRAINT fk_loyalty_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_loyalty_order FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
  
 CREATE TABLE wishlist (

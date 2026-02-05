@@ -164,6 +164,42 @@ const getUserUsageCount = (couponId, userId, callback) => {
     });
 };
 
+const listAvailableForUser = (userId, callback) => {
+    const safeUserId = Number.parseInt(userId, 10) || 0;
+    const sql = `
+        SELECT
+            c.*,
+            b.name AS brand_name,
+            COALESCE(u.usage_count, 0) AS user_usage_count,
+            CASE
+                WHEN c.usage_limit IS NULL OR c.usage_limit <= 0 THEN NULL
+                ELSE GREATEST(c.usage_limit - c.usage_count, 0)
+            END AS global_remaining,
+            CASE
+                WHEN c.per_user_limit IS NULL OR c.per_user_limit <= 0 THEN NULL
+                ELSE GREATEST(c.per_user_limit - COALESCE(u.usage_count, 0), 0)
+            END AS user_remaining
+        FROM coupons c
+        LEFT JOIN brands b ON b.id = c.brand_id
+        LEFT JOIN (
+            SELECT coupon_id, COUNT(*) AS usage_count
+            FROM coupon_usage
+            WHERE user_id = ?
+            GROUP BY coupon_id
+        ) u ON u.coupon_id = c.id
+        WHERE c.is_active = 1
+          AND (
+            (c.start_date <= UTC_TIMESTAMP() AND c.end_date >= UTC_TIMESTAMP())
+            OR (DATE(c.start_date) <= UTC_DATE() AND DATE(c.end_date) >= UTC_DATE())
+          )
+          AND ((c.usage_limit IS NULL OR c.usage_limit <= 0) OR c.usage_count < c.usage_limit)
+          AND ((c.per_user_limit IS NULL OR c.per_user_limit <= 0) OR COALESCE(u.usage_count, 0) < c.per_user_limit)
+        ORDER BY c.end_date ASC, c.created_at DESC
+    `;
+
+    db.query(sql, [safeUserId], callback);
+};
+
 const incrementUsage = (couponId, callback) => {
     const sql = 'UPDATE coupons SET usage_count = usage_count + 1 WHERE id = ?';
     db.query(sql, [couponId], callback);
@@ -186,6 +222,7 @@ module.exports = {
     remove,
     getStats,
     getUserUsageCount,
+    listAvailableForUser,
     incrementUsage,
     recordUsage
 };

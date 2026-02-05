@@ -65,6 +65,38 @@ const parseDate = (value) => {
     return date;
 };
 
+const toIsoDate = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toISOString().slice(0, 10);
+};
+
+const isWithinActiveWindow = (coupon, now = new Date()) => {
+    const start = parseDate(coupon && coupon.start_date);
+    const end = parseDate(coupon && coupon.end_date);
+
+    if (!start || !end || Number.isNaN(now.getTime())) {
+        return false;
+    }
+
+    if (now >= start && now <= end) {
+        return true;
+    }
+
+    // Fallback to date-only comparison to prevent timezone-offset mismatches
+    // between datetime-local admin input and DB/session timezone.
+    const nowDay = toIsoDate(now);
+    const startDay = toIsoDate(start);
+    const endDay = toIsoDate(end);
+
+    if (!nowDay || !startDay || !endDay) {
+        return false;
+    }
+
+    return nowDay >= startDay && nowDay <= endDay;
+};
+
 const calculateDiscount = (coupon, subtotal) => {
     const type = coupon.discount_type;
     const value = Number(coupon.discount_value || 0);
@@ -124,9 +156,7 @@ const validateCoupon = async (code, userId, subtotal, cartItems) => {
     }
 
     const now = new Date();
-    const start = parseDate(coupon.start_date);
-    const end = parseDate(coupon.end_date);
-    if (!start || !end || now < start || now > end) {
+    if (!isWithinActiveWindow(coupon, now)) {
         return { valid: false, message: 'This coupon is not valid at the moment.' };
     }
 
@@ -148,7 +178,7 @@ const validateCoupon = async (code, userId, subtotal, cartItems) => {
     if (coupon.usage_limit !== null && coupon.usage_limit !== undefined) {
         const usageLimit = Number(coupon.usage_limit);
         const usageCount = Number(coupon.usage_count || 0);
-        if (Number.isFinite(usageLimit) && usageCount >= usageLimit) {
+        if (Number.isFinite(usageLimit) && usageLimit > 0 && usageCount >= usageLimit) {
             return { valid: false, message: 'This coupon has reached its usage limit.' };
         }
     }

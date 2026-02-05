@@ -92,6 +92,9 @@ const login = (req, res) => {
         // Remove hashed password before storing user in session
         delete user.password;
         req.session.user = user;
+        if (user.role === 'customer') {
+            req.session.showCouponPopup = true;
+        }
         req.flash('success', 'Login successful!');
 
         if (user.role === 'admin') {

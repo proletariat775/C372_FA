@@ -1,6 +1,7 @@
 ﻿const Product = require('../models/product');
 const couponService = require('../services/couponService');
 const bundleService = require('../services/bundleService');
+const loyaltyService = require('../services/loyaltyService');
 
 const getFlash = (req, type) => {
     if (typeof req.flash !== 'function') {
@@ -305,6 +306,18 @@ const viewCart = async (req, res) => {
     const bundleDiscount = bundleResult.discountAmount;
 
     const finalTotal = Number(Math.max(0, subtotal - discountAmount - bundleDiscount).toFixed(2));
+    let loyaltyBalance = 0;
+    try {
+        loyaltyBalance = await loyaltyService.getBalance(req.session.user && req.session.user.id);
+        if (req.session.user) {
+            req.session.user.loyalty_points_balance = loyaltyBalance;
+        }
+    } catch (error) {
+        console.error('Error loading loyalty balance for cart:', error);
+    }
+
+    // Cart estimate excludes delivery because delivery method/fee is selected at checkout.
+    const estimatedPointsToEarn = loyaltyService.calculateEarnPoints(finalTotal);
 
     res.render('cart', {
         cart,
@@ -316,7 +329,9 @@ const viewCart = async (req, res) => {
         bundleDiscount,
         bundleInfo: bundleResult,
         finalTotal,
-        appliedCoupon
+        appliedCoupon,
+        loyaltyBalance,
+        estimatedPointsToEarn
     });
 };
 

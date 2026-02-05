@@ -79,12 +79,18 @@
                                       <span>- $<%= Number(discountAmount).toFixed(2) %></span>
                                     </div>
                                     <% } %>
-                                      <% if (bundleDiscount && Number(bundleDiscount) > 0) { %>
+                                  <% if (bundleDiscount && Number(bundleDiscount) > 0) { %>
                                         <div class="d-flex justify-content-between text-success">
                                           <span>Bundle discount</span>
                                           <span>- $<%= Number(bundleDiscount).toFixed(2) %></span>
                                         </div>
                                         <% } %>
+                                          <% if (loyaltyDiscountAmount && Number(loyaltyDiscountAmount) > 0) { %>
+                                            <div class="d-flex justify-content-between text-success">
+                                              <span>Loyalty Points Discount</span>
+                                              <span>- $<%= Number(loyaltyDiscountAmount).toFixed(2) %></span>
+                                            </div>
+                                            <% } %>
                                           <div class="d-flex justify-content-between fw-semibold mt-2">
                                             <span>Total (before delivery)</span>
                                             <span>$<%= Number(baseTotal || 0).toFixed(2) %></span>
@@ -106,6 +112,13 @@
                                             <span class="bundle-discount">Bundle discount: extra 10% off</span>
                                           </div>
                                           <% } %>
+                                </div>
+
+                                <div class="mt-4 p-3 rounded border bg-light-subtle">
+                                  <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Loyalty points balance</span>
+                                    <span class="fw-semibold"><%= Number(loyaltyBalance || 0) %> pts</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -151,6 +164,22 @@
                                       <% } %>
                                 </div>
 
+                                <% if (loyaltyRedemptionEnabled) { %>
+                                  <div class="mb-3">
+                                    <h4 class="mb-2">Loyalty points</h4>
+                                    <label for="loyaltyPointsToRedeem" class="form-label">Redeem points (optional)</label>
+                                    <input type="number" id="loyaltyPointsToRedeem" name="loyaltyPointsToRedeem"
+                                      class="form-control" min="0" step="1"
+                                      value="<%= Number(loyaltyPointsToRedeem || 0) %>">
+                                    <small class="text-muted d-block mt-1" id="loyalty-redeem-help">100 points = $1.00 discount. Available: <%= Number(loyaltyBalance || 0) %> points.</small>
+                                  </div>
+                                <% } else { %>
+                                  <input type="hidden" name="loyaltyPointsToRedeem" value="0">
+                                  <div class="alert alert-secondary py-2">
+                                    Loyalty redemption is currently disabled. You still earn points on paid orders.
+                                  </div>
+                                <% } %>
+
                                 <div class="mb-4">
                                   <h4 class="mb-3">Payment method</h4>
                                   <div class="d-grid gap-2">
@@ -169,13 +198,24 @@
                                 </div>
 
                                 <div class="mb-3">
+                                  <div class="d-flex justify-content-between text-success d-none" id="loyalty-discount-row">
+                                    <span>Loyalty Points Discount</span>
+                                    <span id="loyalty-discount-amount">- $0.00</span>
+                                  </div>
                                   <div class="d-flex justify-content-between">
                                     <span class="text-muted">Estimated total</span>
                                     <span class="fw-semibold" id="checkout-total"
                                       data-base-total="<%= Number(baseTotal || 0).toFixed(2) %>"
-                                      data-delivery-fee="<%= Number(deliveryFee || 0).toFixed(2) %>">
+                                      data-delivery-fee="<%= Number(deliveryFee || 0).toFixed(2) %>"
+                                      data-loyalty-balance="<%= Number(loyaltyBalance || 0) %>"
+                                      data-redemption-enabled="<%= loyaltyRedemptionEnabled ? '1' : '0' %>"
+                                      data-loyalty-points-per-dollar="100">
                                       $<%= Number(baseTotal || 0).toFixed(2) %>
                                     </span>
+                                  </div>
+                                  <div class="small text-muted mt-1 text-end">
+                                    Loyalty reward after payment:
+                                    <span class="text-success fw-semibold" id="checkout-estimated-points">+<%= Number(estimatedPointsToEarn || 0) %> pts</span>
                                   </div>
                                 </div>
 
@@ -219,6 +259,11 @@
     var stripeButton = document.getElementById('stripe-button');
     var notice = document.getElementById('payment-notice');
     var checkoutForm = document.querySelector('form[action="/checkout"]');
+    var loyaltyInput = document.getElementById('loyaltyPointsToRedeem');
+    var loyaltyHelp = document.getElementById('loyalty-redeem-help');
+    var loyaltyDiscountRow = document.getElementById('loyalty-discount-row');
+    var loyaltyDiscountAmountEl = document.getElementById('loyalty-discount-amount');
+    var estimatedPointsEl = document.getElementById('checkout-estimated-points');
 
     if (!addressGroup || !totalEl) {
       return;
@@ -226,20 +271,102 @@
 
     var baseTotal = Number(totalEl.dataset.baseTotal || 0);
     var deliveryFee = Number(totalEl.dataset.deliveryFee || 0);
+    var loyaltyBalance = Number(totalEl.dataset.loyaltyBalance || 0);
+    var redemptionEnabled = totalEl.dataset.redemptionEnabled === '1';
+    var pointsPerDollar = Number(totalEl.dataset.loyaltyPointsPerDollar || 100);
 
-    var toggle = function () {
+    var toWholeNumber = function (value) {
+      var parsed = parseInt(value, 10);
+      if (!isFinite(parsed) || parsed <= 0) {
+        return 0;
+      }
+      return parsed;
+    };
+
+    // Mirrors server-side loyalty redemption limits to keep checkout preview accurate.
+    var calculateLoyaltyPreview = function (maxDiscountableAmount) {
+      if (!redemptionEnabled) {
+        return { requested: 0, points: 0, discount: 0, message: '' };
+      }
+
+      var requested = toWholeNumber(loyaltyInput ? loyaltyInput.value : 0);
+      if (requested <= 0) {
+        return { requested: 0, points: 0, discount: 0, message: '' };
+      }
+
+      var maxPointsByAmount = Math.floor(Math.max(0, maxDiscountableAmount) * pointsPerDollar);
+      var maxRedeemable = Math.max(0, Math.min(loyaltyBalance, maxPointsByAmount));
+      if (maxRedeemable <= 0) {
+        return {
+          requested: requested,
+          points: 0,
+          discount: 0,
+          message: 'This order is not eligible for loyalty redemption.'
+        };
+      }
+
+      if (requested > loyaltyBalance) {
+        return {
+          requested: requested,
+          points: 0,
+          discount: 0,
+          message: 'You requested more points than your available balance.'
+        };
+      }
+
+      if (requested > maxPointsByAmount) {
+        return {
+          requested: requested,
+          points: 0,
+          discount: 0,
+          message: 'Requested points exceed this order total.'
+        };
+      }
+
+      var points = requested;
+      return {
+        requested: requested,
+        points: points,
+        discount: Number((points / pointsPerDollar).toFixed(2)),
+        message: ''
+      };
+    };
+
+    var updateTotals = function () {
       var selected = document.querySelector('input[name="deliveryMethod"]:checked');
       var isDelivery = selected && selected.value === 'delivery';
       addressGroup.classList.toggle('d-none', !isDelivery);
-      var nextTotal = isDelivery ? baseTotal + deliveryFee : baseTotal;
+
+      var totalBeforeLoyalty = isDelivery ? baseTotal + deliveryFee : baseTotal;
+      var loyalty = calculateLoyaltyPreview(totalBeforeLoyalty);
+      var nextTotal = Math.max(0, totalBeforeLoyalty - loyalty.discount);
+
       totalEl.textContent = '$' + nextTotal.toFixed(2);
+
+      if (loyaltyDiscountRow && loyaltyDiscountAmountEl) {
+        loyaltyDiscountAmountEl.textContent = '- $' + loyalty.discount.toFixed(2);
+        loyaltyDiscountRow.classList.toggle('d-none', loyalty.discount <= 0);
+      }
+
+      if (estimatedPointsEl) {
+        estimatedPointsEl.textContent = '+' + Math.floor(nextTotal) + ' pts';
+      }
+
+      if (loyaltyHelp) {
+        loyaltyHelp.textContent = loyalty.message || ('100 points = $1.00 discount. Available: ' + loyaltyBalance + ' points.');
+      }
     };
 
     radios.forEach(function (radio) {
-      radio.addEventListener('change', toggle);
+      radio.addEventListener('change', updateTotals);
     });
 
-    toggle();
+    if (loyaltyInput) {
+      loyaltyInput.addEventListener('input', updateTotals);
+      loyaltyInput.addEventListener('change', updateTotals);
+    }
+
+    updateTotals();
 
     var showNotice = function (message, type) {
       if (!notice) return;
@@ -309,7 +436,8 @@
       return {
         deliveryMethod: method,
         deliveryAddress: address,
-        orderNotes: notes
+        orderNotes: notes,
+        loyaltyPointsToRedeem: toWholeNumber(loyaltyInput ? loyaltyInput.value : 0)
       };
     };
 

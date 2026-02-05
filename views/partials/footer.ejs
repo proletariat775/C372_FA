@@ -3,6 +3,162 @@
         <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
     </div>
 </footer>
+<% if (typeof user !== 'undefined' && user && user.role === 'customer' && typeof showCouponPopup !== 'undefined' && showCouponPopup) { %>
+  <div id="coupon-popup-overlay" class="coupon-popup-overlay" hidden>
+    <div class="coupon-popup-card" role="dialog" aria-modal="true" aria-labelledby="coupon-popup-title">
+      <button type="button" class="coupon-popup-close" id="coupon-popup-close" aria-label="Close offers">X</button>
+      <div class="coupon-popup-body">
+        <h3 id="coupon-popup-title" class="coupon-popup-title">Use your special offers now</h3>
+        <div id="coupon-popup-list" class="coupon-popup-list"></div>
+      </div>
+      <div class="coupon-popup-actions">
+        <a href="/shopping" class="btn btn-dark coupon-popup-shop-btn">Shop now</a>
+        <a href="/user/coupons" class="coupon-popup-link">View coupon details</a>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var overlay = document.getElementById('coupon-popup-overlay');
+      var closeBtn = document.getElementById('coupon-popup-close');
+      var listEl = document.getElementById('coupon-popup-list');
+      if (!overlay || !closeBtn || !listEl) return;
+
+      var formatMoney = function (value) {
+        return '$' + Number(value || 0).toFixed(2);
+      };
+
+      var escapeHtml = function (value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      };
+
+      var formatCountdown = function (seconds) {
+        var total = Number(seconds || 0);
+        if (!Number.isFinite(total) || total <= 0) {
+          return 'Expired';
+        }
+
+        var days = Math.floor(total / 86400);
+        var hours = Math.floor((total % 86400) / 3600);
+        var minutes = Math.floor((total % 3600) / 60);
+        var sec = total % 60;
+        var pad = function (value) { return String(value).padStart(2, '0'); };
+
+        if (days > 0) {
+          return days + 'd ' + pad(hours) + ':' + pad(minutes) + ':' + pad(sec);
+        }
+        return pad(hours) + ':' + pad(minutes) + ':' + pad(sec);
+      };
+
+      var closePopup = function () {
+        overlay.setAttribute('hidden', 'hidden');
+      };
+
+      var countdownTimer = null;
+
+      closeBtn.addEventListener('click', closePopup);
+      overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) {
+          closePopup();
+        }
+      });
+
+      overlay.removeAttribute('hidden');
+      listEl.innerHTML = '<div class="coupon-popup-empty">Loading offers...</div>';
+
+      fetch('/api/coupons/available')
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('Failed to load coupons');
+          }
+          return response.json();
+        })
+        .then(function (payload) {
+          var coupons = payload && payload.coupons ? payload.coupons : [];
+          if (!coupons.length) {
+            listEl.innerHTML = ''
+              + '<div class="coupon-popup-empty">'
+              + '<strong>No active coupons right now.</strong>'
+              + '<span>Check the coupon page for upcoming offers.</span>'
+              + '</div>';
+            return;
+          }
+
+          var featured = coupons.slice(0, 3);
+          listEl.innerHTML = featured.map(function (coupon) {
+            var isPercentage = coupon.discountType === 'percentage';
+            var discountText = isPercentage
+              ? Number(coupon.discountValue || 0).toFixed(0) + '% OFF'
+              : formatMoney(coupon.discountValue) + ' OFF';
+
+            var thresholdText = Number(coupon.minOrderAmount || 0) > 0
+              ? 'Orders ' + formatMoney(coupon.minOrderAmount) + '+'
+              : 'No min. buy';
+
+            var capText = coupon.maxDiscountAmount !== null && coupon.maxDiscountAmount !== undefined
+              ? 'Capped at ' + formatMoney(coupon.maxDiscountAmount)
+              : 'No cap';
+
+            var expiry = coupon.expirySeconds !== null && coupon.expirySeconds !== undefined
+              ? formatCountdown(coupon.expirySeconds)
+              : 'No expiry';
+
+            return ''
+              + '<article class="coupon-popup-item">'
+              + '<div class="coupon-popup-item-left">'
+              + '<strong>' + escapeHtml(discountText) + '</strong>'
+              + '<span>' + escapeHtml(thresholdText) + '</span>'
+              + '</div>'
+              + '<div class="coupon-popup-item-right">'
+              + '<h6>' + escapeHtml(coupon.code) + '</h6>'
+              + '<p>' + escapeHtml(capText) + '</p>'
+              + '<small>Expires in ' + escapeHtml(expiry) + '</small>'
+              + '</div>'
+              + '</article>';
+          }).join('');
+
+          var start = Date.now();
+          countdownTimer = setInterval(function () {
+            var elapsed = Math.floor((Date.now() - start) / 1000);
+            var expiryEls = overlay.querySelectorAll('.coupon-popup-item-right small');
+            featured.forEach(function (coupon, index) {
+              if (!expiryEls[index]) return;
+              if (coupon.expirySeconds === null || coupon.expirySeconds === undefined) {
+                return;
+              }
+              var remaining = Math.max(0, Number(coupon.expirySeconds) - elapsed);
+              expiryEls[index].textContent = 'Expires in ' + formatCountdown(remaining);
+            });
+          }, 1000);
+        })
+        .catch(function () {
+          listEl.innerHTML = ''
+            + '<div class="coupon-popup-empty">'
+            + '<strong>Unable to load coupons right now.</strong>'
+            + '<span>You can still view coupons from the coupon page.</span>'
+            + '</div>';
+        });
+
+      var stopTimer = function () {
+        if (countdownTimer) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+        }
+      };
+      closeBtn.addEventListener('click', stopTimer);
+      overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) {
+          stopTimer();
+        }
+      });
+    });
+  </script>
+<% } %>
 </body>
 
 </html>
