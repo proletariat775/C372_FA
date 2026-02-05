@@ -13,16 +13,21 @@
           <a class="nav-link" href="/inventory">Inventory</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/addProduct">Add Product</a>
-        </li>
-        <li class="nav-item">
           <a class="nav-link" href="/admin/coupons">Coupons</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/users">Users</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/deliveries">Order Management</a>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="adminManagementMenu" role="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            Management
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminManagementMenu">
+            <li>
+              <a class="dropdown-item" href="/admin/users">User management</a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="/admin/deliveries">Order management</a>
+            </li>
+          </ul>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>
