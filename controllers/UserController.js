@@ -282,8 +282,10 @@ const listUsers = (req, res) => {
             return res.redirect('/inventory');
         }
 
+        const customers = (results || []).filter((managedUser) => managedUser.role === 'customer');
+
         res.render('manageUsers', {
-            users: results,
+            users: customers,
             user: req.session.user,
             messages: req.flash('success'),
             errors: req.flash('error')
@@ -308,6 +310,11 @@ const editUserForm = (req, res) => {
 
         if (results.length === 0) {
             req.flash('error', 'User not found.');
+            return res.redirect('/admin/users');
+        }
+
+        if (results[0].role !== 'customer') {
+            req.flash('error', 'Admin accounts are not shown in user management.');
             return res.redirect('/admin/users');
         }
 
