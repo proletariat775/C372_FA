@@ -17,6 +17,8 @@ const create = (userId, cartItems, options, callback) => {
         shipping_amount = 0.00,
         payment_method = 'cod',
         payment_status = 'pending',
+        paypal_capture_id = null,
+        refunded_amount = 0.00,
         status = 'pending',
         discount_amount = 0.00,
         promo_code = null,
@@ -60,6 +62,8 @@ const create = (userId, cartItems, options, callback) => {
                 total_amount,
                 payment_method,
                 payment_status,
+                paypal_capture_id,
+                refunded_amount,
                 shipping_address,
                 billing_address,
                 promo_code,
@@ -70,7 +74,7 @@ const create = (userId, cartItems, options, callback) => {
                 delivery_slot_window,
                 order_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         connection.query(orderSql, [
@@ -84,6 +88,8 @@ const create = (userId, cartItems, options, callback) => {
             total_amount,
             payment_method,
             payment_status,
+            paypal_capture_id,
+            refunded_amount,
             shipping_address,
             billing_address,
             promo_code,
@@ -181,10 +187,10 @@ const findByUser = (userId, callback) => {
 const findById = (orderId, callback) => {
     const sql = `
         SELECT *
-            FROM orders
+        FROM orders
         WHERE id = ?
-            LIMIT 1
-                `;
+        LIMIT 1
+    `;
     connection.query(sql, [orderId], callback);
 };
 
@@ -258,6 +264,35 @@ const findItemsByOrderIds = (orderIds, callback) => {
     connection.query(sql, [orderIds], callback);
 };
 
+const findByIdForUser = (orderId, userId, callback) => {
+    const sql = `
+        SELECT *
+        FROM orders
+        WHERE id = ? AND user_id = ?
+        LIMIT 1
+    `;
+    connection.query(sql, [orderId, userId], (err, rows) => {
+        if (err) {
+            return callback(err);
+        }
+        return callback(null, rows && rows.length ? rows[0] : null);
+    });
+};
+
+const addRefundedAmount = (orderId, amount, callback) => {
+    const safeAmount = Number(amount);
+    if (!Number.isFinite(safeAmount) || safeAmount <= 0) {
+        return callback(new Error('Invalid refund amount.'));
+    }
+
+    const sql = `
+        UPDATE orders
+        SET refunded_amount = COALESCE(refunded_amount, 0) + ?
+        WHERE id = ?
+    `;
+    connection.query(sql, [safeAmount, orderId], callback);
+};
+
 /**
  * Retrieve global best-selling products ordered by total quantity sold.
  * @param {number} limit Number of products to fetch
@@ -324,10 +359,12 @@ module.exports = {
     create,
     findByUser,
     findById,
+    findByIdForUser,
     findAllWithUsers,
     findItemsByOrderIds,
     getBestSellers,
     updateDelivery,
+    addRefundedAmount,
     updateAdminOrder: (orderId, updateData, callback) => {
         const {
             status = 'pending',

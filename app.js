@@ -17,6 +17,8 @@ const fitAssistantController = require('./controllers/FitAssistantController');
 // TEAM END - Fit assistant controller
 
 const postPurchaseController = require('./controllers/PostPurchaseController');
+const refundController = require('./controllers/RefundController');
+const adminRefundController = require('./controllers/AdminRefundController');
 
 const {
     checkAuthenticated,
@@ -106,9 +108,6 @@ app.get('/checkout', checkAuthenticated, checkRoles('customer'), orderController
 app.post('/checkout', checkAuthenticated, checkRoles('customer'), orderController.checkout);
 app.post('/payments/paypal/create', checkAuthenticated, checkRoles('customer'), orderController.createPayPalOrder);
 app.post('/payments/paypal/capture', checkAuthenticated, checkRoles('customer'), orderController.capturePayPalOrder);
-app.post('/payments/netsqr/create', checkAuthenticated, checkRoles('customer'), orderController.createNetsQrPayment);
-app.get('/payments/netsqr/status', checkAuthenticated, checkRoles('customer'), orderController.getNetsQrStatus);
-app.post('/payments/netsqr/finalize', checkAuthenticated, checkRoles('customer'), orderController.finalizeNetsQrPayment);
 app.get('/orders/history', checkAuthenticated, checkRoles('customer', 'admin'), orderController.history);
 app.post('/orders/:id/delivery', checkAuthenticated, orderController.updateDeliveryDetails);
 app.get('/orders/:id/invoice', checkAuthenticated, orderController.invoice);
@@ -123,6 +122,10 @@ app.post('/return/:id/process', checkAuthenticated, checkRoles('customer', 'admi
 app.get('/wishlist', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.wishlist);
 app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.addWishlist);
 app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.removeWishlist);
+app.get('/refunds', checkAuthenticated, checkRoles('customer'), refundController.list);
+app.get('/refunds/request/:orderId', checkAuthenticated, checkRoles('customer'), refundController.showRequestForm);
+app.post('/refunds/request/:orderId', checkAuthenticated, checkRoles('customer'), refundController.submitRequest);
+app.get('/refunds/:id', checkAuthenticated, checkRoles('customer'), refundController.details);
 
 
 app.get('/logout', userController.logout);
@@ -141,6 +144,10 @@ app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, productImageUploa
 app.get('/deleteProduct/:id', checkAuthenticated, checkAdmin, productController.deleteProduct);
 app.get('/admin/deliveries', checkAuthenticated, checkAdmin, orderController.listAllDeliveries);
 app.post('/admin/orders/:id/update', checkAuthenticated, checkAdmin, orderController.updateAdminOrder);
+app.get('/admin/refunds', checkAuthenticated, checkAdmin, adminRefundController.list);
+app.get('/admin/refunds/:id', checkAuthenticated, checkAdmin, adminRefundController.details);
+app.post('/admin/refunds/:id/approve', checkAuthenticated, checkAdmin, adminRefundController.approve);
+app.post('/admin/refunds/:id/reject', checkAuthenticated, checkAdmin, adminRefundController.reject);
 
 
 const PORT = process.env.PORT || 3000;

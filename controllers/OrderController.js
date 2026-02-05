@@ -7,14 +7,12 @@ const couponService = require('../services/couponService');
 const bundleService = require('../services/bundleService');
 const sustainabilityService = require('../services/sustainabilityService');
 const paypalService = require('../services/paypalService');
-const netsQrService = require('../services/netsQrService');
 
 const DELIVERY_FEE = 1.5;
 const ADMIN_STATUS_FLOW = ['pending', 'packed', 'shipped', 'delivered', 'completed'];
 const PAYMENT_METHODS = [
     { value: 'card', label: 'Credit/Debit Card' },
     { value: 'paypal', label: 'PayPal (Sandbox)' },
-    { value: 'nets_qr', label: 'NETS QR' },
     { value: 'ewallet', label: 'E-Wallet' }
 ];
 const INLINE_PAYMENT_METHODS = ['card', 'ewallet'];
@@ -423,7 +421,7 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
     };
 };
 
-const finalizePaidOrder = (req, snapshot, paymentMethod) => new Promise((resolve, reject) => {
+const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => new Promise((resolve, reject) => {
     const discountTotal = Number(snapshot.discountAmount || 0) + Number(snapshot.bundleDiscount || 0);
     const deliveryFee = snapshot.deliveryMethod === 'delivery' ? Number(snapshot.deliveryFee || 0) : 0;
 
@@ -440,7 +438,8 @@ const finalizePaidOrder = (req, snapshot, paymentMethod) => new Promise((resolve
         status: 'processing',
         delivery_slot_date: snapshot.deliverySlot ? snapshot.deliverySlot.date : null,
         delivery_slot_window: snapshot.deliverySlot ? snapshot.deliverySlot.window : null,
-        order_notes: snapshot.orderNotes || null
+        order_notes: snapshot.orderNotes || null,
+        paypal_capture_id: paymentMeta.paypalCaptureId || null
     }, (error, result) => {
         if (error) {
             return reject(error);
@@ -597,8 +596,8 @@ const checkout = (req, res) => {
 
             const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
             const requestedPayment = String(req.body.paymentMethod || '').trim().toLowerCase();
-            if (requestedPayment === 'paypal' || requestedPayment === 'nets_qr') {
-                req.flash('error', 'Please complete payment using the PayPal or NETS QR button.');
+            if (requestedPayment === 'paypal') {
+                req.flash('error', 'Please complete payment using the PayPal button.');
                 return res.redirect('/checkout');
             }
             const paymentMethod = resolvePaymentMethod(requestedPayment, INLINE_PAYMENT_METHODS);
@@ -1192,6 +1191,25 @@ const capturePayPalOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'PayPal payment was not completed.' });
         }
 
+        const payments = capture.purchase_units
+            && capture.purchase_units[0]
+            && capture.purchase_units[0].payments
+            ? capture.purchase_units[0].payments
+            : null;
+
+        const captureId = payments
+            && payments.captures
+            && payments.captures[0]
+            && payments.captures[0].id
+            ? payments.captures[0].id
+            : (payments && payments.authorizations && payments.authorizations[0] && payments.authorizations[0].id
+                ? payments.authorizations[0].id
+                : null);
+
+        if (!captureId) {
+            return res.status(400).json({ success: false, message: 'PayPal capture ID missing.' });
+        }
+
         const captureAmount = capture.purchase_units
             && capture.purchase_units[0]
             && capture.purchase_units[0].payments
@@ -1205,116 +1223,13 @@ const capturePayPalOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Captured amount does not match order total.' });
         }
 
-        await finalizePaidOrder(req, pending.snapshot, 'paypal');
+        await finalizePaidOrder(req, pending.snapshot, 'paypal', { paypalCaptureId: captureId });
         delete req.session.pendingPayment;
 
         return res.json({ success: true, redirect: '/orders/history' });
     } catch (error) {
         console.error('Error capturing PayPal order:', error);
         return res.status(500).json({ success: false, message: 'Unable to capture PayPal payment.' });
-    }
-};
-
-const createNetsQrPayment = async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'customer') {
-        return res.status(403).json({ success: false, message: 'Only shoppers can complete payment.' });
-    }
-
-    try {
-        const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
-        const deliveryAddress = req.body.deliveryAddress ? String(req.body.deliveryAddress).trim() : '';
-        const orderNotes = req.body.orderNotes ? String(req.body.orderNotes) : '';
-        // Delivery slot input removed; keep the payload minimal.
-        const snapshot = await buildCheckoutSnapshot(req, deliveryMethod, deliveryAddress, orderNotes);
-
-        if (snapshot.error) {
-            return res.status(400).json({ success: false, message: snapshot.error, issues: snapshot.issues || [] });
-        }
-
-        const payment = await netsQrService.createPayment({
-            amount: snapshot.total,
-            currency: 'SGD'
-        });
-
-        req.session.pendingPayment = {
-            method: 'nets_qr',
-            netsRef: payment.reference,
-            status: 'pending',
-            expiresAt: payment.expiresAt,
-            snapshot,
-            createdAt: Date.now()
-        };
-
-        if (payment.qrImageBase64) {
-            console.info('NETS QR base64 length:', String(payment.qrImageBase64.length));
-        }
-
-        return res.json({
-            success: true,
-            qrImageBase64: payment.qrImageBase64,
-            qrImageDataUrl: payment.qrImageDataUrl,
-            qrData: payment.qrData,
-            reference: payment.reference,
-            amount: payment.amount,
-            currency: payment.currency,
-            expiresAt: payment.expiresAt
-        });
-    } catch (error) {
-        console.error('Error creating NETS QR payment:', error);
-        return res.status(500).json({ success: false, message: 'Unable to generate NETS QR.' });
-    }
-};
-
-const getNetsQrStatus = (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'customer') {
-        return res.status(403).json({ success: false, message: 'Only shoppers can view payment status.' });
-    }
-
-    const ref = req.query.ref ? String(req.query.ref).trim() : '';
-    const pending = req.session.pendingPayment;
-
-    if (!ref || !pending || pending.method !== 'nets_qr' || pending.netsRef !== ref) {
-        return res.json({ success: false, status: 'not_found' });
-    }
-
-    const now = Date.now();
-    if (pending.expiresAt && now > pending.expiresAt) {
-        pending.status = 'expired';
-    }
-
-    return res.json({ success: true, status: pending.status || 'pending', expiresAt: pending.expiresAt });
-};
-
-const finalizeNetsQrPayment = async (req, res) => {
-    if (!req.session.user || req.session.user.role !== 'customer') {
-        return res.status(403).json({ success: false, message: 'Only shoppers can complete payment.' });
-    }
-
-    const ref = req.body.ref ? String(req.body.ref).trim() : '';
-    const pending = req.session.pendingPayment;
-
-    if (!ref || !pending || pending.method !== 'nets_qr' || pending.netsRef !== ref) {
-        return res.status(400).json({ success: false, message: 'NETS QR session expired. Please try again.' });
-    }
-
-    if (pending.expiresAt && Date.now() > pending.expiresAt) {
-        pending.status = 'expired';
-        return res.status(400).json({ success: false, message: 'NETS QR has expired. Please generate a new code.' });
-    }
-
-    if (pending.status === 'paid') {
-        return res.json({ success: true, redirect: '/orders/history' });
-    }
-
-    try {
-        pending.status = 'paid';
-        await finalizePaidOrder(req, pending.snapshot, 'nets_qr');
-        delete req.session.pendingPayment;
-        return res.json({ success: true, redirect: '/orders/history' });
-    } catch (error) {
-        console.error('Error finalizing NETS QR payment:', error);
-        pending.status = 'failed';
-        return res.status(500).json({ success: false, message: 'Unable to finalize NETS QR payment.' });
     }
 };
 
@@ -1399,8 +1314,5 @@ module.exports = {
     updateAdminOrder,
     createPayPalOrder,
     capturePayPalOrder,
-    createNetsQrPayment,
-    getNetsQrStatus,
-    finalizeNetsQrPayment,
     invoice
 };

@@ -20,6 +20,9 @@ DROP TABLE IF EXISTS wishlist;
 DROP TABLE IF EXISTS cart_items;
 DROP TABLE IF EXISTS cart;
 DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS refund_request_items;
+DROP TABLE IF EXISTS refund_requests;
+DROP TABLE IF EXISTS refunds;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS coupons;
 DROP TABLE IF EXISTS product_images;
@@ -45,7 +48,7 @@ CREATE TABLE users (
   zip_code VARCHAR(20) NULL,
   country VARCHAR(100) NULL,
   phone VARCHAR(30) NULL,
-  role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
+  role ENUM('user', 'customer', 'admin') NOT NULL DEFAULT 'customer',
   free_delivery TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -182,6 +185,8 @@ CREATE TABLE orders (
   total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   payment_method VARCHAR(50) NOT NULL DEFAULT 'cod',
   payment_status ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
+  paypal_capture_id VARCHAR(80) NULL,
+  refunded_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_address VARCHAR(255) NULL,
   billing_address VARCHAR(255) NULL,
   promo_code VARCHAR(50) NULL,
@@ -225,6 +230,58 @@ CREATE TABLE order_items (
   CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_order_items_variant FOREIGN KEY (product_variant_id) REFERENCES product_variants(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE refund_requests (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  user_id INT NOT NULL,
+  requested_amount DECIMAL(10,2) NOT NULL,
+  reason VARCHAR(500) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  admin_note VARCHAR(500) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_refund_requests_order (order_id),
+  KEY idx_refund_requests_user (user_id),
+  CONSTRAINT fk_refund_requests_order FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_refund_requests_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE refund_request_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  request_id INT NOT NULL,
+  order_item_id INT NOT NULL,
+  product_id INT NOT NULL,
+  product_variant_id INT NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
+  unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  KEY idx_refund_request_items_request (request_id),
+  KEY idx_refund_request_items_order_item (order_item_id),
+  CONSTRAINT fk_refund_request_items_request FOREIGN KEY (request_id) REFERENCES refund_requests(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_refund_request_items_order_item FOREIGN KEY (order_item_id) REFERENCES order_items(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE refunds (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  request_id INT NULL,
+  order_id INT NOT NULL,
+  paypal_refund_id VARCHAR(80) NULL,
+  paypal_capture_id VARCHAR(80) NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(5) NOT NULL DEFAULT 'SGD',
+  status VARCHAR(30) NOT NULL DEFAULT 'UNKNOWN',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_refunds_request (request_id),
+  KEY idx_refunds_order (order_id),
+  CONSTRAINT fk_refunds_order FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_refunds_request FOREIGN KEY (request_id) REFERENCES refund_requests(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 

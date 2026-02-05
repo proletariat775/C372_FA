@@ -165,7 +165,7 @@
                                       </div>
                                       <% }); %>
                                   </div>
-                                  <small class="text-muted">PayPal and NETS QR use sandbox/test credentials.</small>
+                                  <small class="text-muted">PayPal uses sandbox/test credentials.</small>
                                 </div>
 
                                 <div class="mb-3">
@@ -183,9 +183,6 @@
                                 <button type="submit" class="btn btn-success w-100" id="checkout-submit">Place order / Pay now</button>
                                 <div id="paypal-actions" class="d-none mt-2 d-grid">
                                   <button type="button" class="btn btn-primary" id="paypal-button">Pay with PayPal</button>
-                                </div>
-                                <div id="nets-actions" class="d-none mt-2 d-grid">
-                                  <button type="button" class="btn btn-primary" id="nets-button">Generate NETS QR</button>
                                 </div>
                               </div>
                             </form>
@@ -205,39 +202,6 @@
   </div>
 </main>
 
-<div class="modal fade" id="netsQrModal" tabindex="-1" aria-labelledby="netsQrLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="netsQrLabel">NETS QR Payment</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="text-center mb-3">
-          <img id="nets-qr-image" src="" alt="NETS QR Code" class="img-fluid rounded" style="max-width: 240px;">
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Amount</span>
-          <span class="fw-semibold" id="nets-amount">SGD 0.00</span>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Reference</span>
-          <span id="nets-ref">-</span>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Expiry</span>
-          <span id="nets-expiry">-</span>
-        </div>
-        <div class="alert alert-info py-2 mb-0" id="nets-status">Waiting for payment...</div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" id="nets-refresh">Refresh status</button>
-        <button type="button" class="btn btn-success" id="nets-paid">I have paid</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var addressGroup = document.getElementById('checkout-delivery-address');
@@ -246,23 +210,10 @@
     var radios = document.querySelectorAll('input[name="deliveryMethod"]');
     var paymentRadios = document.querySelectorAll('input[name="paymentMethod"]');
     var paypalActions = document.getElementById('paypal-actions');
-    var netsActions = document.getElementById('nets-actions');
     var submitBtn = document.getElementById('checkout-submit');
     var paypalButton = document.getElementById('paypal-button');
-    var netsButton = document.getElementById('nets-button');
     var notice = document.getElementById('payment-notice');
     var checkoutForm = document.querySelector('form[action="/checkout"]');
-    var netsModalEl = document.getElementById('netsQrModal');
-    var netsModal = netsModalEl ? new bootstrap.Modal(netsModalEl) : null;
-    var netsQrImage = document.getElementById('nets-qr-image');
-    var netsAmount = document.getElementById('nets-amount');
-    var netsRef = document.getElementById('nets-ref');
-    var netsExpiry = document.getElementById('nets-expiry');
-    var netsStatus = document.getElementById('nets-status');
-    var netsRefresh = document.getElementById('nets-refresh');
-    var netsPaid = document.getElementById('nets-paid');
-    var netsRefValue = null;
-    var netsPoller = null;
 
     if (!addressGroup || !totalEl) {
       return;
@@ -305,13 +256,10 @@
     var updatePaymentActions = function () {
       var payment = currentPayment();
       if (submitBtn) {
-        submitBtn.classList.toggle('d-none', payment === 'paypal' || payment === 'nets_qr');
+        submitBtn.classList.toggle('d-none', payment === 'paypal');
       }
       if (paypalActions) {
         paypalActions.classList.toggle('d-none', payment !== 'paypal');
-      }
-      if (netsActions) {
-        netsActions.classList.toggle('d-none', payment !== 'nets_qr');
       }
       clearNotice();
     };
@@ -319,9 +267,9 @@
     if (checkoutForm) {
       checkoutForm.addEventListener('submit', function (event) {
         var payment = currentPayment();
-        if (payment === 'paypal' || payment === 'nets_qr') {
+        if (payment === 'paypal') {
           event.preventDefault();
-          showNotice('Please use the PayPal or NETS QR button to complete payment.', 'warning');
+          showNotice('Please use the PayPal button to complete payment.', 'warning');
         }
       });
     }
@@ -382,138 +330,6 @@
           .catch(function () {
             paypalButton.disabled = false;
             showNotice('Unable to start PayPal checkout.', 'danger');
-          });
-      });
-    }
-
-    var updateNetsStatus = function (status) {
-      if (!netsStatus) return;
-      if (status === 'paid') {
-        netsStatus.className = 'alert alert-success py-2 mb-0';
-        netsStatus.textContent = 'Payment received.';
-      } else if (status === 'expired') {
-        netsStatus.className = 'alert alert-danger py-2 mb-0';
-        netsStatus.textContent = 'QR expired. Please generate a new code.';
-      } else if (status === 'failed') {
-        netsStatus.className = 'alert alert-danger py-2 mb-0';
-        netsStatus.textContent = 'Payment failed. Please try again.';
-      } else {
-        netsStatus.className = 'alert alert-info py-2 mb-0';
-        netsStatus.textContent = 'Waiting for payment...';
-      }
-    };
-
-    var pollNetsStatus = function () {
-      if (!netsRefValue) return;
-      fetch('/payments/netsqr/status?ref=' + encodeURIComponent(netsRefValue))
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          if (!data || !data.status) return;
-          updateNetsStatus(data.status);
-          if (data.status === 'expired' || data.status === 'failed') {
-            if (netsPoller) {
-              clearInterval(netsPoller);
-            }
-          }
-        });
-    };
-
-    if (netsButton) {
-      netsButton.addEventListener('click', function () {
-        var payload = buildDeliveryPayload();
-        if (!payload) return;
-
-        netsButton.disabled = true;
-        showNotice('Generating NETS QR...', 'info');
-
-        fetch('/payments/netsqr/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            netsButton.disabled = false;
-            var qrSrc = '';
-            if (data && data.qrImageDataUrl) {
-              qrSrc = data.qrImageDataUrl;
-            } else if (data && data.qrImageBase64) {
-              qrSrc = data.qrImageBase64.startsWith('data:image')
-                ? data.qrImageBase64
-                : ('data:image/png;base64,' + data.qrImageBase64);
-            }
-
-            if (!data || (!qrSrc && !data.qrData)) {
-              showNotice(data && data.message ? data.message : 'Unable to generate NETS QR.', 'danger');
-              return;
-            }
-
-            netsRefValue = data.reference;
-            if (data && data.qrImageBase64) {
-              console.log('NETS QR base64 length:', data.qrImageBase64.length);
-            }
-            if (netsQrImage && qrSrc) netsQrImage.src = qrSrc;
-            if (netsAmount) netsAmount.textContent = (data.currency || 'SGD') + ' ' + Number(data.amount || 0).toFixed(2);
-            if (netsRef) netsRef.textContent = data.reference || '-';
-            if (netsExpiry) netsExpiry.textContent = data.expiresAt ? new Date(data.expiresAt).toLocaleTimeString() : '-';
-            updateNetsStatus('pending');
-
-            if (netsModal) {
-              netsModal.show();
-            }
-
-            if (netsPoller) {
-              clearInterval(netsPoller);
-            }
-            netsPoller = setInterval(pollNetsStatus, 4000);
-          })
-          .catch(function () {
-            netsButton.disabled = false;
-            showNotice('Unable to generate NETS QR.', 'danger');
-          });
-      });
-    }
-
-    if (netsModalEl) {
-      netsModalEl.addEventListener('hidden.bs.modal', function () {
-        if (netsPoller) {
-          clearInterval(netsPoller);
-          netsPoller = null;
-        }
-      });
-    }
-
-    if (netsRefresh) {
-      netsRefresh.addEventListener('click', function () {
-        pollNetsStatus();
-      });
-    }
-
-    if (netsPaid) {
-      netsPaid.addEventListener('click', function () {
-        if (!netsRefValue) return;
-        netsPaid.disabled = true;
-        fetch('/payments/netsqr/finalize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ref: netsRefValue })
-        })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            netsPaid.disabled = false;
-            if (data && data.success) {
-              updateNetsStatus('paid');
-              if (netsModal) {
-                netsModal.hide();
-              }
-              window.location.href = data.redirect || '/orders/history';
-              return;
-            }
-            updateNetsStatus('failed');
-          })
-          .catch(function () {
-            netsPaid.disabled = false;
-            updateNetsStatus('failed');
           });
       });
     }

@@ -1,0 +1,200 @@
+<%- include('partials/header', { title: 'Request Refund | Shirt Shop' }) %>
+<%- include('partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
+
+<main class="page-section">
+  <div class="container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <p class="mb-1 text-muted">Order #<%= order.id %></p>
+        <h2 class="mb-0">Request a refund</h2>
+      </div>
+      <a href="/orders/history" class="btn btn-outline-secondary">Back to orders</a>
+    </div>
+
+    <% if (messages && messages.length) { %>
+      <% messages.forEach(function(message) { %>
+        <div class="alert alert-success"><%= message %></div>
+      <% }); %>
+    <% } %>
+
+    <% if (errors && errors.length) { %>
+      <% errors.forEach(function(error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% }); %>
+    <% } %>
+
+    <% const paymentLabel = (method) => {
+      const value = (method || '').toString().toLowerCase();
+      if (value === 'paypal') return 'PayPal';
+      if (value === 'card') return 'Card';
+      return method ? method.toUpperCase() : 'Unknown';
+    }; %>
+    <% const deliveryFee = Number(order.delivery_fee || 0); %>
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Refund details</h5>
+            <p class="text-muted mb-3">Let us know why you want a refund. Our team will review it.</p>
+            <div class="alert alert-light border small mb-3">
+              Refund eligibility: The maximum refundable amount is shown below. Refunds are usually approved for damaged
+              or incorrect items. Please provide a clear reason.
+            </div>
+            <form action="/refunds/request/<%= order.id %>" method="POST">
+              <div class="mb-3">
+                <label class="form-label">Select items to refund</label>
+                <% if (!orderItems || !orderItems.length) { %>
+                  <div class="text-muted small">No items found for this order.</div>
+                <% } else { %>
+                  <div class="table-responsive">
+                    <table class="table align-middle">
+                      <thead>
+                        <tr>
+                          <th>Item</th>
+                          <th class="text-center">Qty bought</th>
+                          <th class="text-end">Unit price</th>
+                          <th class="text-end">Refund qty</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% orderItems.forEach(function(item) { %>
+                          <tr>
+                            <td><%= item.productName %></td>
+                            <td class="text-center"><%= item.quantity %></td>
+                            <td class="text-end">$<%= Number(item.price).toFixed(2) %></td>
+                            <td class="text-end">
+                              <input
+                                type="number"
+                                class="form-control form-control-sm refund-item-input"
+                                name="items[<%= item.id %>]"
+                                min="0"
+                                max="<%= item.quantity %>"
+                                step="1"
+                                value="0"
+                                data-unit-price="<%= Number(item.price).toFixed(2) %>">
+                            </td>
+                          </tr>
+                        <% }); %>
+                      </tbody>
+                    </table>
+                  </div>
+                <% } %>
+              </div>
+              <div class="mb-3">
+                <label for="refund-amount" class="form-label">Requested amount (USD)</label>
+                <input
+                  type="number"
+                  id="refund-amount"
+                  name="amount"
+                  class="form-control"
+                  min="0.01"
+                  max="<%= remaining.toFixed(2) %>"
+                  step="0.01"
+                  required
+                  inputmode="decimal"
+                  data-delivery-fee="<%= deliveryFee.toFixed(2) %>">
+                <small class="text-muted">Maximum refundable: $<%= remaining.toFixed(2) %></small>
+                <% if (deliveryFee > 0) { %>
+                  <div class="small text-muted">Includes delivery fee of $<%= deliveryFee.toFixed(2) %>.</div>
+                <% } %>
+              </div>
+              <div class="mb-3">
+                <label for="refund-reason" class="form-label">Reason</label>
+                <textarea
+                  id="refund-reason"
+                  name="reason"
+                  rows="4"
+                  class="form-control"
+                  placeholder="Explain the reason for your refund request."></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">Submit request</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Order summary</h5>
+            <ul class="list-unstyled mb-0">
+              <li class="d-flex justify-content-between">
+                <span>Total</span>
+                <span>$<%= Number(order.total_amount || order.total || 0).toFixed(2) %></span>
+              </li>
+              <% if (deliveryFee > 0) { %>
+                <li class="d-flex justify-content-between">
+                  <span>Delivery fee</span>
+                  <span>$<%= deliveryFee.toFixed(2) %></span>
+                </li>
+              <% } %>
+              <li class="d-flex justify-content-between">
+                <span>Refunded to date</span>
+                <span>$<%= Number(order.refunded_amount || 0).toFixed(2) %></span>
+              </li>
+              <li class="d-flex justify-content-between fw-semibold">
+                <span>Remaining</span>
+                <span>$<%= remaining.toFixed(2) %></span>
+              </li>
+              <li class="d-flex justify-content-between mt-2">
+                <span>Payment method</span>
+                <span><%= paymentLabel(order.payment_method) %></span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  (function () {
+    var amountInput = document.getElementById('refund-amount');
+    var itemInputs = Array.prototype.slice.call(document.querySelectorAll('.refund-item-input'));
+    if (!amountInput) return;
+
+    var maxValue = parseFloat(amountInput.getAttribute('max') || '0');
+
+    var computeSelectionMax = function () {
+      if (!itemInputs.length) return { max: maxValue, hasSelection: false };
+      var sum = 0;
+      var hasSelection = false;
+      itemInputs.forEach(function (input) {
+        var qty = parseFloat(input.value || '0');
+        var price = parseFloat(input.dataset.unitPrice || '0');
+        if (Number.isFinite(qty) && Number.isFinite(price)) {
+          sum += qty * price;
+          if (qty > 0) {
+            hasSelection = true;
+          }
+        }
+      });
+      var deliveryFee = parseFloat(amountInput.dataset.deliveryFee || '0');
+      if (Number.isFinite(deliveryFee) && deliveryFee > 0) {
+        sum += deliveryFee;
+      }
+      if (!hasSelection) {
+        return { max: maxValue, hasSelection: false };
+      }
+      return { max: Math.min(sum, maxValue), hasSelection: true };
+    };
+
+    var clampAmount = function () {
+      var current = parseFloat(amountInput.value);
+      var selection = computeSelectionMax();
+      if (!Number.isFinite(current)) return;
+      if (selection.hasSelection && current > selection.max) {
+        amountInput.value = selection.max.toFixed(2);
+      }
+    };
+
+    amountInput.addEventListener('input', clampAmount);
+    itemInputs.forEach(function (input) {
+      input.addEventListener('input', clampAmount);
+    });
+  })();
+</script>
+
+<%- include('partials/footer') %>
