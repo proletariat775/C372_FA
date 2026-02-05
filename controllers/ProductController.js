@@ -12,7 +12,7 @@ const normalizeSizeLabel = (raw) => {
     }
     const cleaned = String(raw).trim().toUpperCase().replace(/_/g, '-');
     if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') {
-        return 'One-Size';
+        return 'OneSize';
     }
     if (['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'].includes(cleaned)) {
         return cleaned;
@@ -692,6 +692,8 @@ const ProductController = {
         req.body.category = resolvedCategory;
         req.body.brand = resolvedBrand;
         const sizeInfo = parseSizeQuantities(req.body);
+        console.log('DEBUG:updateProduct parsed sizeInfo ->', JSON.stringify(sizeInfo));
+        console.log('DEBUG:updateProduct body size keys ->', Object.keys(req.body).filter(k => String(k).startsWith('size_')));
         const productData = buildProductPayload(req.body, { front: imageFront, back: imageBack, single: image }, sizeInfo);
         const detailsData = {
             description: req.body.description,

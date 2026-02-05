@@ -183,6 +183,7 @@ const Product = {
                     const sizeEntries = sizeQuantities && typeof sizeQuantities === 'object'
                         ? Object.entries(sizeQuantities).filter(([size, qty]) => Number.isFinite(qty))
                         : [];
+                    console.log('DEBUG: models.Product.create sizeEntries ->', JSON.stringify(sizeEntries));
 
                     if (primaryImage) {
                         tasks.push((cb) => {
@@ -302,7 +303,7 @@ const Product = {
                     const sizeEntries = sizeQuantities && typeof sizeQuantities === 'object'
                         ? Object.entries(sizeQuantities).filter(([size, qty]) => Number.isFinite(qty))
                         : [];
-
+                    console.log('DEBUG: models.Product.update sizeEntries ->', JSON.stringify(sizeEntries));
                     if (primaryImage) {
                         tasks.push((cb) => {
                             connection.query('SELECT id FROM product_images WHERE product_id = ? AND is_primary = 1 ORDER BY id LIMIT 1', [productId], (iErr, rows) => {

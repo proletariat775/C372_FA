@@ -68,156 +68,189 @@
                                           below.</small>
                                       </div>
 
-                                      <div class="mb-3">
-                                        <label class="form-label">Sizes & stock</label>
-                                        <div id="size-input-grid" class="row g-2"></div>
-                                        <small class="text-muted">Enter stock levels for each size.</small>
-                                      </div>
+                                      <% const sizeOrder=['2XS', 'XS' , 'S' , 'M' , 'L' , 'XL' , '2XL' , 'One-Size' ];
+                                        %>
+                                        <% const existingSizes=Object.keys(sizeQuantities || {}); %>
+                                          <% const sizesToRender=existingSizes.length ? existingSizes : sizeOrder; %>
+                                            <% const buildSizeKey=function(sizeLabel) { if (sizeLabel==='One-Size' ) {
+                                              return 'size_one_size' ; } return 'size_' +
+                                              String(sizeLabel).toLowerCase().replace(/[^a-z0-9]+/g, '_' ); }; %>
+                                              <div class="mb-3">
+                                                <label class="form-label">Sizes & stock</label>
+                                                <div id="size-input-grid" class="row g-2">
+                                                  <% sizesToRender.forEach(function(size) { %>
+                                                    <% const key=buildSizeKey(size); %>
+                                                      <% const value=typeof (sizeQuantities || {})[size] !=='undefined'
+                                                        ? (sizeQuantities || {})[size] : '' ; %>
+                                                        <div class="col-6 col-md-3">
+                                                          <label class="form-label small" for="<%= key %>">
+                                                            <%= size %>
+                                                          </label>
+                                                          <input type="number" class="form-control size-input"
+                                                            id="<%= key %>" name="<%= key %>" min="0" step="1"
+                                                            placeholder="0" value="<%= value %>">
+                                                        </div>
+                                                        <% }); %>
+                                                </div>
+                                                <small class="text-muted">Enter stock levels for each size.</small>
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label for="price" class="form-label">Price ($)</label>
-                                        <input type="number" class="form-control" id="price" name="price" min="0"
-                                          step="0.01" value="<%= Number(product.price).toFixed(2) %>" required>
-                                      </div>
+                                              <div class="mb-3">
+                                                <label for="price" class="form-label">Price ($)</label>
+                                                <input type="number" class="form-control" id="price" name="price"
+                                                  min="0" step="0.01" value="<%= Number(product.price).toFixed(2) %>"
+                                                  required>
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label for="discount" class="form-label">Discount (%)</label>
-                                        <input type="number" class="form-control" id="discount" name="discount" min="0"
-                                          max="100" step="1"
-                                          value="<%= Math.round(Number(product.discountPercentage || 0)) %>">
-                                        <small class="text-muted">Whole numbers only (0 to 100).</small>
-                                      </div>
+                                              <div class="mb-3">
+                                                <label for="discount" class="form-label">Discount (%)</label>
+                                                <input type="number" class="form-control" id="discount" name="discount"
+                                                  min="0" max="100" step="1"
+                                                  value="<%= Math.round(Number(product.discountPercentage || 0)) %>">
+                                                <small class="text-muted">Whole numbers only (0 to 100).</small>
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label for="category" class="form-label">Style / Category</label>
-                                        <select class="form-select" id="category" name="category" required>
-                                          <option value="">Select category</option>
-                                          <% (categories || []).forEach(function(cat) { %>
-                                            <option value="<%= cat %>" <%=product.category===cat ? 'selected' : '' %>>
-                                              <%= cat %>
-                                            </option>
-                                            <% }); %>
-                                              <option value="__new__">Add new category</option>
-                                        </select>
-                                        <small class="text-muted">Choose an existing category, or add a new one.</small>
-                                      </div>
+                                              <div class="mb-3">
+                                                <label for="category" class="form-label">Style / Category</label>
+                                                <select class="form-select" id="category" name="category" required>
+                                                  <option value="">Select category</option>
+                                                  <% (categories || []).forEach(function(cat) { %>
+                                                    <option value="<%= cat %>" <%=product.category===cat ? 'selected'
+                                                      : '' %>>
+                                                      <%= cat %>
+                                                    </option>
+                                                    <% }); %>
+                                                      <option value="__new__">Add new category</option>
+                                                </select>
+                                                <small class="text-muted">Choose an existing category, or add a new
+                                                  one.</small>
+                                              </div>
 
-                                      <div class="mb-3 d-none" id="new-category-wrap">
-                                        <label for="newCategory" class="form-label">New category name</label>
-                                        <input type="text" class="form-control" id="newCategory" name="newCategory"
-                                          placeholder="e.g. Hoodies">
-                                      </div>
+                                              <div class="mb-3 d-none" id="new-category-wrap">
+                                                <label for="newCategory" class="form-label">New category name</label>
+                                                <input type="text" class="form-control" id="newCategory"
+                                                  name="newCategory" placeholder="e.g. Hoodies">
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label for="offer" class="form-label">Promotional offer</label>
-                                        <textarea class="form-control" id="offer" name="offer" rows="2"
-                                          placeholder="E.g. Free delivery with every purchase"><%= product.offerMessage || '' %></textarea>
-                                        <small class="text-muted">Optional message shown to shoppers alongside any
-                                          discount.</small>
-                                      </div>
+                                              <div class="mb-3">
+                                                <label for="offer" class="form-label">Promotional offer</label>
+                                                <textarea class="form-control" id="offer" name="offer" rows="2"
+                                                  placeholder="E.g. Free delivery with every purchase"><%= product.offerMessage || '' %></textarea>
+                                                <small class="text-muted">Optional message shown to shoppers alongside
+                                                  any
+                                                  discount.</small>
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label for="description" class="form-label">Shirt description</label>
-                                        <textarea class="form-control" id="description" name="description" rows="3"
-                                          placeholder="Describe the fit, feel, and style of this shirt."><%= details.description || '' %></textarea>
-                                      </div>
+                                              <div class="mb-3">
+                                                <label for="description" class="form-label">Shirt description</label>
+                                                <textarea class="form-control" id="description" name="description"
+                                                  rows="3"
+                                                  placeholder="Describe the fit, feel, and style of this shirt."><%= details.description || '' %></textarea>
+                                              </div>
 
-                                      <div class="row g-3">
-                                        <div class="col-12 col-md-6">
-                                          <div class="mb-3">
-                                            <label for="fitType" class="form-label">Fit type</label>
-                                            <select class="form-select" id="fitType" name="fitType">
-                                              <option value="">Select fit</option>
-                                              <option value="Regular" <%=details.fitType==='Regular' ? 'selected' : ''
-                                                %>>Regular</option>
-                                              <option value="Oversized" <%=details.fitType==='Oversized' ? 'selected'
-                                                : '' %>>Oversized</option>
-                                              <option value="Slim" <%=details.fitType==='Slim' ? 'selected' : '' %>>Slim
-                                              </option>
-                                              <option value="Relaxed" <%=details.fitType==='Relaxed' ? 'selected' : ''
-                                                %>>Relaxed</option>
-                                            </select>
-                                          </div>
-                                        </div>
-                                        <div class="col-12 col-md-6">
-                                          <div class="mb-3">
-                                            <label for="material" class="form-label">Material</label>
-                                            <select class="form-select" id="material" name="material">
-                                              <option value="">Select material</option>
-                                              <option value="100% Cotton" <%=details.material==='100% Cotton'
-                                                ? 'selected' : '' %>>100% Cotton</option>
-                                              <option value="Cotton Blend" <%=details.material==='Cotton Blend'
-                                                ? 'selected' : '' %>>Cotton Blend</option>
-                                              <option value="Dry-fit" <%=details.material==='Dry-fit' ? 'selected' : ''
-                                                %>>Dry-fit</option>
-                                            </select>
-                                          </div>
-                                        </div>
-                                      </div>
+                                              <div class="row g-3">
+                                                <div class="col-12 col-md-6">
+                                                  <div class="mb-3">
+                                                    <label for="fitType" class="form-label">Fit type</label>
+                                                    <select class="form-select" id="fitType" name="fitType">
+                                                      <option value="">Select fit</option>
+                                                      <option value="Regular" <%=details.fitType==='Regular'
+                                                        ? 'selected' : '' %>>Regular</option>
+                                                      <option value="Oversized" <%=details.fitType==='Oversized'
+                                                        ? 'selected' : '' %>>Oversized</option>
+                                                      <option value="Slim" <%=details.fitType==='Slim' ? 'selected' : ''
+                                                        %>>Slim
+                                                      </option>
+                                                      <option value="Relaxed" <%=details.fitType==='Relaxed'
+                                                        ? 'selected' : '' %>>Relaxed</option>
+                                                    </select>
+                                                  </div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                  <div class="mb-3">
+                                                    <label for="material" class="form-label">Material</label>
+                                                    <select class="form-select" id="material" name="material">
+                                                      <option value="">Select material</option>
+                                                      <option value="100% Cotton" <%=details.material==='100% Cotton'
+                                                        ? 'selected' : '' %>>100% Cotton</option>
+                                                      <option value="Cotton Blend" <%=details.material==='Cotton Blend'
+                                                        ? 'selected' : '' %>>Cotton Blend</option>
+                                                      <option value="Dry-fit" <%=details.material==='Dry-fit'
+                                                        ? 'selected' : '' %>>Dry-fit</option>
+                                                    </select>
+                                                  </div>
+                                                </div>
+                                              </div>
 
-                                      <div class="row g-3">
-                                        <div class="col-12 col-md-6">
-                                          <div class="mb-3">
-                                            <label for="color" class="form-label">Color</label>
-                                            <input type="text" class="form-control" id="color" name="color"
-                                              value="<%= details.color || '' %>" placeholder="e.g. Midnight Navy">
-                                          </div>
-                                        </div>
-                                      </div>
+                                              <div class="row g-3">
+                                                <div class="col-12 col-md-6">
+                                                  <div class="mb-3">
+                                                    <label for="color" class="form-label">Color</label>
+                                                    <input type="text" class="form-control" id="color" name="color"
+                                                      value="<%= details.color || '' %>"
+                                                      placeholder="e.g. Midnight Navy">
+                                                  </div>
+                                                </div>
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label for="care" class="form-label">Care instructions</label>
-                                        <input type="text" class="form-control" id="care" name="care"
-                                          value="<%= details.care || '' %>"
-                                          placeholder="e.g. Machine wash cold, tumble dry low">
-                                      </div>
+                                              <div class="mb-3">
+                                                <label for="care" class="form-label">Care instructions</label>
+                                                <input type="text" class="form-control" id="care" name="care"
+                                                  value="<%= details.care || '' %>"
+                                                  placeholder="e.g. Machine wash cold, tumble dry low">
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label class="form-label">Current front image</label>
-                                        <% if (frontImage && frontImage.image_url) { %>
-                                          <img src="/images/<%= frontImage.image_url %>"
-                                            alt="<%= product.productName %> front" class="img-fluid rounded mb-2"
-                                            style="max-height: 200px; object-fit: cover;">
-                                          <% } else if (product.image) { %>
-                                            <img src="/images/<%= product.image %>"
-                                              alt="<%= product.productName %> front" class="img-fluid rounded mb-2"
-                                              style="max-height: 200px; object-fit: cover;">
-                                            <% } else { %>
-                                              <p class="text-muted">No front image uploaded.</p>
-                                              <% } %>
-                                                <input type="hidden" name="currentImage"
-                                                  value="<%= frontImage && frontImage.image_url ? frontImage.image_url : product.image %>">
-                                      </div>
+                                              <div class="mb-3">
+                                                <label class="form-label">Current front image</label>
+                                                <% if (frontImage && frontImage.image_url) { %>
+                                                  <img src="/images/<%= frontImage.image_url %>"
+                                                    alt="<%= product.productName %> front"
+                                                    class="img-fluid rounded mb-2"
+                                                    style="max-height: 200px; object-fit: cover;">
+                                                  <% } else if (product.image) { %>
+                                                    <img src="/images/<%= product.image %>"
+                                                      alt="<%= product.productName %> front"
+                                                      class="img-fluid rounded mb-2"
+                                                      style="max-height: 200px; object-fit: cover;">
+                                                    <% } else { %>
+                                                      <p class="text-muted">No front image uploaded.</p>
+                                                      <% } %>
+                                                        <input type="hidden" name="currentImage"
+                                                          value="<%= frontImage && frontImage.image_url ? frontImage.image_url : product.image %>">
+                                              </div>
 
-                                      <div class="mb-4">
-                                        <label for="imageFront" class="form-label">Replace front image</label>
-                                        <input class="form-control" type="file" id="imageFront" name="imageFront"
-                                          accept="image/*">
-                                        <small class="text-muted">Leave blank to keep the existing front image.</small>
-                                      </div>
+                                              <div class="mb-4">
+                                                <label for="imageFront" class="form-label">Replace front image</label>
+                                                <input class="form-control" type="file" id="imageFront"
+                                                  name="imageFront" accept="image/*">
+                                                <small class="text-muted">Leave blank to keep the existing front
+                                                  image.</small>
+                                              </div>
 
-                                      <div class="mb-3">
-                                        <label class="form-label">Current back image</label>
-                                        <% if (backImage && backImage.image_url) { %>
-                                          <img src="/images/<%= backImage.image_url %>"
-                                            alt="<%= product.productName %> back" class="img-fluid rounded mb-2"
-                                            style="max-height: 200px; object-fit: cover;">
-                                          <% } else { %>
-                                            <p class="text-muted">No back image uploaded.</p>
-                                            <% } %>
-                                      </div>
+                                              <div class="mb-3">
+                                                <label class="form-label">Current back image</label>
+                                                <% if (backImage && backImage.image_url) { %>
+                                                  <img src="/images/<%= backImage.image_url %>"
+                                                    alt="<%= product.productName %> back" class="img-fluid rounded mb-2"
+                                                    style="max-height: 200px; object-fit: cover;">
+                                                  <% } else { %>
+                                                    <p class="text-muted">No back image uploaded.</p>
+                                                    <% } %>
+                                              </div>
 
-                                      <div class="mb-4">
-                                        <label for="imageBack" class="form-label">Replace back image</label>
-                                        <input class="form-control" type="file" id="imageBack" name="imageBack"
-                                          accept="image/*">
-                                        <small class="text-muted">Optional back view for the product gallery.</small>
-                                      </div>
+                                              <div class="mb-4">
+                                                <label for="imageBack" class="form-label">Replace back image</label>
+                                                <input class="form-control" type="file" id="imageBack" name="imageBack"
+                                                  accept="image/*">
+                                                <small class="text-muted">Optional back view for the product
+                                                  gallery.</small>
+                                              </div>
 
-                                      <div class="d-flex gap-2">
-                                        <button type="submit" class="btn btn-primary flex-grow-1">Save changes</button>
-                                        <a href="/inventory" class="btn btn-secondary">Cancel</a>
-                                      </div>
+                                              <div class="d-flex gap-2">
+                                                <button type="submit" class="btn btn-primary flex-grow-1">Save
+                                                  changes</button>
+                                                <a href="/inventory" class="btn btn-secondary">Cancel</a>
+                                              </div>
                                     </form>
                   </div>
                   <% } else { %>
@@ -240,10 +273,7 @@
         var brandWrap = document.getElementById('new-brand-wrap');
         var brandInput = document.getElementById('newBrand');
         var totalQty = document.getElementById('quantity');
-        var sizeGrid = document.getElementById('size-input-grid');
-        var sizeInputs = [];
-        var sizeOrder = ['2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
-        var existingQuantities = <% - JSON.stringify(sizeQuantities || {}) %>;
+        var sizeInputs = Array.prototype.slice.call(document.querySelectorAll('#size-input-grid .size-input'));
 
         if (category && categoryWrap && categoryInput) {
           var toggleCustomCategory = function () {
@@ -273,13 +303,6 @@
           toggleCustomBrand();
         }
 
-        var buildSizeKey = function (sizeLabel) {
-          if (sizeLabel === 'One-Size') {
-            return 'size_one_size';
-          }
-          return 'size_' + sizeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-        };
-
         var updateTotalQty = function () {
           if (!totalQty || !sizeInputs.length) {
             return;
@@ -301,33 +324,9 @@
           totalQty.value = total;
         };
 
-        var renderSizeInputs = function () {
-          if (!sizeGrid) {
-            return;
-          }
-          sizeGrid.innerHTML = '';
-          var existingSizes = Object.keys(existingQuantities || {});
-          var sizes = existingSizes.length ? existingSizes : sizeOrder.slice();
-
-          sizes.forEach(function (size) {
-            var col = document.createElement('div');
-            col.className = 'col-6 col-md-3';
-            var key = buildSizeKey(size);
-            var value = typeof existingQuantities[size] !== 'undefined' ? existingQuantities[size] : '';
-            col.innerHTML =
-              '<label class="form-label small" for="' + key + '">' + size + '</label>' +
-              '<input type="number" class="form-control size-input" id="' + key + '" name="' + key + '" min="0" step="1" placeholder="0" value="' + value + '">';
-            sizeGrid.appendChild(col);
-          });
-
-          sizeInputs = Array.prototype.slice.call(sizeGrid.querySelectorAll('.size-input'));
-          sizeInputs.forEach(function (field) {
-            field.addEventListener('input', updateTotalQty);
-          });
-          updateTotalQty();
-        };
-
-        renderSizeInputs();
+        sizeInputs.forEach(function (field) {
+          field.addEventListener('input', updateTotalQty);
+        });
         updateTotalQty();
       });
     </script>
