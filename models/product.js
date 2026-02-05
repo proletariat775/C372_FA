@@ -454,6 +454,28 @@ const Product = {
             if (err) return callback(err);
             return callback(null, rows && rows[0] ? rows[0] : { totalProducts: 0, totalUnits: 0 });
         });
+    },
+
+    increaseVariantQuantity: (variantId, productId, quantity, callback) => {
+        const safeVariantId = Number(variantId);
+        const safeProductId = Number(productId);
+        const safeQty = Number(quantity);
+        if (!Number.isFinite(safeVariantId) || !Number.isFinite(safeProductId) || !Number.isFinite(safeQty) || safeQty <= 0) {
+            return callback(new Error('Invalid restock quantity.'));
+        }
+
+        connection.query(
+            'UPDATE product_variants SET quantity = quantity + ? WHERE id = ?',
+            [safeQty, safeVariantId],
+            (variantErr) => {
+                if (variantErr) return callback(variantErr);
+                connection.query(
+                    'UPDATE products SET total_quantity = total_quantity + ? WHERE id = ?',
+                    [safeQty, safeProductId],
+                    callback
+                );
+            }
+        );
     }
 };
 

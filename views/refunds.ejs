@@ -1,0 +1,73 @@
+<%- include('partials/header', { title: 'Refund Requests | Shirt Shop' }) %>
+<%- include('partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
+
+<main class="page-section">
+  <div class="container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <p class="mb-1 text-muted">Your account</p>
+        <h2 class="mb-0">Refund requests</h2>
+      </div>
+      <a href="/orders/history" class="btn btn-outline-secondary">Back to orders</a>
+    </div>
+
+    <% if (messages && messages.length) { %>
+      <% messages.forEach(function(message) { %>
+        <div class="alert alert-success"><%= message %></div>
+      <% }); %>
+    <% } %>
+
+    <% if (errors && errors.length) { %>
+      <% errors.forEach(function(error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% }); %>
+    <% } %>
+
+    <% const paymentLabel = (method) => {
+      const value = (method || '').toString().toLowerCase();
+      if (value === 'paypal') return 'PayPal';
+      if (value === 'card') return 'Card';
+      return method ? method.toUpperCase() : 'Unknown';
+    }; %>
+
+    <% if (!requests || requests.length === 0) { %>
+      <div class="empty-state">
+        <h3>No refund requests yet</h3>
+        <p class="text-muted">You can request a refund from your order history.</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Order</th>
+              <th>Payment</th>
+              <th>Requested Amount</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% requests.forEach(function(request) { %>
+              <tr>
+                <td class="fw-semibold">#<%= request.id %></td>
+                <td>Order #<%= request.orderId %></td>
+                <td><span class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span></td>
+                <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
+                <td><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></td>
+                <td><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></td>
+                <td>
+                  <a href="/refunds/<%= request.id %>" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</main>
+
+<%- include('partials/footer') %>

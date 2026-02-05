@@ -1,0 +1,114 @@
+<%- include('partials/header', { title: 'Refund Request | Shirt Shop' }) %>
+<%- include('partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
+
+<main class="page-section">
+  <div class="container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <div>
+        <p class="mb-1 text-muted">Request #<%= request.id %></p>
+        <h2 class="mb-0">Refund request details</h2>
+      </div>
+      <a href="/refunds" class="btn btn-outline-secondary">Back to requests</a>
+    </div>
+
+    <% const paymentLabel = (method) => {
+      const value = (method || '').toString().toLowerCase();
+      if (value === 'paypal') return 'PayPal';
+      if (value === 'card') return 'Card';
+      return method ? method.toUpperCase() : 'Unknown';
+    }; %>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="small text-muted">Order</div>
+            <div class="fw-semibold">Order #<%= request.orderId %></div>
+            <div class="small text-muted mt-2">Payment method</div>
+            <div><span class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span></div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Requested amount</div>
+            <div class="fw-semibold">$<%= Number(request.requestedAmount || 0).toFixed(2) %></div>
+            <div class="small text-muted mt-2">Status</div>
+            <div><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></div>
+          </div>
+          <% if (request.reason) { %>
+            <div class="col-12">
+              <div class="small text-muted">Reason</div>
+              <div><%= request.reason %></div>
+            </div>
+          <% } %>
+          <% if (request.adminNote) { %>
+            <div class="col-12">
+              <div class="small text-muted">Admin note</div>
+              <div><%= request.adminNote %></div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Refund items</h5>
+        <% if (!items || items.length === 0) { %>
+          <p class="text-muted">No items selected for refund.</p>
+        <% } else { %>
+          <div class="table-responsive mb-4">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-end">Unit price</th>
+                  <th class="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% items.forEach(function(item) { %>
+                  <tr>
+                    <td><%= item.productName || ('Product #' + item.productId) %></td>
+                    <td class="text-center"><%= item.quantity %></td>
+                    <td class="text-end">$<%= Number(item.unitPrice).toFixed(2) %></td>
+                    <td class="text-end">$<%= (Number(item.unitPrice) * Number(item.quantity)).toFixed(2) %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+
+        <h5 class="card-title">Refund processing</h5>
+        <% if (!refunds || refunds.length === 0) { %>
+          <p class="text-muted mb-0">No refund transactions recorded yet.</p>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Refund ID</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% refunds.forEach(function(refund) { %>
+                  <tr>
+                    <td>#<%= refund.id %></td>
+                    <td>$<%= Number(refund.amount || 0).toFixed(2) %> <%= refund.currency || '' %></td>
+                    <td><span class="badge bg-light text-dark border"><%= refund.status || 'UNKNOWN' %></span></td>
+                    <td><%= refund.createdAt ? new Date(refund.createdAt).toLocaleString() : '-' %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('partials/footer') %>

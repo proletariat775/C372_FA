@@ -213,6 +213,12 @@
                                                                 <% } %>
                                                 </div>
                                                 <% } %>
+                                                <% if (user && user.role === 'customer') { %>
+                                                  <div class="mt-3 d-flex flex-wrap gap-2">
+                                                    <a href="/refunds/request/<%= order.id %>" class="btn btn-outline-warning btn-sm">Request refund</a>
+                                                    <a href="/refunds" class="btn btn-outline-secondary btn-sm">View refund requests</a>
+                                                  </div>
+                                                <% } %>
 
                                                   <div class="card mt-3">
                                                     <div class="card-body">

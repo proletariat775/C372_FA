@@ -1,112 +1,102 @@
-const https = require('https');
+const PAYPAL_CLIENT = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+const PAYPAL_API = process.env.PAYPAL_API;
 
-const getApiHost = () => {
-    const mode = (process.env.PAYPAL_MODE || 'sandbox').toLowerCase();
-    return mode === 'live' ? 'api-m.paypal.com' : 'api-m.sandbox.paypal.com';
+const tokenCache = {
+    accessToken: null,
+    expiresAt: 0
 };
 
-const requestPayPal = (options, body) => new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-            data += chunk;
-        });
-        res.on('end', () => {
-            try {
-                const parsed = data ? JSON.parse(data) : {};
-                if (res.statusCode >= 200 && res.statusCode < 300) {
-                    return resolve(parsed);
-                }
-                const error = new Error(parsed.message || 'PayPal API error');
-                error.status = res.statusCode;
-                error.details = parsed;
-                return reject(error);
-            } catch (parseErr) {
-                return reject(parseErr);
-            }
-        });
-    });
-
-    req.on('error', reject);
-    if (body) {
-        req.write(body);
+const ensureFetch = () => {
+    if (typeof fetch !== 'function') {
+        throw new Error('Global fetch is not available. Use Node 18+ or add a fetch polyfill.');
     }
-    req.end();
-});
+};
 
 const getAccessToken = async () => {
-    const clientId = process.env.PAYPAL_CLIENT_ID;
-    const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-        throw new Error('PayPal credentials are missing.');
+    if (!PAYPAL_CLIENT || !PAYPAL_SECRET || !PAYPAL_API) {
+        throw new Error('Missing PayPal configuration.');
     }
 
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-    const body = 'grant_type=client_credentials';
+    ensureFetch();
 
-    return requestPayPal({
-        hostname: getApiHost(),
-        path: '/v1/oauth2/token',
+    if (tokenCache.accessToken && Date.now() < tokenCache.expiresAt) {
+        return tokenCache.accessToken;
+    }
+
+    const response = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
         method: 'POST',
         headers: {
-            Authorization: `Basic ${auth}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': Buffer.byteLength(body)
-        }
-    }, body).then((response) => response.access_token);
+            Authorization: 'Basic ' + Buffer.from(`${PAYPAL_CLIENT}:${PAYPAL_SECRET}`).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'grant_type=client_credentials'
+    });
+
+    const data = await response.json();
+    if (data && data.access_token && data.expires_in) {
+        const bufferMs = 60 * 1000;
+        tokenCache.accessToken = data.access_token;
+        tokenCache.expiresAt = Date.now() + (Number(data.expires_in) * 1000) - bufferMs;
+    }
+    return data.access_token;
 };
 
-const createOrder = async ({ amount, currency, returnUrl, cancelUrl }) => {
-    const token = await getAccessToken();
-    const payload = JSON.stringify({
+const createOrder = async ({ amount, currency, returnUrl, cancelUrl, invoiceNumber, customId }) => {
+    const accessToken = await getAccessToken();
+    const payload = {
         intent: 'CAPTURE',
         purchase_units: [
             {
                 amount: {
                     currency_code: currency || 'USD',
                     value: Number(amount || 0).toFixed(2)
-                }
+                },
+                invoice_id: invoiceNumber || undefined,
+                custom_id: customId || undefined
             }
-        ],
-        application_context: {
+        ]
+    };
+
+    if (returnUrl || cancelUrl) {
+        payload.application_context = {
             return_url: returnUrl,
             cancel_url: cancelUrl
-        }
-    });
+        };
+    }
 
-    const response = await requestPayPal({
-        hostname: getApiHost(),
-        path: '/v2/checkout/orders',
+    const response = await fetch(`${PAYPAL_API}/v2/checkout/orders`, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-        }
-    }, payload);
+            Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+    });
 
-    const approvalLink = (response.links || []).find((link) => link.rel === 'approve');
+    const data = await response.json();
+    const approvalLink = (data.links || []).find((link) => link.rel === 'approve');
     return {
-        id: response.id,
-        approvalUrl: approvalLink ? approvalLink.href : null
+        id: data.id,
+        approvalUrl: approvalLink ? approvalLink.href : null,
+        raw: data
     };
 };
 
 const captureOrder = async (orderId) => {
-    const token = await getAccessToken();
-    return requestPayPal({
-        hostname: getApiHost(),
-        path: `/v2/checkout/orders/${orderId}/capture`,
+    const accessToken = await getAccessToken();
+    const response = await fetch(`${PAYPAL_API}/v2/checkout/orders/${orderId}/capture`, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
         }
     });
+    return response.json();
 };
 
 module.exports = {
     createOrder,
-    captureOrder
+    captureOrder,
+    getAccessToken
 };
