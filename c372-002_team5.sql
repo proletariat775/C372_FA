@@ -1,15 +1,15 @@
 -- c372-002_team5.sql
 -- Full schema for current C372 app (MySQL 8+)
-
+ 
 CREATE DATABASE IF NOT EXISTS `c372-002_team5`
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
-
+ 
 USE `c372-002_team5`;
-
+ 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
-
+ 
 DROP TABLE IF EXISTS invoice_items;
 DROP TABLE IF EXISTS invoice;
 DROP TABLE IF EXISTS coupon_usage;
@@ -20,9 +20,6 @@ DROP TABLE IF EXISTS wishlist;
 DROP TABLE IF EXISTS cart_items;
 DROP TABLE IF EXISTS cart;
 DROP TABLE IF EXISTS order_items;
-DROP TABLE IF EXISTS refund_request_items;
-DROP TABLE IF EXISTS refund_requests;
-DROP TABLE IF EXISTS refunds;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS coupons;
 DROP TABLE IF EXISTS product_images;
@@ -32,9 +29,9 @@ DROP TABLE IF EXISTS sizes;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS brands;
 DROP TABLE IF EXISTS users;
-
+ 
 SET FOREIGN_KEY_CHECKS = 1;
-
+ 
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(100) NOT NULL,
@@ -48,14 +45,14 @@ CREATE TABLE users (
   zip_code VARCHAR(20) NULL,
   country VARCHAR(100) NULL,
   phone VARCHAR(30) NULL,
-  role ENUM('user', 'customer', 'admin') NOT NULL DEFAULT 'customer',
+  role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
   free_delivery TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
   UNIQUE KEY uq_users_username (username)
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE brands (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
@@ -66,7 +63,7 @@ CREATE TABLE brands (
   UNIQUE KEY uq_brands_name (name),
   UNIQUE KEY uq_brands_slug (slug)
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE categories (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
@@ -77,7 +74,7 @@ CREATE TABLE categories (
   UNIQUE KEY uq_categories_name (name),
   UNIQUE KEY uq_categories_slug (slug)
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE sizes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(20) NOT NULL,
@@ -85,7 +82,7 @@ CREATE TABLE sizes (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_sizes_name (name)
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE products (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(200) NOT NULL,
@@ -114,7 +111,7 @@ CREATE TABLE products (
   CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
   CREATE TABLE product_images (
     -- Store multiple rows per product for front/back images. Use is_primary=1 for front,
     -- and sort_order for ordering additional views.
@@ -131,7 +128,7 @@ CREATE TABLE products (
   CONSTRAINT fk_product_images_product FOREIGN KEY (product_id) REFERENCES products(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE product_variants (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
@@ -147,7 +144,7 @@ CREATE TABLE product_variants (
   CONSTRAINT fk_product_variants_product FOREIGN KEY (product_id) REFERENCES products(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE cart (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
@@ -157,7 +154,7 @@ CREATE TABLE cart (
   CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE cart_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   cart_id INT NOT NULL,
@@ -172,7 +169,7 @@ CREATE TABLE cart_items (
   CONSTRAINT fk_cart_items_variant FOREIGN KEY (product_variant_id) REFERENCES product_variants(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_number VARCHAR(40) NOT NULL,
@@ -185,8 +182,6 @@ CREATE TABLE orders (
   total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   payment_method VARCHAR(50) NOT NULL DEFAULT 'cod',
   payment_status ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
-  paypal_capture_id VARCHAR(80) NULL,
-  refunded_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_address VARCHAR(255) NULL,
   billing_address VARCHAR(255) NULL,
   promo_code VARCHAR(50) NULL,
@@ -210,7 +205,7 @@ CREATE TABLE orders (
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE order_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_id INT NOT NULL,
@@ -232,59 +227,7 @@ CREATE TABLE order_items (
   CONSTRAINT fk_order_items_variant FOREIGN KEY (product_variant_id) REFERENCES product_variants(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-CREATE TABLE refund_requests (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  order_id INT NOT NULL,
-  user_id INT NOT NULL,
-  requested_amount DECIMAL(10,2) NOT NULL,
-  reason VARCHAR(500) NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-  admin_note VARCHAR(500) NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_refund_requests_order (order_id),
-  KEY idx_refund_requests_user (user_id),
-  CONSTRAINT fk_refund_requests_order FOREIGN KEY (order_id) REFERENCES orders(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_refund_requests_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE refund_request_items (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  request_id INT NOT NULL,
-  order_item_id INT NOT NULL,
-  product_id INT NOT NULL,
-  product_variant_id INT NOT NULL,
-  quantity INT NOT NULL DEFAULT 1,
-  unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  KEY idx_refund_request_items_request (request_id),
-  KEY idx_refund_request_items_order_item (order_item_id),
-  CONSTRAINT fk_refund_request_items_request FOREIGN KEY (request_id) REFERENCES refund_requests(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_refund_request_items_order_item FOREIGN KEY (order_item_id) REFERENCES order_items(id)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE refunds (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  request_id INT NULL,
-  order_id INT NOT NULL,
-  paypal_refund_id VARCHAR(80) NULL,
-  paypal_capture_id VARCHAR(80) NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  currency VARCHAR(5) NOT NULL DEFAULT 'SGD',
-  status VARCHAR(30) NOT NULL DEFAULT 'UNKNOWN',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_refunds_request (request_id),
-  KEY idx_refunds_order (order_id),
-  CONSTRAINT fk_refunds_order FOREIGN KEY (order_id) REFERENCES orders(id)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_refunds_request FOREIGN KEY (request_id) REFERENCES refund_requests(id)
-    ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB;
-
+ 
 CREATE TABLE coupons (
   id INT AUTO_INCREMENT PRIMARY KEY,
   code VARCHAR(50) NOT NULL,
@@ -307,7 +250,7 @@ CREATE TABLE coupons (
   CONSTRAINT fk_coupons_brand FOREIGN KEY (brand_id) REFERENCES brands(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE coupon_usage (
   id INT AUTO_INCREMENT PRIMARY KEY,
   coupon_id INT NOT NULL,
@@ -324,7 +267,7 @@ CREATE TABLE coupon_usage (
   CONSTRAINT fk_coupon_usage_order FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE wishlist (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
@@ -337,7 +280,7 @@ CREATE TABLE wishlist (
   CONSTRAINT fk_wishlist_product FOREIGN KEY (product_id) REFERENCES products(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE product_reviews (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
@@ -354,7 +297,7 @@ CREATE TABLE product_reviews (
   CONSTRAINT fk_product_reviews_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE reviews (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
@@ -375,7 +318,7 @@ CREATE TABLE reviews (
   CONSTRAINT fk_reviews_order_item FOREIGN KEY (order_item_id) REFERENCES order_items(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE product_details (
   id INT AUTO_INCREMENT PRIMARY KEY,
   product_id INT NOT NULL,
@@ -391,7 +334,7 @@ CREATE TABLE product_details (
   CONSTRAINT fk_product_details_product FOREIGN KEY (product_id) REFERENCES products(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 -- Present in your current DB list; kept for compatibility/extension.
 CREATE TABLE invoice (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -408,7 +351,7 @@ CREATE TABLE invoice (
   CONSTRAINT fk_invoice_order FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 CREATE TABLE invoice_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   invoice_id INT NOT NULL,
@@ -424,16 +367,17 @@ CREATE TABLE invoice_items (
   CONSTRAINT fk_invoice_items_order_item FOREIGN KEY (order_item_id) REFERENCES order_items(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
+ 
 -- Optional starter records
 INSERT INTO categories (name, slug, is_active)
 VALUES ('General', 'general', 1)
 ON DUPLICATE KEY UPDATE is_active = VALUES(is_active);
-
+ 
 INSERT INTO users (username, email, password, role)
 VALUES
   ('admin', 'admin@shirtshop.local', SHA1('admin123'), 'admin'),
   ('user', 'user@shirtshop.local', SHA1('user123'), 'user')
 ON DUPLICATE KEY UPDATE role = VALUES(role);
-
+ 
 SET FOREIGN_KEY_CHECKS = 1;
+  
