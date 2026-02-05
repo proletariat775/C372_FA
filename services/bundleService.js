@@ -5,6 +5,15 @@ const toNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const normalizeLabel = (value) => {
+    if (!value) {
+        return '';
+    }
+    return String(value).trim();
+};
+
+const buildKey = (value) => normalizeLabel(value).toLowerCase();
+
 const normalizeProductIds = (ids) => {
     if (!Array.isArray(ids)) {
         return [];
@@ -81,6 +90,7 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
 
     const quantityByProduct = {};
     const valueByProduct = {};
+    const metaByProduct = {};
 
     cartItems.forEach((item) => {
         const productId = Number(item.productId);
@@ -93,6 +103,17 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
 
         quantityByProduct[productId] = (quantityByProduct[productId] || 0) + quantity;
         valueByProduct[productId] = (valueByProduct[productId] || 0) + (price * quantity);
+
+        if (!metaByProduct[productId]) {
+            const brandLabel = normalizeLabel(item.brand);
+            const categoryLabel = normalizeLabel(item.category);
+            metaByProduct[productId] = {
+                brandLabel,
+                categoryLabel,
+                brandKey: buildKey(brandLabel),
+                categoryKey: buildKey(categoryLabel)
+            };
+        }
     });
 
     const remainingQty = { ...quantityByProduct };
@@ -139,6 +160,88 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
             bundleId: bundle.id,
             setsCompleted
         });
+    });
+
+    const brandBuckets = {};
+    Object.keys(remainingQty).forEach((key) => {
+        const productId = Number(key);
+        const qty = Math.floor(toNumber(remainingQty[productId]));
+        if (!Number.isFinite(productId) || qty <= 0) {
+            return;
+        }
+
+        const meta = metaByProduct[productId];
+        if (!meta || !meta.brandKey || !meta.categoryKey) {
+            return;
+        }
+
+        const unitPrice = toNumber(averagePrice[productId]);
+        if (unitPrice <= 0) {
+            return;
+        }
+
+        if (!brandBuckets[meta.brandKey]) {
+            brandBuckets[meta.brandKey] = {
+                brandLabel: meta.brandLabel,
+                categories: {}
+            };
+        }
+
+        if (!brandBuckets[meta.brandKey].categories[meta.categoryKey]) {
+            brandBuckets[meta.brandKey].categories[meta.categoryKey] = [];
+        }
+
+        for (let i = 0; i < qty; i += 1) {
+            brandBuckets[meta.brandKey].categories[meta.categoryKey].push(unitPrice);
+        }
+    });
+
+    Object.keys(brandBuckets).forEach((brandKey) => {
+        const bucket = brandBuckets[brandKey];
+        const categoryEntries = Object.entries(bucket.categories)
+            .map(([categoryKey, prices]) => ({
+                categoryKey,
+                prices: prices.sort((a, b) => b - a)
+            }))
+            .filter(entry => entry.prices.length > 0);
+
+        if (categoryEntries.length < 2) {
+            return;
+        }
+
+        let setsCompleted = 0;
+        let brandValue = 0;
+
+        while (true) {
+            const available = categoryEntries.filter(entry => entry.prices.length > 0);
+            if (available.length < 2) {
+                break;
+            }
+
+            available.sort((a, b) => (b.prices[0] || 0) - (a.prices[0] || 0));
+            const first = available[0];
+            const second = available[1];
+
+            const price1 = first.prices.shift();
+            const price2 = second.prices.shift();
+            if (!Number.isFinite(price1) || !Number.isFinite(price2)) {
+                break;
+            }
+
+            brandValue += price1 + price2;
+            setsCompleted += 1;
+        }
+
+        if (setsCompleted > 0 && brandValue > 0) {
+            discountAmount += brandValue * DEFAULT_BUNDLE_RATE;
+            totalBundleSets += setsCompleted;
+            appliedBundles.push({
+                bundleId: `brand-${brandKey}`,
+                setsCompleted,
+                brand: bucket.brandLabel,
+                type: 'brand-category'
+            });
+        }
     });
 
     const discountPercent = totalBundleSets * (DEFAULT_BUNDLE_RATE * 100);

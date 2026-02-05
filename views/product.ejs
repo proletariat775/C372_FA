@@ -41,35 +41,10 @@
                                       if (bIndex === -1) return -1;
                                       return aIndex - bIndex;
                                       }); %>
-                                      <% const parseSizeRange=(range)=> {
-                                        if (!range) return null;
-                                        const trimmed = String(range).trim();
-                                        if (!trimmed) return null;
-                                        const normalized = normalizeSize(trimmed);
-                                        if (normalized === 'One-Size') return ['One-Size'];
-                                        if (trimmed.indexOf(',') !== -1) {
-                                        return trimmed.split(',').map(item => normalizeSize(item)).filter(Boolean);
-                                        }
-                                        if (trimmed.indexOf('-') !== -1) {
-                                        const parts = trimmed.split('-').map(item => normalizeSize(item));
-                                        if (parts.length >= 2) {
-                                        const startIndex = sizeOrder.indexOf(parts[0]);
-                                        const endIndex = sizeOrder.indexOf(parts[1]);
-                                        if (startIndex !== -1 && endIndex !== -1) {
-                                        const from = Math.min(startIndex, endIndex);
-                                        const to = Math.max(startIndex, endIndex);
-                                        return sizeOrder.slice(from, to + 1);
-                                        }
-                                        }
-                                        }
-                                        return null;
-                                        }; %>
-                                        <% const sizeOptions=parseSizeRange(detail.sizeRange) || []; %>
-                                          <% const fallbackSizes=sortedVariants.map(variant=>
-                                            normalizeSize(variant.size)).filter(Boolean); %>
-                                            <% const sizesToShow=sizeOptions.length ? sizeOptions : Array.from(new
-                                              Set(fallbackSizes)); %>
-                                              <% const variantSizeList=fallbackSizes.join(', '); %>
+                                      <% const fallbackSizes=sortedVariants.map(variant=>
+                                        normalizeSize(variant.size)).filter(Boolean); %>
+                                        <% const sizesToShow=Array.from(new Set(fallbackSizes)); %>
+                                          <% const variantSizeList=fallbackSizes.join(', '); %>
 
                       <div class="product-hero-grid">
                         <div class="product-gallery">
@@ -126,7 +101,7 @@
               <div class="col-12">
                 <div class="text-muted small">Available sizes</div>
                 <div class="fw-semibold">
-                  <%= variantSizeList || (detail.sizeRange ? detail.sizeRange : 'Not specified' ) %>
+                  <%= variantSizeList || 'Not specified' %>
                 </div>
               </div>
             </div>

@@ -60,8 +60,7 @@
                             <div class="mb-3">
                               <label class="form-label">Sizes & stock</label>
                               <div id="size-input-grid" class="row g-2"></div>
-                              <small class="text-muted">Sizes are generated from “Size range” (e.g. 3XS-3XL, M-L,
-                                One-Size).</small>
+                              <small class="text-muted">Enter stock levels for each size.</small>
                             </div>
 
                             <div class="mb-3">
@@ -145,13 +144,6 @@
                                     placeholder="e.g. Midnight Navy">
                                 </div>
                               </div>
-                              <div class="col-12 col-md-6">
-                                <div class="mb-3">
-                                  <label for="sizeRange" class="form-label">Size range</label>
-                                  <input type="text" class="form-control" id="sizeRange" name="sizeRange"
-                                    placeholder="e.g. XS-3XL">
-                                </div>
-                              </div>
                             </div>
 
                             <div class="mb-3">
@@ -190,8 +182,7 @@
         var totalQty = document.getElementById('quantity');
         var sizeGrid = document.getElementById('size-input-grid');
         var sizeInputs = [];
-        var sizeRangeInput = document.getElementById('sizeRange');
-        var sizeOrder = ['3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One-Size'];
+        var sizeOrder = ['2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
 
         if (!category || !categoryWrap || !categoryInput) {
           return;
@@ -232,64 +223,12 @@
           return 'size_' + sizeLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
         };
 
-        var normalizeSizeToken = function (token) {
-          if (!token) {
-            return null;
-          }
-          var cleaned = token.trim().toUpperCase().replace(/_/g, '-');
-          if (cleaned === 'ONE-SIZE' || cleaned === 'ONESIZE') {
-            return 'One-Size';
-          }
-          return cleaned;
-        };
-
-        var parseSizeRange = function (value) {
-          if (!value) {
-            return null;
-          }
-          var trimmed = value.trim();
-          if (!trimmed) {
-            return null;
-          }
-
-          var normalized = normalizeSizeToken(trimmed);
-          if (normalized === 'One-Size') {
-            return ['One-Size'];
-          }
-
-          if (trimmed.indexOf(',') !== -1) {
-            return trimmed.split(',').map(function (part) {
-              return normalizeSizeToken(part);
-            }).filter(Boolean);
-          }
-
-          if (trimmed.indexOf('-') !== -1) {
-            var parts = trimmed.split('-').map(function (part) {
-              return normalizeSizeToken(part);
-            });
-            if (parts.length >= 2) {
-              var start = parts[0];
-              var end = parts[1];
-              var startIndex = sizeOrder.indexOf(start);
-              var endIndex = sizeOrder.indexOf(end);
-              if (startIndex !== -1 && endIndex !== -1) {
-                var from = Math.min(startIndex, endIndex);
-                var to = Math.max(startIndex, endIndex);
-                return sizeOrder.slice(from, to + 1);
-              }
-            }
-          }
-
-          return null;
-        };
-
         var renderSizeInputs = function () {
           if (!sizeGrid) {
             return;
           }
           sizeGrid.innerHTML = '';
-          var rangeValue = sizeRangeInput ? sizeRangeInput.value : '';
-          var sizes = parseSizeRange(rangeValue) || ['2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
+          var sizes = sizeOrder.slice();
 
           sizes.forEach(function (size) {
             var col = document.createElement('div');
@@ -328,11 +267,6 @@
           }
           totalQty.value = total;
         };
-
-        if (sizeRangeInput) {
-          sizeRangeInput.addEventListener('input', renderSizeInputs);
-          sizeRangeInput.addEventListener('change', renderSizeInputs);
-        }
 
         renderSizeInputs();
         updateTotalQty();

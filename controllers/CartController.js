@@ -77,6 +77,7 @@ const buildCartItem = (product, variant, quantity) => {
         productName: product.productName || product.name,
         brandId: product.brand_id || product.brandId || null,
         brand: product.brand || product.brand_name || null,
+        category: product.category || product.category_name || null,
         price: finalPrice,
         quantity,
         image: product.image || null,
@@ -188,6 +189,7 @@ const addToCart = (req, res) => {
             description: variant.description,
             brand_id: variant.brand_id,
             brand: variant.brand_name,
+            category: variant.category_name,
             image: variant.image
         };
 

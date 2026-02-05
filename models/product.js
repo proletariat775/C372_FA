@@ -431,6 +431,7 @@ const Product = {
                 p.discount_percent,
                 p.description,
                 p.brand_id,
+                (SELECT c.name FROM categories c WHERE c.id = p.category_id) AS category_name,
                 b.name AS brand_name,
                 (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id LIMIT 1) AS image
             FROM product_variants pv

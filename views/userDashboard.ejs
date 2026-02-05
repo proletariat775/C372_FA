@@ -40,13 +40,6 @@
                                                             role="tab" aria-controls="panel-purchase-history"
                                                             aria-selected="false">Purchase History</button>
                                                     </li>
-                                                    <li class="nav-item" role="presentation">
-                                                        <button class="nav-link" id="tab-request-return"
-                                                            data-bs-toggle="tab" data-bs-target="#panel-request-return"
-                                                            type="button" role="tab"
-                                                            aria-controls="panel-request-return"
-                                                            aria-selected="false">Request Return</button>
-                                                    </li>
                                                 </ul>
 
                                                 <div class="tab-content border border-top-0 rounded-bottom p-4 bg-white"
@@ -249,40 +242,7 @@
                                                                 <% } %>
                                                     </div>
 
-                                                    <div class="tab-pane fade" id="panel-request-return" role="tabpanel"
-                                                        aria-labelledby="tab-request-return">
-                                                        <h4 class="mb-3">Request Return</h4>
-                                                        <p class="text-muted">Start a return request from a delivered
-                                                            order.</p>
 
-                                                        <% const returnableOrders=(orders || []).filter(order=>
-                                                            order.status === 'delivered'); %>
-                                                            <% if (!returnableOrders.length) { %>
-                                                                <div class="alert alert-info mb-0">No delivered orders
-                                                                    available for return yet.</div>
-                                                                <% } else { %>
-                                                                    <div class="list-group">
-                                                                        <% returnableOrders.forEach(function(order) { %>
-                                                                            <div
-                                                                                class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                                                                                <div>
-                                                                                    <div class="fw-semibold">Order #<%=
-                                                                                            order.id %>
-                                                                                    </div>
-                                                                                    <div class="text-muted small">
-                                                                                        Delivered • <%= new
-                                                                                            Date(order.created_at).toLocaleDateString()
-                                                                                            %>
-                                                                                    </div>
-                                                                                </div>
-                                                                                <a href="/order/<%= order.id %>/return"
-                                                                                    class="btn btn-outline-primary btn-sm">Request
-                                                                                    return</a>
-                                                                            </div>
-                                                                            <% }); %>
-                                                                    </div>
-                                                                    <% } %>
-                                                    </div>
                                                 </div>
             </div>
         </main>

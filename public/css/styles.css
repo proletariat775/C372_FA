@@ -367,12 +367,15 @@ a:hover {
   border-radius: 1.25rem;
   border: 1px solid rgba(17, 24, 39, 0.06);
   box-shadow: 0 16px 40px rgba(19, 38, 57, 0.12);
+  display: flex;
+  flex-direction: column;
 }
 
 .bundle-items {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
+  flex: 1;
 }
 
 .bundle-item {
