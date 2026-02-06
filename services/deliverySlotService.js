@@ -1,12 +1,11 @@
 //I declare that this code was written by me. 
 // I will not copy or allow others to copy my code. 
 // I understand that copying code is considered as plagiarism.
- 
-// Student Name: Yeo Jun Long Dave 
-// Student ID:24046757
-// Class:C372-002
-// Date created:06/02/2026
 
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 const DELIVERY_WINDOWS = [
     { key: '09:00-12:00', label: '9:00 AM - 12:00 PM', start: '09:00' },
     { key: '12:00-15:00', label: '12:00 PM - 3:00 PM', start: '12:00' },
