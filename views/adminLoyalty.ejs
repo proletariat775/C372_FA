@@ -11,14 +11,41 @@ Date created: 06/02/2026
 
 <%- include('partials/header', { title: 'EcoPoints Directory | Shirt Shop' }) %>
   <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
+  <style>
+    .admin-loyalty-card {
+      max-width: 980px;
+    }
+
+    .loyalty-adjust-form {
+      display: grid;
+      grid-template-columns: minmax(130px, 150px) minmax(180px, 1fr) auto;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .loyalty-adjust-form .form-control {
+      color: #111827 !important;
+      min-width: 0;
+    }
+
+    .loyalty-adjust-form .btn {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 991.98px) {
+      .loyalty-adjust-form {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 
     <section class="page-section">
       <div class="container">
-        <div class="form-card">
+        <div class="form-card admin-loyalty-card">
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
             <div>
               <h1 class="mb-1">EcoPoints directory</h1>
-              <p class="text-muted mb-0">Read-only view of customer EcoPoints activity.</p>
+              <p class="text-muted mb-0">Adjust customer EcoPoints with a positive or negative value.</p>
             </div>
             <div class="d-flex flex-column align-items-md-end">
               <span class="badge bg-secondary fs-6">Customers: <%= customers ? customers.length : 0 %></span>
@@ -53,6 +80,7 @@ Date created: 06/02/2026
                                       <th scope="col">Customer</th>
                                       <th scope="col">Email</th>
                                       <th scope="col">Current EcoPoints</th>
+                                      <th scope="col">Adjust EcoPoints</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -69,11 +97,17 @@ Date created: 06/02/2026
                                         </td>
                                         <td>
                                           <%= customer.email %>
-                                        </td>
-                                        <td>
+                                        </td>                                        <td>
                                           <span class="badge bg-primary-subtle text-primary fs-6">
                                             <%= Number(customer.loyalty_points || 0) %> pts
                                           </span>
+                                        </td>
+                                        <td>
+                                          <form action="/admin/loyalty/<%= customer.id %>/adjust" method="POST" class="loyalty-adjust-form">
+                                            <input type="number" name="pointsChange" class="form-control form-control-sm text-dark" step="1" placeholder="+50 or -25" required>
+                                            <input type="text" name="note" class="form-control form-control-sm text-dark" placeholder="Reason (optional)" maxlength="60">
+                                            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                                          </form>
                                         </td>
                                       </tr>
                                       <% }); %>
@@ -86,3 +120,7 @@ Date created: 06/02/2026
     </section>
 
     <%- include('partials/footer') %>
+
+
+
+

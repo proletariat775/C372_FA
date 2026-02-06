@@ -106,9 +106,56 @@ const AdminController = {
         });
     },
     adjustUserLoyalty: (req, res) => {
-        req.flash('error', 'EcoPoints are read-only in this view.');
-        return res.redirect('/admin/loyalty');
+        const targetUserId = Number.parseInt(req.params.id, 10);
+        const pointsChange = Number.parseInt(req.body.pointsChange, 10);
+        const note = String(req.body.note || '').trim();
+        const adminUserId = req.session.user && req.session.user.id ? Number.parseInt(req.session.user.id, 10) : null;
+
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+            req.flash('error', 'Invalid customer selected for EcoPoints adjustment.');
+            return res.redirect('/admin/loyalty');
+        }
+
+        if (!Number.isFinite(pointsChange) || pointsChange === 0) {
+            req.flash('error', 'Please enter a positive or negative EcoPoints adjustment.');
+            return res.redirect('/admin/loyalty');
+        }
+
+        User.findById(targetUserId, async (err, users) => {
+            if (err) {
+                console.error('Error loading user for EcoPoints adjustment:', err);
+                req.flash('error', 'Unable to load customer details for EcoPoints adjustment.');
+                return res.redirect('/admin/loyalty');
+            }
+
+            const customer = users && users[0] ? users[0] : null;
+            if (!customer || customer.role !== 'customer') {
+                req.flash('error', 'EcoPoints adjustments are only available for customers.');
+                return res.redirect('/admin/loyalty');
+            }
+
+            try {
+                const adjustment = await loyaltyService.adjustPointsByAdmin({
+                    userId: targetUserId,
+                    pointsChange,
+                    adminUserId,
+                    note
+                });
+
+                const deltaLabel = pointsChange > 0 ? `+${pointsChange}` : `${pointsChange}`;
+                req.flash(
+                    'success',
+                    `EcoPoints updated for ${customer.username}: ${deltaLabel} pts. New balance: ${adjustment.balance} pts.`
+                );
+                return res.redirect('/admin/loyalty');
+            } catch (error) {
+                console.error('Error adjusting EcoPoints:', error);
+                req.flash('error', error.message || 'Unable to adjust EcoPoints for this customer.');
+                return res.redirect('/admin/loyalty');
+            }
+        });
     }
 };
 
 module.exports = AdminController;
+
