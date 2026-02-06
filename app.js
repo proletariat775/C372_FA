@@ -18,6 +18,7 @@ const fitAssistantController = require('./controllers/FitAssistantController');
 // TEAM END - Fit assistant controller
 
 const postPurchaseController = require('./controllers/PostPurchaseController');
+const wishlistController = require('./controllers/WishlistController');
 const refundController = require('./controllers/RefundController');
 const adminRefundController = require('./controllers/AdminRefundController');
 
@@ -141,9 +142,9 @@ app.get('/order/:id/review', checkAuthenticated, checkRoles('customer', 'admin')
 app.post('/review/:id/submit', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.submitReview);
 app.get('/order/:id/return', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.returnForm);
 app.post('/return/:id/process', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.processReturn);
-app.get('/wishlist', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.wishlist);
-app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.addWishlist);
-app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('customer', 'admin'), postPurchaseController.removeWishlist);
+app.get('/wishlist', checkAuthenticated, checkRoles('customer', 'admin'), wishlistController.wishlist);
+app.post('/wishlist/:id/add', checkAuthenticated, checkRoles('customer', 'admin'), wishlistController.addWishlist);
+app.post('/wishlist/:id/remove', checkAuthenticated, checkRoles('customer', 'admin'), wishlistController.removeWishlist);
 app.get('/refunds', checkAuthenticated, checkRoles('customer'), refundController.list);
 app.get('/refunds/request/:orderId', checkAuthenticated, checkRoles('customer'), refundController.showRequestForm);
 app.post('/refunds/request/:orderId', checkAuthenticated, checkRoles('customer'), refundController.submitRequest);
