@@ -4,8 +4,8 @@
 
 // Student Name: Zoey Liaw En Yi
 // Student ID:24049473
-// Class: 
-// Date created:
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 
 
 const connection = require('../db');

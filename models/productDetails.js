@@ -1,4 +1,12 @@
-﻿const connection = require('../db');
+﻿//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Wong De En Amos
+// Student ID: 24042274
+// Class: C372-002
+// Date created: 06/02/2026
+const connection = require('../db');
 
 const normalizeValue = (value) => {
     if (value === null || typeof value === 'undefined') {

@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: wendy liew wen ying 
+// Student ID: 24038281
+// Class: C372-002
+// Date created: 06/02/2026
 const crypto = require('crypto');
 const Coupon = require('../models/coupon');
 const Product = require('../models/product');

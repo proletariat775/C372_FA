@@ -1,3 +1,12 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Zhang KaiXiang 
+// Student ID:24041976
+// Class:C372-002
+// Date created:06/02/2026
+
 const Product = require('../models/product');
 const Order = require('../models/order');
 const Coupon = require('../models/coupon');
