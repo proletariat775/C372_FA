@@ -48,7 +48,7 @@
                 <% if (!eligibility.paid) { %>
                   Payment has not been completed.
                 <% } else if (!eligibility.statusEligible) { %>
-                  Only delivered or completed orders can be refunded.
+                  Only completed orders can be refunded.
                 <% } else if (!eligibility.withinWindow) { %>
                   Refunds must be requested within <%= refundWindowDays %> days.
                 <% } %>
@@ -106,13 +106,23 @@
                 <% } %>
               </div>
               <div class="mb-3">
-                <label for="refund-reason" class="form-label">Reason</label>
+                <label class="form-label">Reason</label>
+                <select name="reason" class="form-select" required>
+                  <option value="" selected disabled>Select a reason</option>
+                  <option value="wrong_item">Wrong item received</option>
+                  <option value="damaged">Item damaged</option>
+                  <option value="not_received">Item not received</option>
+                  <option value="changed_mind">Changed mind</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="refund-comment" class="form-label">Additional details (optional)</label>
                 <textarea
-                  id="refund-reason"
-                  name="reason"
-                  rows="4"
+                  id="refund-comment"
+                  name="comment"
+                  rows="3"
                   class="form-control"
-                  placeholder="Explain the reason for your refund request."></textarea>
+                  placeholder="Share any extra details to help us review your request."></textarea>
               </div>
               <button type="submit" class="btn btn-primary" <%= eligibility && !eligibility.eligible ? 'disabled' : '' %>>Submit request</button>
             </form>

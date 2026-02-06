@@ -73,6 +73,14 @@
             <span class="fw-bold">Invoice #<%= order.id %></span>
             <span>Date: <%= new Date(order.created_at).toLocaleString() %></span>
             <span>Total: $<%= Number(order.total_amount || order.total || 0).toFixed(2) %></span>
+            <% if (refund && refund.refundedAmount > 0) { %>
+              <span class="badge bg-info-subtle text-info mt-1">
+                <%= refund.isRefunded ? 'Refunded' : 'Partial refund' %>
+              </span>
+              <% if (refund.refundDate) { %>
+                <span class="text-muted small">Refunded on <%= new Date(refund.refundDate).toLocaleDateString() %></span>
+              <% } %>
+            <% } %>
           </div>
         </div>
 
@@ -186,6 +194,16 @@
                     <span class="fw-bold">Total</span>
                     <span class="fw-bold">$<%= totals.total %></span>
                   </div>
+                  <% if (refund && refund.refundedAmount > 0) { %>
+                    <div class="d-flex justify-content-between text-danger mt-2">
+                      <span>Refunded amount</span>
+                      <span class="fw-semibold">-$<%= totals.refundedAmount.toFixed(2) %></span>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                      <span class="fw-bold">Net paid</span>
+                      <span class="fw-bold">$<%= totals.netPaid.toFixed(2) %></span>
+                    </div>
+                  <% } %>
                 </div>
               </div>
             </div>

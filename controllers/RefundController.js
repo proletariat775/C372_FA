@@ -3,9 +3,12 @@ const Order = require('../models/order');
 const refundRequestModel = require('../models/refundRequest');
 const refundRequestItemModel = require('../models/refundRequestItem');
 const refundModel = require('../models/refund');
+const orderStatusService = require('../services/orderStatusService');
 
 const REFUND_WINDOW_DAYS = 14;
-const ELIGIBLE_ORDER_STATUSES = new Set(['delivered', 'completed']);
+const ELIGIBLE_ORDER_STATUSES = new Set(['completed']);
+
+// Refund lifecycle: pending -> processing -> completed (or rejected/failed). Amounts are validated server-side.
 
 const renderView = (res, name, data = {}) => res.render(name, { ...data, user: res.locals.user || res.req.session.user });
 
@@ -24,15 +27,17 @@ const buildItemMap = (items = []) => {
 
 const buildRefundEligibility = (order) => {
     const paymentStatus = String(order.payment_status || '').toLowerCase();
-    const orderStatus = String(order.status || '').toLowerCase();
+    const orderStatus = orderStatusService.mapLegacyStatus(order.status || '');
     const paid = paymentStatus === 'paid';
     const statusEligible = ELIGIBLE_ORDER_STATUSES.has(orderStatus);
     let withinWindow = true;
     let daysSince = null;
 
-    const createdAt = order && order.created_at ? new Date(order.created_at) : null;
-    if (createdAt && !Number.isNaN(createdAt.getTime())) {
-        const diffMs = Date.now() - createdAt.getTime();
+    const completedAt = order && order.completed_at ? new Date(order.completed_at) : null;
+    const fallbackDate = order && order.created_at ? new Date(order.created_at) : null;
+    const referenceDate = completedAt && !Number.isNaN(completedAt.getTime()) ? completedAt : fallbackDate;
+    if (referenceDate && !Number.isNaN(referenceDate.getTime())) {
+        const diffMs = Date.now() - referenceDate.getTime();
         daysSince = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         withinWindow = diffMs <= (REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     }
@@ -201,15 +206,24 @@ module.exports = {
     submitRequest(req, res) {
         const userId = req.session.user.id;
         const orderId = Number(req.params.orderId);
-        const reason = req.body.reason ? String(req.body.reason).trim() : '';
+        const reasonKey = req.body.reason ? String(req.body.reason).trim().toLowerCase() : '';
+        const comment = req.body.comment ? String(req.body.comment).trim() : '';
+        const reasonOptions = {
+            wrong_item: 'Wrong item received',
+            damaged: 'Item damaged',
+            not_received: 'Item not received',
+            changed_mind: 'Changed mind'
+        };
+        const reasonLabel = reasonOptions[reasonKey] || '';
+        const reason = reasonLabel ? `${reasonLabel}${comment ? ` - ${comment}` : ''}` : '';
         const selectedItemsRaw = extractItemsPayload(req.body || {});
 
         if (!Number.isFinite(orderId)) {
             req.flash('error', 'Invalid order selected.');
             return res.redirect('/orders/history');
         }
-        if (!reason) {
-            req.flash('error', 'Please provide a reason for your refund request.');
+        if (!reasonLabel) {
+            req.flash('error', 'Please select a reason for your refund request.');
             return res.redirect(`/refunds/request/${orderId}`);
         }
 

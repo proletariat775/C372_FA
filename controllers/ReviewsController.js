@@ -1,5 +1,6 @@
 const OrderReview = require('../models/orderReview');
 const loyaltyService = require('../services/loyaltyService');
+const orderStatusService = require('../services/orderStatusService');
 
 const createReview = (req, res) => {
     const user = req.session.user;
@@ -35,7 +36,7 @@ const createReview = (req, res) => {
         }
 
         const context = contextRows[0];
-        const status = context.status ? String(context.status).toLowerCase() : 'pending';
+        const status = orderStatusService.mapLegacyStatus(context.status || '');
         if (status !== 'completed') {
             req.flash('error', 'Reviews are available after the order is completed.');
             return res.redirect('/orders/history');

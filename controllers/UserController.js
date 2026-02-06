@@ -2,6 +2,7 @@ const User = require('../models/user');
 const Order = require('../models/order');
 const OrderReview = require('../models/orderReview');
 const refundRequestModel = require('../models/refundRequest');
+const orderStatusService = require('../services/orderStatusService');
 
 const REFUND_WINDOW_DAYS = 14;
 
@@ -201,6 +202,8 @@ const showUserDashboard = (req, res) => {
                     const latest = refundLatestByOrder[order.id];
                     order.refund_status = latest ? latest.status : null;
                     order.refund_request_id = latest ? latest.id : null;
+                    order.refund_approved_amount = latest ? latest.approvedAmount : null;
+                    order.refund_updated_at = latest ? latest.updatedAt : null;
                 });
 
                 OrderReview.findByUserAndOrderItems(userId, Array.from(orderItemIds), (reviewErr, reviewRows = []) => {
@@ -234,13 +237,22 @@ const showUserDashboard = (req, res) => {
                 return renderDashboard([], {});
             }
 
-            const orders = (orderRows || []).map((order) => ({
-                ...order,
-                delivery_method: order.shipping_address ? 'delivery' : 'pickup',
-                delivery_address: order.shipping_address,
-                delivery_fee: Number(order.shipping_amount || 0),
-                total: Number(order.total_amount || order.total || 0)
-            }));
+            const orders = (orderRows || []).map((order) => {
+                const fallbackMethod = order.shipping_address || order.delivery_address ? 'delivery' : 'pickup';
+                const deliveryMethod = order.delivery_method
+                    ? orderStatusService.resolveDeliveryMethod(order.delivery_method)
+                    : orderStatusService.resolveDeliveryMethod(fallbackMethod);
+                const deliveryAddress = order.delivery_address || order.shipping_address || null;
+
+                return {
+                    ...order,
+                    status: orderStatusService.mapLegacyStatus(order.status || 'processing'),
+                    delivery_method: deliveryMethod,
+                    delivery_address: deliveryAddress,
+                    delivery_fee: Number(order.delivery_fee || order.shipping_amount || 0),
+                    total: Number(order.total_amount || order.total || 0)
+                };
+            });
             const orderIds = orders.map(order => order.id);
 
             if (!orderIds.length) {

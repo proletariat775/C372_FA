@@ -20,7 +20,7 @@ const create = (userId, cartItems, options, callback) => {
         paypal_capture_id = null,
         stripe_payment_intent_id = null,
         refunded_amount = 0.00,
-        status = 'pending',
+        status = 'processing',
         discount_amount = 0.00,
         loyalty_points_redeemed = 0,
         loyalty_discount_amount = 0.00,
@@ -185,7 +185,7 @@ const create = (userId, cartItems, options, callback) => {
  */
 const findByUser = (userId, callback) => {
     const sql = `
-        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, loyalty_points_redeemed, loyalty_discount_amount, total_amount, payment_method, payment_status, shipping_address, delivery_slot_date, delivery_slot_window, order_notes, created_at
+        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, loyalty_points_redeemed, loyalty_discount_amount, total_amount, payment_method, payment_status, refunded_amount, shipping_address, delivery_method, delivery_address, delivery_fee, shipping_provider, tracking_number, est_delivery_date, completed_at, refunded_at, delivery_slot_date, delivery_slot_window, order_notes, created_at
         FROM orders
         WHERE user_id = ?
             ORDER BY created_at DESC, id DESC
@@ -219,6 +219,7 @@ const findAllWithUsers = (callback) => {
             o.total_amount,
             o.payment_method,
             o.payment_status,
+            o.refunded_amount,
             o.shipping_address,
             o.delivery_slot_date,
             o.delivery_slot_window,
@@ -230,6 +231,8 @@ const findAllWithUsers = (callback) => {
             o.tracking_number,
             o.est_delivery_date,
             o.admin_notes,
+            o.completed_at,
+            o.refunded_at,
             o.total,
             o.created_at,
             u.username,
@@ -313,7 +316,8 @@ const markRefunded = (orderId, callback) => {
     const sql = `
         UPDATE orders
         SET status = 'refunded',
-            payment_status = 'refunded'
+            payment_status = 'refunded',
+            refunded_at = COALESCE(refunded_at, NOW())
         WHERE id = ?
     `;
     connection.query(sql, [safeOrderId], callback);
@@ -331,7 +335,8 @@ const updateRefundTotals = (orderId, refundedAmount, markAsRefunded, callback) =
             UPDATE orders
             SET refunded_amount = ?,
                 status = 'refunded',
-                payment_status = 'refunded'
+                payment_status = 'refunded',
+                refunded_at = COALESCE(refunded_at, NOW())
             WHERE id = ?
         `;
         return connection.query(sql, [safeAmount, safeOrderId], callback);
@@ -422,11 +427,12 @@ module.exports = {
     updateRefundTotals,
     updateAdminOrder: (orderId, updateData, callback) => {
         const {
-            status = 'pending',
+            status = 'processing',
             shipping_provider = null,
             tracking_number = null,
             est_delivery_date = null,
-            admin_notes = null
+            admin_notes = null,
+            completed_at = null
         } = updateData || {};
 
         const sql = `
@@ -435,16 +441,17 @@ module.exports = {
                 shipping_provider = ?,
                 tracking_number = ?,
                 est_delivery_date = ?,
-                admin_notes = ?
+                admin_notes = ?,
+                completed_at = CASE WHEN ? IS NOT NULL THEN ? ELSE completed_at END
             WHERE id = ?
         `;
-        connection.query(sql, [status, shipping_provider, tracking_number, est_delivery_date, admin_notes, orderId], callback);
+        connection.query(sql, [status, shipping_provider, tracking_number, est_delivery_date, admin_notes, completed_at, completed_at, orderId], callback);
     },
     countOpenOrders: (callback) => {
         const sql = `
             SELECT COUNT(*) AS count
             FROM orders
-            WHERE status NOT IN ('delivered', 'completed', 'cancelled', 'returned', 'refunded')
+            WHERE status NOT IN ('completed', 'refunded')
         `;
         connection.query(sql, (err, rows) => {
             if (err) return callback(err);
@@ -457,8 +464,8 @@ module.exports = {
         const sql = `
             SELECT COUNT(*) AS count
             FROM orders
-            WHERE status IN ('delivered', 'completed')
-              AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+            WHERE status = 'completed'
+              AND COALESCE(completed_at, created_at) >= DATE_SUB(NOW(), INTERVAL ? DAY)
         `;
         connection.query(sql, [safeDays], (err, rows) => {
             if (err) return callback(err);

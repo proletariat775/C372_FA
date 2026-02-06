@@ -1,9 +1,9 @@
 <%- include('partials/header', { title: 'Deliveries | Shirt Shop' }) %>
   <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
-    <% const statusClasses={ pending: 'bg-warning-subtle text-warning' , processing: 'bg-info-subtle text-info' ,
-      shipped: 'bg-primary-subtle text-primary' , delivered: 'bg-success-subtle text-success' ,
-      completed: 'bg-success-subtle text-success' , refunded: 'bg-info-subtle text-info' ,
-      cancelled: 'bg-danger-subtle text-danger' , returned: 'bg-secondary-subtle text-secondary' }; %>
+    <% const statusClasses={ processing: 'bg-warning-subtle text-warning' , packing: 'bg-info-subtle text-info' ,
+      ready_for_pickup: 'bg-primary-subtle text-primary' , shipped: 'bg-primary-subtle text-primary' ,
+      completed: 'bg-success-subtle text-success' , refunded: 'bg-info-subtle text-info' }; %>
+    <% const statusLabels = { processing: 'Processing', packing: 'Packing', ready_for_pickup: 'Ready for pickup', shipped: 'Shipped', completed: 'Completed', refunded: 'Refunded' }; %>
 
       <section class="page-section">
         <div class="container">
@@ -26,8 +26,8 @@
                     <option value="all" <%=(!filters || filters.status==='all' ) ? 'selected' : '' %>>All statuses
                     </option>
                     <% (statusOptions || []).forEach(function(status) { %>
-                      <option value="<%= status %>" <%=filters && filters.status===status ? 'selected' : '' %>><%=
-                          status %>
+                      <option value="<%= status %>" <%=filters && filters.status===status ? 'selected' : '' %>>
+                        <%= statusLabels[status] || status %>
                       </option>
                       <% }); %>
                   </select>
@@ -82,6 +82,14 @@
                               <div class="accordion" id="admin-orders">
                                 <% orders.forEach(function(order, index) { %>
                                   <% const isCompleted=['completed', 'refunded'].includes(order.status); %>
+                                  <% const flow = order.delivery_method === 'pickup' ? ['processing','packing','ready_for_pickup','completed'] : ['processing','packing','shipped','completed']; %>
+                                  <% const paymentStatusKey = order.payment_status ? String(order.payment_status).toLowerCase() : 'pending'; %>
+                                  <% const isRefunded = order.status === 'refunded' || paymentStatusKey === 'refunded'; %>
+                                  <% const effectiveStatus = isRefunded ? 'completed' : order.status; %>
+                                  <% const statusIndex = flow.indexOf(effectiveStatus); %>
+                                  <% const readyKey = order.delivery_method === 'pickup' ? 'ready_for_pickup' : 'shipped'; %>
+                                  <% const readyLabel = order.delivery_method === 'pickup' ? 'Ready for pickup' : 'Shipped'; %>
+                                  <% const stepClass = (active) => active ? 'bg-success-subtle text-success' : 'bg-light text-muted'; %>
                                     <div class="accordion-item">
                                       <h2 class="accordion-header" id="order-heading-<%= order.id %>">
                                         <button class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
@@ -104,9 +112,10 @@
                                                 class="badge <%= order.delivery_method === 'delivery' ? 'bg-primary-subtle text-primary' : 'bg-light text-dark' %>">
                                                 <%= order.delivery_method==='delivery' ? 'Delivery' : 'Pickup' %>
                                               </span>
+                                              <% const displayStatus = statusLabels[order.status] || order.status; %>
                                               <span
                                                 class="badge <%= statusClasses[order.status] || 'bg-light text-dark' %> text-uppercase">
-                                                <%= order.status %>
+                                                <%= displayStatus %>
                                               </span>
                                               <% const refundStatusRaw = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
                                               <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
@@ -151,9 +160,9 @@
                                                 <div class="card-body">
                                                   <div class="d-flex justify-content-between align-items-center mb-3">
                                                     <h5 class="mb-0">Items</h5>
+                                                    <% const invoiceLabel = (order.status === 'refunded' || String(order.payment_status || '').toLowerCase() === 'refunded') ? 'View invoice (refunded)' : 'View invoice'; %>
                                                     <a href="/orders/<%= order.id %>/invoice" target="_blank"
-                                                      rel="noopener" class="btn btn-outline-secondary btn-sm">View
-                                                      invoice</a>
+                                                      rel="noopener" class="btn btn-outline-secondary btn-sm"><%= invoiceLabel %></a>
                                                   </div>
                                                   <% const items=orderItems[order.id] || []; %>
                                                     <% if (items.length) { %>
@@ -196,20 +205,40 @@
                                               <div class="card shadow-sm">
                                                 <div class="card-body">
                                                   <h5 class="mb-3">Admin updates</h5>
+                                                  <div class="mb-3">
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                      <span class="badge <%= stepClass(true) %>">Order placed</span>
+                                                      <span class="badge <%= stepClass(paymentStatusKey === 'paid' || paymentStatusKey === 'refunded') %>">Payment confirmed</span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf('processing')) %>">Processing</span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf('packing')) %>">Packing</span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf(readyKey)) %>"><%= readyLabel %></span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf('completed')) %>">Completed</span>
+                                                      <% if (isRefunded) { %>
+                                                        <span class="badge bg-info-subtle text-info">Refunded</span>
+                                                      <% } %>
+                                                    </div>
+                                                  </div>
+                                                  <% if (order.delivery_method === 'pickup' && order.status === 'ready_for_pickup' && !isCompleted) { %>
+                                                    <div class="alert alert-info">
+                                                      Ready for pickup. Confirm collection to complete this order.
+                                                    </div>
+                                                  <% } %>
                                                   <form action="/admin/orders/<%= order.id %>/update" method="POST"
                                                     class="row gy-3">
                                                     <div class="col-12 col-md-4">
                                                       <label class="form-label">Status</label>
+                                                      <% const allowedStatuses = (order.allowed_statuses && order.allowed_statuses.length) ? order.allowed_statuses : statusOptions; %>
                                                       <select name="status" class="form-select" <%=isCompleted
                                                         ? 'disabled' : '' %>>
-                                                        <% if (!statusOptions.includes(order.status)) { %>
+                                                        <% if (!allowedStatuses.includes(order.status)) { %>
                                                           <option value="<%= order.status %>" selected disabled>
-                                                            <%= order.status %>
+                                                            <%= statusLabels[order.status] || order.status %>
                                                           </option>
                                                           <% } %>
-                                                            <% statusOptions.forEach(function(status) { %>
+                                                            <% allowedStatuses.forEach(function(status) { %>
                                                               <option value="<%= status %>" <%=order.status===status
-                                                                ? 'selected' : '' %>><%= status %>
+                                                                ? 'selected' : '' %>>
+                                                                <%= statusLabels[status] || status %>
                                                               </option>
                                                               <% }); %>
                                                       </select>
@@ -257,8 +286,7 @@
                                                     <div
                                                       class="col-12 d-flex justify-content-between align-items-center">
                                                       <% if (isCompleted) { %>
-                                                        <span class="text-success">This order is completed and
-                                                          locked.</span>
+                                                        <span class="text-success">This order is completed or refunded and locked.</span>
                                                         <% } else { %>
                                                           <button type="submit" class="btn btn-outline-primary">Save
                                                             changes</button>
@@ -266,10 +294,17 @@
                                                     </div>
                                                   </form>
 
-                                                  <% if (order.status==='delivered' && !isCompleted) { %>
+                                                  <% const nextStatus = order.next_status; %>
+                                                  <% const requiresTracking = nextStatus === 'shipped'; %>
+                                                  <% const hasTrackingInfo = Boolean(order.shipping_provider && order.tracking_number); %>
+                                                  <% const canAdvance = nextStatus && (!requiresTracking || hasTrackingInfo); %>
+                                                  <% if (!isCompleted && nextStatus) { %>
+                                                    <% if (requiresTracking && !hasTrackingInfo) { %>
+                                                      <div class="small text-muted mt-2">Add shipping provider and tracking number to advance to shipped.</div>
+                                                    <% } %>
                                                     <form action="/admin/orders/<%= order.id %>/update" method="POST"
                                                       class="mt-3">
-                                                      <input type="hidden" name="status" value="completed">
+                                                      <input type="hidden" name="status" value="<%= nextStatus %>">
                                                       <input type="hidden" name="deliveryMethod"
                                                         value="<%= order.delivery_method %>">
                                                       <input type="hidden" name="deliveryAddress"
@@ -282,8 +317,9 @@
                                                         value="<%= order.est_delivery_date ? new Date(order.est_delivery_date).toISOString().slice(0,10) : '' %>">
                                                       <input type="hidden" name="adminNotes"
                                                         value="<%= order.admin_notes || '' %>">
-                                                      <button type="submit" class="btn btn-success">Mark as
-                                                        completed</button>
+                                                      <button type="submit" class="btn btn-success" <%= !canAdvance ? 'disabled' : '' %>>
+                                                        Advance to <%= statusLabels[nextStatus] || nextStatus %>
+                                                      </button>
                                                     </form>
                                                     <% } %>
                                                 </div>

@@ -5,6 +5,7 @@ const Wishlist = require('../models/wishlist');
 const OrderReview = require('../models/orderReview');
 const ReturnRequest = require('../models/returnRequest');
 const loyaltyService = require('../services/loyaltyService');
+const orderStatusService = require('../services/orderStatusService');
 
 const normalisePrice = (value) => {
     const parsed = Number.parseFloat(value);
@@ -66,16 +67,17 @@ const buildTotals = (order) => {
 };
 
 const computeReturnEligibility = (order) => {
-    const statusEligible = order && order.status === 'delivered';
+    const statusEligible = order && orderStatusService.isCompletedStatus(order.status);
     let withinWindow = true;
     let daysSince = null;
 
-    const createdAt = order && order.created_at ? new Date(order.created_at) : null;
-    // When created_at is missing or invalid, the 7-day window check is skipped.
-    if (createdAt && !Number.isNaN(createdAt.getTime())) {
-        const diffMs = Date.now() - createdAt.getTime();
+    const completedAt = order && order.completed_at ? new Date(order.completed_at) : null;
+    const fallbackDate = order && order.created_at ? new Date(order.created_at) : null;
+    const referenceDate = completedAt && !Number.isNaN(completedAt.getTime()) ? completedAt : fallbackDate;
+    if (referenceDate && !Number.isNaN(referenceDate.getTime())) {
+        const diffMs = Date.now() - referenceDate.getTime();
         daysSince = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        withinWindow = diffMs <= (7 * 24 * 60 * 60 * 1000);
+        withinWindow = diffMs <= (14 * 24 * 60 * 60 * 1000);
     }
 
     return {
@@ -102,28 +104,35 @@ const buildReturnTimeline = (returnData) => {
 };
 
 const buildTrackingTimeline = (order) => {
-    const status = order && order.status ? order.status : 'pending';
-    const paymentStatus = order && order.payment_status ? order.payment_status : 'pending';
+    const paymentStatus = order && order.payment_status ? String(order.payment_status).toLowerCase() : 'pending';
+    const rawStatus = orderStatusService.mapLegacyStatus(order && order.status ? order.status : 'processing');
+    const fallbackMethod = order && (order.delivery_address || order.shipping_address) ? 'delivery' : 'pickup';
+    const deliveryMethod = orderStatusService.resolveDeliveryMethod(order && order.delivery_method ? order.delivery_method : fallbackMethod);
+    const flow = orderStatusService.getFlowForMethod(deliveryMethod);
+    const isRefunded = orderStatusService.isRefundedStatus(rawStatus) || paymentStatus === 'refunded';
+    const effectiveStatus = isRefunded ? 'completed' : rawStatus;
+    const statusIndex = flow.indexOf(effectiveStatus);
+    const isPaid = paymentStatus === 'paid' || paymentStatus === 'refunded';
+    const readyLabel = deliveryMethod === 'pickup' ? 'Ready for pickup' : 'Shipped';
+    const readyKey = deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'shipped';
 
-    return [
-        { key: 'pending', label: 'Pending', active: true },
-        {
-            key: 'paid',
-            label: 'Paid',
-            active: paymentStatus === 'paid' || ['processing', 'shipped', 'delivered'].includes(status)
-        },
-        {
-            key: 'processing',
-            label: 'Processing',
-            active: ['processing', 'shipped', 'delivered'].includes(status)
-        },
-        {
-            key: 'shipped',
-            label: 'Shipped',
-            active: ['shipped', 'delivered'].includes(status)
-        },
-        { key: 'delivered', label: 'Delivered', active: status === 'delivered' }
+    const steps = [
+        { key: 'placed', label: 'Order placed', active: true },
+        { key: 'paid', label: 'Payment confirmed', active: isPaid }
     ];
+
+    steps.push(
+        { key: 'processing', label: 'Processing', active: statusIndex >= flow.indexOf('processing') },
+        { key: 'packing', label: 'Packing', active: statusIndex >= flow.indexOf('packing') },
+        { key: readyKey, label: readyLabel, active: statusIndex >= flow.indexOf(readyKey) },
+        { key: 'completed', label: 'Completed', active: statusIndex >= flow.indexOf('completed') }
+    );
+
+    if (isRefunded) {
+        steps.push({ key: 'refunded', label: 'Refunded', active: true });
+    }
+
+    return steps;
 };
 
 const fetchOrderWithItems = (orderId, callback) => {
@@ -136,7 +145,18 @@ const fetchOrderWithItems = (orderId, callback) => {
             return callback(null, null, []);
         }
 
-        const order = orderRows[0];
+        const rawOrder = orderRows[0];
+        const fallbackMethod = rawOrder.delivery_address || rawOrder.shipping_address ? 'delivery' : 'pickup';
+        const deliveryMethod = rawOrder.delivery_method
+            ? orderStatusService.resolveDeliveryMethod(rawOrder.delivery_method)
+            : orderStatusService.resolveDeliveryMethod(fallbackMethod);
+        const deliveryAddress = rawOrder.delivery_address || rawOrder.shipping_address || null;
+        const order = {
+            ...rawOrder,
+            status: orderStatusService.mapLegacyStatus(rawOrder.status || 'processing'),
+            delivery_method: deliveryMethod,
+            delivery_address: deliveryAddress
+        };
         OrderItem.findByOrderIds([orderId], (itemsErr, itemRows) => {
             if (itemsErr) {
                 return callback(itemsErr);
@@ -187,7 +207,7 @@ const details = (req, res) => {
                 order,
                 items,
                 totals: buildTotals(order),
-                canReview: isShopper(sessionUser) && order.status === 'completed',
+                canReview: isShopper(sessionUser) && orderStatusService.isCompletedStatus(order.status),
                 returnEligibility: eligibility,
                 returnRequest: returnData,
                 returnTimeline: buildReturnTimeline(returnData),
@@ -267,7 +287,7 @@ const reviewForm = (req, res) => {
             return res.redirect(`/order/${orderId}`);
         }
 
-        if (order.status !== 'completed') {
+        if (!orderStatusService.isCompletedStatus(order.status)) {
             req.flash('error', 'Reviews are available after the order is completed.');
             return res.redirect(`/order/${orderId}`);
         }
@@ -349,7 +369,7 @@ const submitReview = (req, res) => {
             return res.redirect(redirectPath);
         }
 
-        if (order.status !== 'completed') {
+        if (!orderStatusService.isCompletedStatus(order.status)) {
             req.flash('error', 'Reviews are available after the order is completed.');
             return res.redirect(`/order/${orderId}`);
         }

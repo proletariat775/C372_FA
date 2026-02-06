@@ -36,11 +36,11 @@
                               <div class="card-body">
                                 <h5 class="mb-3">Request a return or exchange</h5>
                                 <% if (!returnEligibility.statusEligible) { %>
-                                  <div class="alert alert-warning">Returns open after an order is delivered.</div>
+                                  <div class="alert alert-warning">Returns open after an order is completed.</div>
                                   <% } %>
                                     <% if (returnEligibility.statusEligible && !returnEligibility.withinWindow) { %>
                                       <div class="alert alert-warning">
-                                        The 7-day return window has passed.
+                                        The 14-day return window has passed.
                                       </div>
                                       <% } %>
 

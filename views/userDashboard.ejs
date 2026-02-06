@@ -246,162 +246,172 @@
                                                             <div class="account-card__header">
                                                                 <div>
                                                                     <h4 class="mb-1">Purchase History</h4>
-                                                                    <p class="text-muted mb-0">Review your past orders, delivery status, and invoices.</p>
+                                                                    <p class="text-muted mb-0">Review your past orders, track deliveries, and download invoices.</p>
                                                                 </div>
                                                             </div>
 
                                                             <% if (!orders || !orders.length) { %>
                                                                 <div class="alert alert-info mb-0">No orders yet.</div>
                                                                 <% } else { %>
-                                                                    <div class="accordion" id="user-orders">
-                                                                        <% orders.forEach(function(order, index) { %>
-                                                                            <div class="accordion-item">
-                                                                                <h2 class="accordion-header"
-                                                                                    id="user-order-heading-<%= order.id %>">
-                                                                                    <button
-                                                                                        class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
-                                                                                        type="button"
-                                                                                        data-bs-toggle="collapse"
-                                                                                        data-bs-target="#user-order-<%= order.id %>"
-                                                                                        aria-expanded="<%= index === 0 ? 'true' : 'false' %>"
-                                                                                        aria-controls="user-order-<%= order.id %>">
-                                                                                        <div
-                                                                                            class="w-100 d-flex flex-column flex-md-row justify-content-between gap-2">
-                                                                                            <div>
-                                                                                                <span
-                                                                                                    class="fw-semibold">Order
-                                                                                                    #<%= order.id %></span>
-                                                                                                <span
-                                                                                                    class="text-muted small ms-2">
-                                                                                                    <%= new
-                                                                                                        Date(order.created_at).toLocaleString()
-                                                                                                        %>
-                                                                                                </span>
-                                                                                            </div>
-                                                                                            <div
-                                                                                                class="d-flex flex-wrap gap-2">
-                                                                                                <span
-                                                                                                    class="badge bg-primary-subtle text-primary text-uppercase">Status:
-                                                                                                    <%= order.status %>
-                                                                                                </span>
-                                                                                                <% const paymentStatusRaw = order.payment_status ? String(order.payment_status).toLowerCase() : 'pending'; %>
-                                                                                                <% const paymentLabel = paymentStatusRaw ? paymentStatusRaw.charAt(0).toUpperCase() + paymentStatusRaw.slice(1) : 'Pending'; %>
-                                                                                                <% const paymentClasses = { paid: 'bg-success-subtle text-success', pending: 'bg-warning-subtle text-warning', failed: 'bg-danger-subtle text-danger', refunded: 'bg-info-subtle text-info' }; %>
-                                                                                                <span class="badge <%= paymentClasses[paymentStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Payment: <%= paymentLabel %></span>
-                                                                                                <% const refundStatusRaw = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
-                                                                                                <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
-                                                                                                <% const refundClasses = { pending: 'bg-warning-subtle text-warning', approved: 'bg-info-subtle text-info', completed: 'bg-success-subtle text-success', rejected: 'bg-danger-subtle text-danger', failed: 'bg-danger-subtle text-danger' }; %>
-                                                                                                <% if (refundStatusRaw) { %>
-                                                                                                    <span class="badge <%= refundClasses[refundStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Refund: <%= refundLabel %></span>
-                                                                                                <% } %>
-                                                                                                <span
-                                                                                                    class="badge bg-dark-subtle text-dark">Total:
-                                                                                                    $<%= Number(order.total).toFixed(2)
-                                                                                                        %></span>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </button>
-                                                                                </h2>
-                                                                                <div id="user-order-<%= order.id %>"
-                                                                                    class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
-                                                                                    aria-labelledby="user-order-heading-<%= order.id %>"
-                                                                                    data-bs-parent="#user-orders">
-                                                                                    <div class="accordion-body">
-                                                                                        <% const items=orderItems[order.id]
-                                                                                            || []; %>
-                                                                                            <% if (items.length) { %>
-                                                                                                <div
-                                                                                                    class="table-responsive">
-                                                                                                    <table
-                                                                                                        class="table align-middle mb-0">
-                                                                                                        <thead>
-                                                                                                            <tr>
-                                                                                                                <th>Product
-                                                                                                                </th>
-                                                                                                                <th
-                                                                                                                    class="text-center">
-                                                                                                                    Qty</th>
-                                                                                                                <th
-                                                                                                                    class="text-end">
-                                                                                                                    Price
-                                                                                                                </th>
-                                                                                                            </tr>
-                                                                                                        </thead>
-                                                                                                        <tbody>
-                                                                                                            <% items.forEach(function(item)
-                                                                                                                { %>
-                                                                                                                <tr>
-                                                                                                                    <td>
-                                                                                                                        <%= item.productName
-                                                                                                                            %>
-                                                                                                                    </td>
-                                                                                                                    <td
-                                                                                                                        class="text-center">
-                                                                                                                        <%= item.quantity
-                                                                                                                            %>
-                                                                                                                    </td>
-                                                                                                                    <td
-                                                                                                                        class="text-end">
-                                                                                                                        $<%= Number(item.price).toFixed(2)
-                                                                                                                            %>
-                                                                                                                    </td>
-                                                                                                                </tr>
-                                                                                                                <% }); %>
-                                                                                                        </tbody>
-                                                                                                    </table>
-                                                                                                </div>
-                                                                                                <% } else { %>
-                                                                                                    <p
-                                                                                                        class="text-muted mb-0">
-                                                                                                        No items recorded
-                                                                                                        for this order.</p>
-                                                                                                    <% } %>
-
-                                                                                                        <div
-                                                                                                            class="d-flex flex-wrap gap-2 mt-3">
-                                                                                                            <a href="/order/<%= order.id %>"
-                                                                                                                class="btn btn-outline-secondary btn-sm">View
-                                                                                                                details</a>
-                                                                                                            <a href="/orders/<%= order.id %>/invoice"
-                                                                                                                class="btn btn-outline-secondary btn-sm"
-                                                                                                                target="_blank"
-                                                                                                                rel="noopener">Invoice</a>
-                                                                                                            <a href="/order/<%= order.id %>/track"
-                                                                                                                class="btn btn-outline-primary btn-sm">Track</a>
-                                                                                                            <% const orderStatusKey = String(order.status || '').toLowerCase(); %>
-                                                                                                            <% const paymentStatusKey = String(order.payment_status || '').toLowerCase(); %>
-                                                                                                            <% const createdAt = order.created_at ? new Date(order.created_at) : null; %>
-                                                                                                            <% const withinWindow = createdAt && !Number.isNaN(createdAt.getTime()) ? (Date.now() - createdAt.getTime()) <= ((refundWindowDays || 14) * 24 * 60 * 60 * 1000) : true; %>
-                                                                                                            <% const statusEligible = ['delivered', 'completed'].includes(orderStatusKey); %>
-                                                                                                            <% const refundEligible = paymentStatusKey === 'paid' && statusEligible && withinWindow; %>
-                                                                                                            <% const refundStatusKey = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
-                                                                                                            <% const hasOpenRefund = ['pending', 'approved', 'processing'].includes(refundStatusKey); %>
-                                                                                                            <% const hasRefundRequest = Boolean(order.refund_request_id); %>
-                                                                                                            <% const isFullyRefunded = orderStatusKey === 'refunded' || paymentStatusKey === 'refunded'; %>
-                                                                                                            <% if (user && user.role === 'customer') { %>
-                                                                                                                <% if (refundEligible && !hasOpenRefund && !isFullyRefunded) { %>
-                                                                                                                    <a href="/refunds/request/<%= order.id %>"
-                                                                                                                        class="btn btn-outline-warning btn-sm">Request
-                                                                                                                        refund</a>
-                                                                                                                <% } %>
-                                                                                                                <% if (hasRefundRequest) { %>
-                                                                                                                    <a href="/refunds/<%= order.refund_request_id %>"
-                                                                                                                        class="btn btn-outline-secondary btn-sm">View
-                                                                                                                        refund request</a>
-                                                                                                                <% } else { %>
-                                                                                                                    <a href="/user?tab=returns"
-                                                                                                                        class="btn btn-outline-secondary btn-sm">View
-                                                                                                                        refund requests</a>
-                                                                                                                <% } %>
-                                                                                                                <% } %>
-                                                                                                        </div>
-                                                                                                        <% if (!refundEligible && !isFullyRefunded) { %>
-                                                                                                            <div class="small text-muted mt-2">Refunds are available within <%= refundWindowDays || 14 %> days for paid, delivered orders.</div>
-                                                                                                        <% } %>
-                                                                                    </div>
+                                                                    <div class="order-history-toolbar">
+                                                                        <div class="order-history-filters">
+                                                                            <div class="order-filter">
+                                                                                <label for="order-status-filter">Filter status</label>
+                                                                                <select class="form-select form-select-sm" id="order-status-filter">
+                                                                                    <option value="all" selected>All Orders</option>
+                                                                                    <option value="processing">Processing</option>
+                                                                                    <option value="packing">Packing</option>
+                                                                                    <option value="ready_for_pickup">Ready for pickup</option>
+                                                                                    <option value="shipped">Shipped</option>
+                                                                                    <option value="completed">Completed</option>
+                                                                                    <option value="refunded">Refunded</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <div class="order-filter order-filter--search">
+                                                                                <label for="order-search">Search orders</label>
+                                                                                <div class="order-search">
+                                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                                                        <circle cx="11" cy="11" r="8"></circle>
+                                                                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                                                                    </svg>
+                                                                                    <input class="form-control form-control-sm" type="text" id="order-search" placeholder="Search by order # or product">
                                                                                 </div>
                                                                             </div>
-                                                                            <% }); %>
+                                                                        </div>
+                                                                        <div class="order-history-note small text-muted">
+                                                                            Refunds are available within <%= refundWindowDays || 14 %> days for paid, completed orders.
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="order-history-count small text-muted" id="order-filter-count"></div>
+
+                                                                    <div class="order-history-list" id="order-history-list">
+                                                                        <% orders.forEach(function(order) { %>
+                                                                            <% const items=orderItems[order.id] || []; %>
+                                                                            <% const productNames=items.map(item => item.productName).join(' '); %>
+                                                                            <% const orderStatusKey = String(order.status || 'processing').toLowerCase(); %>
+                                                                            <% const paymentStatusRaw = order.payment_status ? String(order.payment_status).toLowerCase() : 'pending'; %>
+                                                                            <% const paymentLabel = paymentStatusRaw ? paymentStatusRaw.charAt(0).toUpperCase() + paymentStatusRaw.slice(1) : 'Pending'; %>
+                                                                            <% const paymentClasses = { paid: 'bg-success-subtle text-success', pending: 'bg-warning-subtle text-warning', failed: 'bg-danger-subtle text-danger', refunded: 'bg-info-subtle text-info' }; %>
+                                                                            <% const refundStatusRaw = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
+                                                                            <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
+                                                                            <% const refundClasses = { pending: 'bg-warning-subtle text-warning', approved: 'bg-info-subtle text-info', completed: 'bg-success-subtle text-success', rejected: 'bg-danger-subtle text-danger', failed: 'bg-danger-subtle text-danger' }; %>
+                                                                            <% const filterStatus = orderStatusKey || 'processing'; %>
+                                                                            <% const createdAt = order.created_at ? new Date(order.created_at) : null; %>
+                                                                            <% const completedAt = order.completed_at ? new Date(order.completed_at) : null; %>
+                                                                            <% const referenceDate = completedAt && !Number.isNaN(completedAt.getTime()) ? completedAt : createdAt; %>
+                                                                            <% const withinWindow = referenceDate && !Number.isNaN(referenceDate.getTime()) ? (Date.now() - referenceDate.getTime()) <= ((refundWindowDays || 14) * 24 * 60 * 60 * 1000) : true; %>
+                                                                            <% const statusEligible = orderStatusKey === 'completed'; %>
+                                                                            <% const refundEligible = paymentStatusRaw === 'paid' && statusEligible && withinWindow; %>
+                                                                            <% const hasOpenRefund = ['pending', 'approved', 'processing'].includes(refundStatusRaw); %>
+                                                                            <% const hasRefundRequest = Boolean(order.refund_request_id); %>
+                                                                            <% const isFullyRefunded = orderStatusKey === 'refunded' || paymentStatusRaw === 'refunded'; %>
+
+                                                                            <div class="order-card" data-status="<%= filterStatus %>" data-payment="<%= paymentStatusRaw %>" data-order-id="<%= order.id %>" data-products="<%= productNames %>">
+                                                                                <div class="order-card__header">
+                                                                                    <div class="order-card__meta">
+                                                                                        <div class="order-card__title">Order #<%= order.id %></div>
+                                                                                        <div class="order-card__date"><%= createdAt ? createdAt.toLocaleString() : '-' %></div>
+                                                                                    </div>
+                                                                                    <div class="order-card__badges">
+                                                                                        <% const statusLabel = orderStatusKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); %>
+                                                                                        <span class="badge bg-primary-subtle text-primary text-uppercase">Status: <%= statusLabel %></span>
+                                                                                        <span class="badge <%= paymentClasses[paymentStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Payment: <%= paymentLabel %></span>
+                                                                                        <% if (refundStatusRaw) { %>
+                                                                                            <span class="badge <%= refundClasses[refundStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Refund: <%= refundLabel %></span>
+                                                                                        <% } %>
+                                                                                        <span class="badge bg-dark-subtle text-dark">Total: $<%= Number(order.total).toFixed(2) %></span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="order-card__body">
+                                                                                    <% const stepFlow = order.delivery_method === 'pickup' ? ['processing','packing','ready_for_pickup','completed'] : ['processing','packing','shipped','completed']; %>
+                                                                                    <% const stepLabel = (key) => {
+                                                                                        if (key === 'ready_for_pickup') return 'Ready for pickup';
+                                                                                        return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                                                                                    }; %>
+                                                                                    <% const effectiveStatus = (orderStatusKey === 'refunded') ? 'completed' : orderStatusKey; %>
+                                                                                    <% const stepIndex = stepFlow.indexOf(effectiveStatus); %>
+                                                                                    <div class="order-stepper mb-3">
+                                                                                        <% stepFlow.forEach(function(step, idx) { %>
+                                                                                            <% const isActive = stepIndex >= idx; %>
+                                                                                            <% const isCurrent = stepIndex === idx && orderStatusKey !== 'refunded'; %>
+                                                                                            <div class="order-step <%= isActive ? 'order-step--active' : '' %> <%= isCurrent ? 'order-step--current' : '' %>">
+                                                                                                <span class="order-step__dot"></span>
+                                                                                                <span><%= stepLabel(step) %></span>
+                                                                                            </div>
+                                                                                        <% }); %>
+                                                                                        <% if (orderStatusKey === 'refunded' || paymentStatusRaw === 'refunded') { %>
+                                                                                            <div class="order-step order-step--refunded">
+                                                                                                <span class="order-step__dot"></span>
+                                                                                                <span>Refunded</span>
+                                                                                            </div>
+                                                                                        <% } %>
+                                                                                    </div>
+                                                                                    <% if (items.length) { %>
+                                                                                        <div class="order-items">
+                                                                                            <% items.forEach(function(item) { %>
+                                                                                                <% const imageUrl = item.image ? ('/images/' + item.image) : '/images/shirt-sample-1.svg'; %>
+                                                                                                <div class="order-item-row">
+                                                                                                    <div class="order-item-image">
+                                                                                                        <img src="<%= imageUrl %>" alt="<%= item.productName %>">
+                                                                                                    </div>
+                                                                                                    <div class="order-item-info">
+                                                                                                        <div class="order-item-name fw-semibold"><%= item.productName %></div>
+                                                                                                        <div class="order-item-meta">Size: <%= item.size || 'Standard' %><%= item.color ? (' / ' + item.color) : '' %></div>
+                                                                                                    </div>
+                                                                                                    <div class="order-item-qty">Qty <%= item.quantity %></div>
+                                                                                                    <div class="order-item-price">$<%= Number(item.price).toFixed(2) %></div>
+                                                                                                </div>
+                                                                                            <% }); %>
+                                                                                        </div>
+                                                                                    <% } else { %>
+                                                                                        <p class="text-muted mb-0">No items recorded for this order.</p>
+                                                                                    <% } %>
+
+                                                                                    <% if (order.delivery_method === 'delivery') { %>
+                                                                                        <% const trackingLink = order.tracking_number ? ('https://track.aftership.com/' + order.tracking_number) : null; %>
+                                                                                        <div class="order-delivery-note">
+                                                                                            <div class="small text-muted">Delivery to <strong><%= order.delivery_address || 'Address pending' %></strong></div>
+                                                                                            <div class="small text-muted">Carrier: <%= order.shipping_provider || 'Assigning soon' %></div>
+                                                                                            <div class="small text-muted">Tracking: <%= order.tracking_number || 'Pending' %>
+                                                                                                <% if (trackingLink) { %>
+                                                                                                    <a href="<%= trackingLink %>" target="_blank" rel="noopener" class="ms-1">Track</a>
+                                                                                                <% } %>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    <% } else { %>
+                                                                                        <div class="order-delivery-note">
+                                                                                            <% if (order.status === 'ready_for_pickup') { %>
+                                                                                                <div class="small text-muted">Ready for pickup. Show Order #<%= order.id %> at the counter.</div>
+                                                                                            <% } else { %>
+                                                                                                <div class="small text-muted">Pickup order. We will notify you once it is ready.</div>
+                                                                                            <% } %>
+                                                                                        </div>
+                                                                                    <% } %>
+
+                                                                                    <div class="order-actions mt-3">
+                                                                                        <a href="/order/<%= order.id %>" class="btn btn-outline-secondary btn-sm">View order</a>
+                                                                                        <% const invoiceLabel = (order.status === 'refunded' || paymentStatusRaw === 'refunded') ? 'Invoice (refunded)' : 'Invoice'; %>
+                                                                                        <a href="/orders/<%= order.id %>/invoice" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"><%= invoiceLabel %></a>
+                                                                                        <a href="/order/<%= order.id %>/track" class="btn btn-outline-primary btn-sm">Track</a>
+                                                                                        <% if (user && user.role === 'customer') { %>
+                                                                                            <% if (refundEligible && !hasOpenRefund && !isFullyRefunded) { %>
+                                                                                                <a href="/refunds/request/<%= order.id %>" class="btn btn-outline-warning btn-sm">Request refund</a>
+                                                                                            <% } %>
+                                                                                            <% if (hasRefundRequest) { %>
+                                                                                                <a href="/refunds/<%= order.refund_request_id %>" class="btn btn-outline-secondary btn-sm">View refund request</a>
+                                                                                            <% } else { %>
+                                                                                                <a href="/user?tab=returns" class="btn btn-outline-secondary btn-sm">View refund requests</a>
+                                                                                            <% } %>
+                                                                                        <% } %>
+                                                                                    </div>
+                                                                                    <% const refundAmount = Number(order.refunded_amount || order.refund_approved_amount || 0); %>
+                                                                                    <% const refundDate = order.refunded_at || order.refund_updated_at; %>
+                                                                                    <% if (refundAmount > 0) { %>
+                                                                                        <div class="small text-muted mt-2">Refunded $<%= refundAmount.toFixed(2) %><%= refundDate ? (', on ' + new Date(refundDate).toLocaleDateString()) : '' %>.</div>
+                                                                                    <% } %>
+                                                                                </div>
+                                                                            </div>
+                                                                        <% }); %>
                                                                     </div>
                                                                     <% } %>
                                                         </div>
@@ -549,5 +559,51 @@
             </div>
         </main>
 
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var list = document.getElementById('order-history-list');
+                if (!list) {
+                    return;
+                }
+                var cards = Array.prototype.slice.call(list.querySelectorAll('.order-card'));
+                var statusSelect = document.getElementById('order-status-filter');
+                var searchInput = document.getElementById('order-search');
+                var countEl = document.getElementById('order-filter-count');
+
+                var applyFilter = function () {
+                    var statusValue = statusSelect ? statusSelect.value : 'all';
+                    var query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+                    var visible = 0;
+
+                    cards.forEach(function (card) {
+                        var status = (card.dataset.status || '').toLowerCase();
+                        var orderId = (card.dataset.orderId || '').toLowerCase();
+                        var products = (card.dataset.products || '').toLowerCase();
+                        var matchesStatus = statusValue === 'all' || status === statusValue;
+                        var matchesQuery = !query || (orderId + ' ' + products).indexOf(query) !== -1;
+                        var show = matchesStatus && matchesQuery;
+
+                        card.classList.toggle('d-none', !show);
+                        if (show) {
+                            visible += 1;
+                        }
+                    });
+
+                    if (countEl) {
+                        countEl.textContent = 'Showing ' + visible + ' of ' + cards.length + ' orders';
+                    }
+                };
+
+                if (statusSelect) {
+                    statusSelect.addEventListener('change', applyFilter);
+                }
+                if (searchInput) {
+                    searchInput.addEventListener('input', applyFilter);
+                }
+                applyFilter();
+            });
+        </script>
+
         <%- include('partials/footer') %>
+
 
