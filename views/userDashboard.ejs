@@ -265,6 +265,7 @@
                                                                                       <option value="shipped">Shipped</option>
                                                                                       <option value="delivered">Delivered</option>
                                                                                       <option value="completed">Completed</option>
+                                                                                      <option value="refunded">Refunded</option>
                                                                                       <option value="cancelled">Cancelled</option>
                                                                                       <option value="returned">Returned</option>
                                                                                 </select>
@@ -300,7 +301,7 @@
                                                                             <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
                                                                             <% const refundClasses = { pending: 'bg-warning-subtle text-warning', approved: 'bg-info-subtle text-info', completed: 'bg-success-subtle text-success', rejected: 'bg-danger-subtle text-danger', failed: 'bg-danger-subtle text-danger' }; %>
                                                                             <% const statusLabels = { processing: 'Processing', packing: 'Packing', ready_for_pickup: 'Ready for pickup', shipped: 'Shipped', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled', returned: 'Returned' }; %>
-                                                                            <% const filterStatus = orderStatusKey || 'processing'; %>
+                                                                            <% const filterStatus = isRefundedOrder ? 'refunded' : (orderStatusKey || 'processing'); %>
                                                                             <% const createdAt = order.created_at ? new Date(order.created_at) : null; %>
                                                                             <% const completedAt = order.completed_at ? new Date(order.completed_at) : null; %>
                                                                             <% const referenceDate = completedAt && !Number.isNaN(completedAt.getTime()) ? completedAt : createdAt; %>
@@ -308,7 +309,8 @@
                                                                             <% const statusEligible = ['completed','delivered'].includes(orderStatusKey); %>
                                                                             <% const refundEligible = paymentStatusRaw === 'paid' && statusEligible && withinWindow; %>
                                                                             <% const hasOpenRefund = ['pending', 'approved', 'processing'].includes(refundStatusRaw); %>
-                                                                            <% const hasRefundRequest = Boolean(order.refund_request_id); %>
+                                                                            <% const refundRequestId = order.refund_request_id || order.refundRequestId || order.refund_request || (order.refundRequest && order.refundRequest.id); %>
+                                                                            <% const hasRefundRequest = Boolean(refundRequestId); %>
                                                                             <% const isFullyRefunded = ['cancelled','returned'].includes(orderStatusKey) || paymentStatusRaw === 'refunded'; %>
                                                                             <% const displayOrderNumber = order.order_number || order.id; %>
 
@@ -337,29 +339,19 @@
                                                                                          if (key === 'delivered') return 'Delivered';
                                                                                          return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
                                                                                      }; %>
-                                                                                     <% const effectiveStatus = (orderStatusKey === 'cancelled' || orderStatusKey === 'returned') ? 'completed' : orderStatusKey; %>
-                                                                                     <% const stepIndex = stepFlow.indexOf(effectiveStatus); %>
-                                                                                     <div class="order-stepper mb-3">
-                                                                                         <% stepFlow.forEach(function(step, idx) { %>
-                                                                                             <% const isActive = stepIndex >= idx; %>
-                                                                                             <% const isCurrent = stepIndex === idx && orderStatusKey !== 'cancelled' && orderStatusKey !== 'returned'; %>
-                                                                                             <div class="order-step <%= isActive ? 'order-step--active' : '' %> <%= isCurrent ? 'order-step--current' : '' %>">
-                                                                                                 <span class="order-step__dot"></span>
-                                                                                                 <span><%= stepLabel(step) %></span>
-                                                                                             </div>
-                                                                                         <% }); %>
-                                                                                         <% if (orderStatusKey === 'cancelled') { %>
-                                                                                             <div class="order-step order-step--refunded">
-                                                                                                 <span class="order-step__dot"></span>
-                                                                                                 <span>Cancelled</span>
-                                                                                             </div>
-                                                                                         <% } else if (orderStatusKey === 'returned' || paymentStatusRaw === 'refunded') { %>
-                                                                                             <div class="order-step order-step--refunded">
-                                                                                                 <span class="order-step__dot"></span>
-                                                                                                 <span>Returned</span>
-                                                                                             </div>
-                                                                                         <% } %>
-                                                                                     </div>
+                                                                                     <% if (!isRefundedOrder) { %>
+                                                                                       <% const stepIndex = stepFlow.indexOf(orderStatusKey); %>
+                                                                                       <div class="order-stepper mb-3">
+                                                                                           <% stepFlow.forEach(function(step, idx) { %>
+                                                                                               <% const isActive = stepIndex >= idx; %>
+                                                                                               <% const isCurrent = stepIndex === idx && orderStatusKey !== 'cancelled' && orderStatusKey !== 'returned'; %>
+                                                                                               <div class="order-step <%= isActive ? 'order-step--active' : '' %> <%= isCurrent ? 'order-step--current' : '' %>">
+                                                                                                   <span class="order-step__dot"></span>
+                                                                                                   <span><%= stepLabel(step) %></span>
+                                                                                               </div>
+                                                                                           <% }); %>
+                                                                                       </div>
+                                                                                     <% } %>
                                                                                     <% if (items.length) { %>
                                                                                         <div class="order-items">
                                                                                             <% items.forEach(function(item) { %>
@@ -425,7 +417,7 @@
                                                                                                  <a href="/refunds/request/<%= order.id %>" class="btn btn-outline-warning btn-sm">Request refund</a>
                                                                                              <% } %>
                                                                                              <% if (hasRefundRequest) { %>
-                                                                                                 <a href="/refunds/<%= order.refund_request_id %>" class="btn btn-outline-secondary btn-sm">View refund details</a>
+                                                                                                 <a href="/refunds/<%= refundRequestId %>" class="btn btn-outline-secondary btn-sm">View refund details</a>
                                                                                              <% } %>
                                                                                          <% } %>
                                                                                      </div>

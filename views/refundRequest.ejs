@@ -9,7 +9,7 @@
         <p class="mb-1 text-muted">Order #<%= displayOrderNumber %></p>
         <h2 class="mb-0">Request a refund</h2>
       </div>
-      <a href="/orders/history" class="btn btn-outline-secondary">Back to orders</a>
+      <button type="button" class="btn btn-outline-secondary" onclick="history.back()">Back to orders</button>
     </div>
 
     <% if (messages && messages.length) { %>

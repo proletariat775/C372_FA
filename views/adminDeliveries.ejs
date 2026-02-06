@@ -17,40 +17,7 @@
               </strong></span>
           </div>
 
-          <div class="row g-3 mb-4">
-            <div class="col-6 col-lg-3">
-              <div class="card shadow-sm h-100">
-                <div class="card-body">
-                  <div class="text-muted small">Open orders</div>
-                  <div class="fs-4 fw-semibold"><%= (kpis && kpis.openOrders) ? kpis.openOrders : 0 %></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-lg-3">
-              <div class="card shadow-sm h-100">
-                <div class="card-body">
-                  <div class="text-muted small">Pending packing</div>
-                  <div class="fs-4 fw-semibold"><%= (kpis && kpis.pendingPacking) ? kpis.pendingPacking : 0 %></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-lg-3">
-              <div class="card shadow-sm h-100">
-                <div class="card-body">
-                  <div class="text-muted small">Awaiting pickup/delivery</div>
-                  <div class="fs-4 fw-semibold"><%= (kpis && kpis.awaitingFulfilment) ? kpis.awaitingFulfilment : 0 %></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-lg-3">
-              <div class="card shadow-sm h-100">
-                <div class="card-body">
-                  <div class="text-muted small">Refunded orders</div>
-                  <div class="fs-4 fw-semibold"><%= (kpis && kpis.refundedOrders) ? kpis.refundedOrders : 0 %></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- KPI boxes removed per request -->
 
           <div class="card shadow-sm mb-4">
             <div class="card-body">
@@ -148,9 +115,11 @@
                                               <div class="fw-semibold"><%= order.email || order.username %></div>
                                             </div>
                                             <div class="col-6 col-md-2">
-                                              <div class="small text-muted">Payment</div>
-                                              <span class="badge <%= paymentStatusKey === 'paid' ? 'bg-success-subtle text-success' : (paymentStatusKey === 'refunded' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning') %> text-uppercase">
-                                                <%= paymentStatusKey ? paymentStatusKey.toUpperCase() : 'PENDING' %>
+                                              <div class="small text-muted">Refund</div>
+                                              <% const refundDisplay = refundStatusRaw ? refundStatusRaw : (isRefunded ? 'refunded' : 'none'); %>
+                                              <% const refundBadgeClass = refundDisplay === 'completed' ? 'bg-success-subtle text-success' : (refundDisplay === 'pending' || refundDisplay === 'approved' || refundDisplay === 'processing' ? 'bg-warning-subtle text-warning' : (refundDisplay === 'rejected' || refundDisplay === 'failed' ? 'bg-danger-subtle text-danger' : (refundDisplay === 'refunded' ? 'bg-info-subtle text-info' : 'bg-light text-dark'))); %>
+                                              <span class="badge <%= refundBadgeClass %> text-uppercase">
+                                                <%= refundDisplay.toUpperCase() %>
                                               </span>
                                             </div>
                                             <div class="col-6 col-md-2">
@@ -275,11 +244,11 @@
                                                     </div>
                                                   <% } %>
                                                   <form action="/admin/orders/<%= order.id %>/update" method="POST"
-                                                    class="row gy-3">
+                                                    class="row gy-3 admin-order-form" data-delivery-method="<%= order.delivery_method %>">
                                                     <div class="col-12 col-md-4">
                                                       <label class="form-label">Status</label>
                                                       <% const allowedStatuses = (order.allowed_statuses && order.allowed_statuses.length) ? order.allowed_statuses : statusOptions; %>
-                                                      <select name="status" class="form-select" <%=isTerminal
+                                                      <select name="status" class="form-select admin-status-select" <%=isTerminal
                                                         ? 'disabled' : '' %>>
                                                         <% if (!allowedStatuses.includes(order.status)) { %>
                                                           <option value="<%= order.status %>" selected disabled>
@@ -296,13 +265,13 @@
                                                     </div>
                                                     <div class="col-12 col-md-4">
                                                       <label class="form-label">Delivery method</label>
-                                                      <select name="deliveryMethod" class="form-select" <%=isTerminal
-                                                        ? 'disabled' : '' %>>
+                                                      <select name="deliveryMethod" class="form-select" disabled>
                                                         <option value="pickup" <%=order.delivery_method==='pickup'
                                                           ? 'selected' : '' %>>Pickup</option>
                                                         <option value="delivery" <%=order.delivery_method==='delivery'
                                                           ? 'selected' : '' %>>Delivery</option>
                                                       </select>
+                                                      <input type="hidden" name="deliveryMethod" value="<%= order.delivery_method %>">
                                                     </div>
                                                     <div class="col-12 col-md-4">
                                                       <label class="form-label">Estimated delivery/pickup date</label>
@@ -345,70 +314,7 @@
                                                     </div>
                                                   </form>
 
-                                                  <div class="card shadow-sm mt-3">
-                                                    <div class="card-body">
-                                                      <h5 class="mb-3">Refund</h5>
-                                                      <% if (!order.refund_request_id) { %>
-                                                        <p class="text-muted mb-0">No refund requests for this order.</p>
-                                                      <% } else { %>
-                                                        <div class="d-flex flex-wrap gap-3 mb-3">
-                                                          <div>
-                                                            <div class="small text-muted">Requested</div>
-                                                            <div class="fw-semibold">$<%= refundRequestedAmount.toFixed(2) %></div>
-                                                          </div>
-                                                          <div>
-                                                            <div class="small text-muted">Approved</div>
-                                                            <div class="fw-semibold"><%= refundApprovedAmount > 0 ? ('$' + refundApprovedAmount.toFixed(2)) : '-' %></div>
-                                                          </div>
-                                                          <div>
-                                                            <div class="small text-muted">Status</div>
-                                                            <span class="badge bg-light text-dark border"><%= refundLabel || 'Unknown' %></span>
-                                                          </div>
-                                                          <div>
-                                                            <div class="small text-muted">Updated</div>
-                                                            <div><%= refundDate ? new Date(refundDate).toLocaleString() : '-' %></div>
-                                                          </div>
-                                                        </div>
-                                                        <% if (refundStatusRaw === 'pending') { %>
-                                                          <form action="/admin/refunds/<%= order.refund_request_id %>/approve" method="POST" class="row g-3 mb-3">
-                                                            <div class="col-12 col-md-4">
-                                                              <label class="form-label">Approve amount</label>
-                                                              <input type="number" name="amount" step="0.01" min="0" max="<%= refundRequestedAmount.toFixed(2) %>" class="form-control" value="<%= refundRequestedAmount.toFixed(2) %>" required>
-                                                            </div>
-                                                            <div class="col-12 col-md-8">
-                                                              <label class="form-label">Admin remark (optional)</label>
-                                                              <input type="text" name="adminNote" class="form-control" placeholder="Reason for approval or partial refund">
-                                                            </div>
-                                                            <div class="col-12">
-                                                              <div class="form-check">
-                                                                <input class="form-check-input" type="checkbox" name="restock" id="restock-<%= order.id %>">
-                                                                <label class="form-check-label" for="restock-<%= order.id %>">
-                                                                  Restock returned items
-                                                                </label>
-                                                              </div>
-                                                            </div>
-                                                            <div class="col-12">
-                                                              <button type="submit" class="btn btn-success">Approve refund</button>
-                                                            </div>
-                                                          </form>
-                                                          <form action="/admin/refunds/<%= order.refund_request_id %>/reject" method="POST" class="row g-3">
-                                                            <div class="col-12 col-md-8">
-                                                              <label class="form-label">Rejection reason</label>
-                                                              <input type="text" name="adminNote" class="form-control" placeholder="Provide a reason" required>
-                                                            </div>
-                                                            <div class="col-12">
-                                                              <button type="submit" class="btn btn-outline-danger">Reject refund</button>
-                                                            </div>
-                                                          </form>
-                                                        <% } else if (order.refund_admin_reason) { %>
-                                                          <div class="small text-muted mt-2">Admin note: <%= order.refund_admin_reason %></div>
-                                                        <% } %>
-                                                        <div class="mt-3">
-                                                          <a href="/admin/refunds/<%= order.refund_request_id %>" class="btn btn-outline-secondary btn-sm">View refund details</a>
-                                                        </div>
-                                                      <% } %>
-                                                    </div>
-                                                  </div>
+                                                  <!-- Refund card removed per request -->
 
                                                   <% const nextStatus = order.next_status; %>
                                                   <% const requiresTracking = nextStatus === 'shipped' || nextStatus === 'delivered'; %>
@@ -451,4 +357,48 @@
         </div>
       </section>
 
-      <%- include('partials/footer') %>
+    <%- include('partials/footer') %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var forms = document.querySelectorAll('.admin-order-form');
+    forms.forEach(function (form) {
+      var statusSelect = form.querySelector('.admin-status-select');
+      var providerInput = form.querySelector('input[name="shippingProvider"]');
+      var trackingInput = form.querySelector('input[name="trackingNumber"]');
+      var dateInput = form.querySelector('input[name="estDeliveryDate"]');
+      var method = form.getAttribute('data-delivery-method');
+      var isPickup = method === 'pickup';
+
+      var toggleShippingFields = function () {
+        if (!providerInput || !trackingInput) return;
+        if (isPickup) {
+          providerInput.value = '';
+          trackingInput.value = '';
+          providerInput.setAttribute('disabled', 'disabled');
+          trackingInput.setAttribute('disabled', 'disabled');
+        } else {
+          providerInput.removeAttribute('disabled');
+          trackingInput.removeAttribute('disabled');
+        }
+      };
+
+      var toggleDateRequired = function () {
+        if (!dateInput || !statusSelect) return;
+        var status = statusSelect.value;
+        var requiresDate = (status === 'ready_for_pickup') || (status === 'shipped') || (status === 'delivered');
+        if (requiresDate) {
+          dateInput.setAttribute('required', 'required');
+        } else {
+          dateInput.removeAttribute('required');
+        }
+      };
+
+      toggleShippingFields();
+      toggleDateRequired();
+      if (statusSelect) {
+        statusSelect.addEventListener('change', toggleDateRequired);
+      }
+    });
+  });
+</script>

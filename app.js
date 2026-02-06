@@ -11,6 +11,7 @@ const orderController = require('./controllers/OrderController');
 const reviewController = require('./controllers/ReviewController');
 const reviewsController = require('./controllers/ReviewsController');
 const adminController = require('./controllers/AdminController');
+const adminReviewController = require('./controllers/AdminReviewController');
 const couponController = require('./controllers/CouponController');
 // TEAM START - Fit assistant controller
 const fitAssistantController = require('./controllers/FitAssistantController');
@@ -169,6 +170,8 @@ app.get('/admin/refunds', checkAuthenticated, checkAdmin, adminRefundController.
 app.get('/admin/refunds/:id', checkAuthenticated, checkAdmin, adminRefundController.details);
 app.post('/admin/refunds/:id/approve', checkAuthenticated, checkAdmin, adminRefundController.approve);
 app.post('/admin/refunds/:id/reject', checkAuthenticated, checkAdmin, adminRefundController.reject);
+app.get('/admin/reviews', checkAuthenticated, checkAdmin, adminReviewController.list);
+app.post('/admin/reviews/:id/reply', checkAuthenticated, checkAdmin, adminReviewController.reply);
 
 
 const PORT = process.env.PORT || 3000;

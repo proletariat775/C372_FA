@@ -1445,6 +1445,11 @@ const updateAdminOrder = (req, res) => {
             return res.redirect('/admin/deliveries');
         }
 
+        if (['ready_for_pickup', 'shipped', 'delivered'].includes(status) && !estDeliveryDate) {
+            req.flash('error', 'Estimated delivery/pickup date is required for this status.');
+            return res.redirect('/admin/deliveries');
+        }
+
         if (status === 'shipped') {
             if (effectiveMethod !== 'delivery') {
                 req.flash('error', 'Pickup orders cannot be marked as shipped.');
@@ -1940,12 +1945,14 @@ const invoice = (req, res) => {
                     const redeemedPoints = Number(orderLoyalty.redeemedPoints || order.loyalty_points_redeemed || 0);
                     const earnedPoints = Number(orderLoyalty.earnedPoints || 0);
                     const loyaltyDiscountAmount = Number(order.loyalty_discount_amount || (redeemedPoints / 20) || 0);
+                    const backLink = isAdmin ? '/admin/deliveries' : `/order/${orderId}`;
 
                     res.render('invoice', {
                         user: sessionUser,
                         order,
                         customer,
                         items,
+                        backLink,
                         loyalty: {
                             redeemedPoints,
                             earnedPoints,

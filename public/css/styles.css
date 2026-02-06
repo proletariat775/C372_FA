@@ -410,6 +410,234 @@ a:hover {
   align-items: center;
 }
 
+.status-progress {
+  position: relative;
+  padding: 1.25rem 1rem 0.5rem;
+  border-radius: 1rem;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.status-progress__track,
+.status-progress__fill {
+  position: absolute;
+  left: 1.5rem;
+  right: 1.5rem;
+  top: 1.6rem;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.status-progress__track {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.status-progress__fill {
+  background: linear-gradient(135deg, #2f7d5a, #1f6f64);
+  width: var(--progress, 0%);
+}
+
+.status-progress__steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.status-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.status-step__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #cbd5f5;
+}
+
+.status-step.is-active {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.status-step.is-active .status-step__dot {
+  background: #2f7d5a;
+  border-color: #2f7d5a;
+}
+
+.status-step.is-current .status-step__dot {
+  box-shadow: 0 0 0 6px rgba(47, 125, 90, 0.15);
+}
+
+.order-details-page .card {
+  border-radius: 1.1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.order-details-header h2 {
+  font-weight: 700;
+}
+
+.order-details-actions .badge {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.order-details-card .card-body {
+  padding: 1.5rem;
+}
+
+.order-summary-card {
+  background: #f8fafc;
+}
+
+.track-card--primary {
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.status-line {
+  position: relative;
+  padding: 1.25rem 0.5rem 0.75rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.status-line__track,
+.status-line__fill {
+  position: absolute;
+  left: 2.5rem;
+  right: 2.5rem;
+  top: 2.2rem;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.status-line__track {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.status-line__fill {
+  background: linear-gradient(90deg, #4f7cff, #36b37e);
+  width: var(--progress, 0%);
+}
+
+.status-line__steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.status-line__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.status-line__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.status-line__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.status-line__step.is-active {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.status-line__step.is-active .status-line__icon {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.status-line__step.is-current .status-line__icon {
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.2);
+}
+
+.track-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.track-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.track-card {
+  border-radius: 1rem;
+  background: #ffffff;
+}
+
+.track-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.track-progress {
+  margin-top: 1rem;
+}
+
+.track-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.track-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.track-admin-notes {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+@media (min-width: 768px) {
+  .track-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
 .order-items {
   display: flex;
   flex-direction: column;

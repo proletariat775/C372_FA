@@ -4,6 +4,7 @@ const OrderItem = require('../models/orderItem');
 const Wishlist = require('../models/wishlist');
 const OrderReview = require('../models/orderReview');
 const ReturnRequest = require('../models/returnRequest');
+const refundRequestModel = require('../models/refundRequest');
 const loyaltyService = require('../services/loyaltyService');
 const orderStatusService = require('../services/orderStatusService');
 
@@ -66,8 +67,10 @@ const buildTotals = (order) => {
     };
 };
 
-const computeReturnEligibility = (order) => {
+const computeRefundEligibility = (order) => {
     const statusEligible = order && orderStatusService.isCompletedStatus(order.status);
+    const paymentStatus = order && order.payment_status ? String(order.payment_status).toLowerCase() : 'pending';
+    const paymentEligible = paymentStatus === 'paid';
     let withinWindow = true;
     let daysSince = null;
 
@@ -82,24 +85,27 @@ const computeReturnEligibility = (order) => {
 
     return {
         statusEligible,
+        paymentEligible,
         withinWindow,
         daysSince,
-        allowed: statusEligible && withinWindow
+        allowed: statusEligible && withinWindow && paymentEligible
     };
 };
 
-const buildReturnTimeline = (returnData) => {
-    const status = returnData ? returnData.status : null;
-    const requested = ['requested', 'approved', 'rejected', 'completed'].includes(status);
-    const approved = ['approved', 'completed'].includes(status);
+const buildRefundTimeline = (refundData) => {
+    const status = refundData ? String(refundData.status || '').toLowerCase() : '';
+    const requested = ['pending', 'approved', 'processing', 'completed', 'rejected', 'failed'].includes(status);
+    const approved = ['approved', 'processing', 'completed'].includes(status);
     const rejected = status === 'rejected';
     const completed = status === 'completed';
+    const failed = status === 'failed';
 
     return [
         { key: 'requested', label: 'Requested', active: requested },
         { key: 'approved', label: 'Approved', active: approved },
         { key: 'rejected', label: 'Rejected', active: rejected },
-        { key: 'completed', label: 'Completed', active: completed }
+        { key: 'completed', label: 'Completed', active: completed },
+        { key: 'failed', label: 'Failed', active: failed }
     ];
 };
 
@@ -208,22 +214,26 @@ const details = (req, res) => {
             return res.redirect(redirectPath);
         }
 
-        ReturnRequest.getByOrderId(orderId, (returnErr, returnData) => {
-            if (returnErr) {
-                console.error('Error loading return data:', returnErr);
+        const userId = isAdmin(sessionUser) ? null : sessionUser.id;
+        refundRequestModel.getLatestByOrderIds([orderId], userId, (refundErr, refundRows = []) => {
+            if (refundErr) {
+                console.error('Error loading refund data:', refundErr);
             }
 
-            const eligibility = computeReturnEligibility(order);
+            const refundData = refundRows && refundRows.length ? refundRows[0] : null;
+            const eligibility = computeRefundEligibility(order);
+            const normalizedStatus = orderStatusService.mapLegacyStatus(order.status || 'processing');
+            const canReview = isShopper(sessionUser) && normalizedStatus === 'completed';
             const backLink = req.get('referer') || getRedirectPath(sessionUser);
             res.render('orderDetails', {
                 user: sessionUser,
                 order,
                 items,
                 totals: buildTotals(order),
-                canReview: isShopper(sessionUser) && orderStatusService.isCompletedStatus(order.status),
-                returnEligibility: eligibility,
-                returnRequest: returnData,
-                returnTimeline: buildReturnTimeline(returnData),
+                canReview,
+                refundEligibility: eligibility,
+                refundRequest: refundData,
+                refundTimeline: buildRefundTimeline(refundData),
                 backLink,
                 messages: req.flash('success'),
                 errors: req.flash('error')

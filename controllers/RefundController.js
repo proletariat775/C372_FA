@@ -438,21 +438,49 @@ module.exports = {
                 const refundStatus = latestRefund ? String(latestRefund.status || '').toLowerCase() : '';
                 const shouldMarkCompleted = latestRefund && refundStatus === 'completed' && requestStatus !== 'completed';
 
-                const renderDetails = () => refundRequestItemModel.getByRequestId(requestId, (itemsErr, items = []) => {
-                    if (itemsErr) {
-                        console.error('Error loading refund items:', itemsErr);
-                        req.flash('error', 'Unable to load refund request.');
-                        return res.redirect('/refunds');
-                    }
+                const renderDetails = () => {
+                    refundRequestItemModel.getByRequestId(requestId, (itemsErr, refundItems = []) => {
+                        if (itemsErr) {
+                            console.error('Error loading refund items:', itemsErr);
+                            req.flash('error', 'Unable to load refund request.');
+                            return res.redirect('/refunds');
+                        }
 
-                    return renderView(res, 'refundDetails', {
-                        request,
-                        refunds,
-                        items,
-                        messages: req.flash('success'),
-                        errors: req.flash('error')
+                        Order.findByIdForUser(request.orderId, userId, (orderErr, order) => {
+                            if (orderErr) {
+                                console.error('Error loading order for refund details:', orderErr);
+                            }
+
+                            if (!order) {
+                                return renderView(res, 'refundDetails', {
+                                    request,
+                                    refunds,
+                                    items: refundItems,
+                                    order: null,
+                                    orderItems: [],
+                                    messages: req.flash('success'),
+                                    errors: req.flash('error')
+                                });
+                            }
+
+                            Order.findItemsByOrderIds([order.id], (orderItemsErr, orderItems = []) => {
+                                if (orderItemsErr) {
+                                    console.error('Error loading order items for refund details:', orderItemsErr);
+                                }
+
+                                return renderView(res, 'refundDetails', {
+                                    request,
+                                    refunds,
+                                    items: refundItems,
+                                    order,
+                                    orderItems: orderItems || [],
+                                    messages: req.flash('success'),
+                                    errors: req.flash('error')
+                                });
+                            });
+                        });
                     });
-                });
+                };
 
                 if (!shouldMarkCompleted) {
                     return renderDetails();

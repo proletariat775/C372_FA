@@ -79,6 +79,44 @@ const OrderReview = {
             LIMIT 1
         `;
         connection.query(sql, [userId, productId], callback);
+    },
+
+    adminList: (callback) => {
+        const sql = `
+            SELECT
+                r.id,
+                r.product_id,
+                r.user_id,
+                r.order_item_id,
+                r.rating,
+                r.comment,
+                r.admin_reply,
+                r.admin_reply_at,
+                r.created_at,
+                r.updated_at,
+                u.username,
+                u.email,
+                p.name AS product_name,
+                o.order_number,
+                o.id AS order_id
+            FROM reviews r
+            LEFT JOIN users u ON u.id = r.user_id
+            LEFT JOIN products p ON p.id = r.product_id
+            LEFT JOIN order_items oi ON oi.id = r.order_item_id
+            LEFT JOIN orders o ON o.id = oi.order_id
+            ORDER BY r.created_at DESC
+        `;
+        connection.query(sql, callback);
+    },
+
+    adminReply: (reviewId, reply, callback) => {
+        const safeReply = reply ? String(reply).trim().slice(0, 1000) : null;
+        const sql = `
+            UPDATE reviews
+            SET admin_reply = ?, admin_reply_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `;
+        connection.query(sql, [safeReply, reviewId], callback);
     }
 };
 

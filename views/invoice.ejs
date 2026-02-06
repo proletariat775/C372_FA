@@ -58,8 +58,6 @@
   <%- include('partials/header', { title: pageTitle, extraHead }) %>
     <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
       <div class="print-actions text-center mt-3">
-        <a href="<%= (user && user.role === 'admin') ? '/admin/deliveries' : '/orders/history' %>"
-          class="btn btn-outline-secondary btn-sm me-2">Back</a>
         <button onclick="window.print()" class="btn btn-primary btn-sm">Print invoice</button>
       </div>
 
