@@ -815,8 +815,12 @@ a:hover {
 }
 
 .badge-status--delivered {
-  background: #dcfce7;
-  color: #166534;
+    background: #dcfce7;
+    color: #166534;
+}
+.badge-status--returned {
+    background: #fef3c7;
+    color: #b45309;
 }
 
 .badge-status--completed {

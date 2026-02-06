@@ -315,7 +315,7 @@ const markRefunded = (orderId, callback) => {
     }
     const sql = `
         UPDATE orders
-        SET status = 'refunded',
+        SET status = 'returned',
             payment_status = 'refunded',
             refunded_at = COALESCE(refunded_at, NOW())
         WHERE id = ?
@@ -323,23 +323,33 @@ const markRefunded = (orderId, callback) => {
     connection.query(sql, [safeOrderId], callback);
 };
 
-const updateRefundTotals = (orderId, refundedAmount, markAsRefunded, callback) => {
+const updateRefundTotals = (orderId, refundedAmount, options, callback) => {
     const safeOrderId = Number(orderId);
     const safeAmount = Number(refundedAmount);
     if (!Number.isFinite(safeOrderId) || !Number.isFinite(safeAmount)) {
         return callback(new Error('Invalid refund update.'));
     }
 
+    let markAsRefunded = false;
+    let statusOverride = null;
+    if (typeof options === 'object' && options !== null) {
+        markAsRefunded = Boolean(options.markAsRefunded);
+        statusOverride = options.statusOverride ? String(options.statusOverride).trim() : null;
+    } else {
+        markAsRefunded = Boolean(options);
+    }
+
     if (markAsRefunded) {
+        const resolvedStatus = statusOverride || 'returned';
         const sql = `
             UPDATE orders
             SET refunded_amount = ?,
-                status = 'refunded',
+                status = ?,
                 payment_status = 'refunded',
                 refunded_at = COALESCE(refunded_at, NOW())
             WHERE id = ?
         `;
-        return connection.query(sql, [safeAmount, safeOrderId], callback);
+        return connection.query(sql, [safeAmount, resolvedStatus, safeOrderId], callback);
     }
 
     const sql = `
@@ -451,7 +461,7 @@ module.exports = {
         const sql = `
             SELECT COUNT(*) AS count
             FROM orders
-            WHERE status NOT IN ('completed', 'refunded')
+            WHERE status NOT IN ('completed', 'cancelled', 'returned')
         `;
         connection.query(sql, (err, rows) => {
             if (err) return callback(err);

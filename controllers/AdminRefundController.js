@@ -7,6 +7,7 @@ const Product = require('../models/product');
 const paypalRefund = require('../services/paypalRefund');
 const stripeService = require('../services/stripe');
 const loyaltyService = require('../services/loyaltyService');
+const orderStatusService = require('../services/orderStatusService');
 
 const renderView = (res, name, data = {}) => res.render(name, { ...data, user: res.locals.user || res.req.session.user });
 
@@ -57,12 +58,24 @@ const restockRequestItems = (requestId, callback) => {
     });
 };
 
+const resolveRefundOutcomeStatus = (orderStatus) => {
+    const statusKey = orderStatusService.mapLegacyStatus(orderStatus || 'processing');
+    if (['processing', 'packing', 'ready_for_pickup', 'shipped'].includes(statusKey)) {
+        return 'cancelled';
+    }
+    if (statusKey === 'cancelled') {
+        return 'cancelled';
+    }
+    return 'returned';
+};
+
 const completeRefundTransaction = (request, approvedAmount, adminReason, refundRecord, callback) => {
     const previousRefunded = Number(request && (request.refundedAmount || request.refunded_amount) ? (request.refundedAmount || request.refunded_amount) : 0);
     const total = Number(request && request.total ? request.total : 0);
     const safeApproved = Number(approvedAmount || 0);
     const newRefunded = Number((Math.max(0, previousRefunded) + Math.max(0, safeApproved)).toFixed(2));
     const fullRefund = total > 0 && newRefunded >= total - 0.01;
+    const statusOverride = fullRefund ? resolveRefundOutcomeStatus(request.orderStatus) : null;
 
     db.beginTransaction((txErr) => {
         if (txErr) {
@@ -79,7 +92,10 @@ const completeRefundTransaction = (request, approvedAmount, adminReason, refundR
                     return db.rollback(() => callback(updateErr));
                 }
 
-                Order.updateRefundTotals(request.orderId, newRefunded, fullRefund, (statusErr) => {
+                Order.updateRefundTotals(request.orderId, newRefunded, {
+                    markAsRefunded: fullRefund,
+                    statusOverride
+                }, (statusErr) => {
                     if (statusErr) {
                         return db.rollback(() => callback(statusErr));
                     }

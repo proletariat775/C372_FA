@@ -29,7 +29,10 @@ const getByUser = (userId, callback) => {
             rr.admin_reason AS adminNote,
             rr.created_at AS createdAt,
             rr.updated_at AS updatedAt,
-            o.total_amount AS total
+            o.total_amount AS total,
+            o.order_number AS orderNumber,
+            o.status AS orderStatus,
+            o.payment_status AS paymentStatus
         FROM refund_requests rr
         INNER JOIN orders o ON o.id = rr.order_id
         WHERE rr.user_id = ?
@@ -53,6 +56,9 @@ const getAll = (callback) => {
             rr.created_at AS createdAt,
             rr.updated_at AS updatedAt,
             o.total_amount AS total,
+            o.order_number AS orderNumber,
+            o.status AS orderStatus,
+            o.payment_status AS paymentStatus,
             o.paypal_capture_id AS paypalCaptureId,
             o.stripe_payment_intent_id AS stripePaymentIntentId,
             o.loyalty_points_redeemed AS loyaltyPointsRedeemed,
@@ -82,6 +88,10 @@ const getById = (requestId, callback) => {
             rr.created_at AS createdAt,
             rr.updated_at AS updatedAt,
             o.total_amount AS total,
+            o.order_number AS orderNumber,
+            o.status AS orderStatus,
+            o.payment_status AS paymentStatus,
+            o.refunded_at AS refundedAt,
             o.paypal_capture_id AS paypalCaptureId,
             o.stripe_payment_intent_id AS stripePaymentIntentId,
             o.loyalty_points_redeemed AS loyaltyPointsRedeemed,
@@ -116,7 +126,9 @@ const getByIdForUser = (requestId, userId, callback) => {
             rr.admin_reason AS adminNote,
             rr.created_at AS createdAt,
             rr.updated_at AS updatedAt,
-            o.total_amount AS total
+            o.total_amount AS total,
+            o.order_number AS orderNumber,
+            o.refunded_at AS refundedAt
         FROM refund_requests rr
         INNER JOIN orders o ON o.id = rr.order_id
         WHERE rr.id = ? AND rr.user_id = ?
@@ -187,6 +199,8 @@ const getLatestByOrderIds = (orderIds, userId, callback) => {
             rr.status,
             rr.id,
             rr.approved_amount AS approvedAmount,
+            rr.requested_amount AS requestedAmount,
+            rr.admin_reason AS adminReason,
             rr.created_at AS createdAt,
             rr.updated_at AS updatedAt
         FROM refund_requests rr

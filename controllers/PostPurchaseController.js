@@ -109,7 +109,9 @@ const buildTrackingTimeline = (order) => {
     const fallbackMethod = order && (order.delivery_address || order.shipping_address) ? 'delivery' : 'pickup';
     const deliveryMethod = orderStatusService.resolveDeliveryMethod(order && order.delivery_method ? order.delivery_method : fallbackMethod);
     const flow = orderStatusService.getFlowForMethod(deliveryMethod);
-    const isRefunded = orderStatusService.isRefundedStatus(rawStatus) || paymentStatus === 'refunded';
+    const isCancelled = orderStatusService.isCancelledStatus(rawStatus);
+    const isReturned = orderStatusService.isReturnedStatus(rawStatus);
+    const isRefunded = paymentStatus === 'refunded' || isCancelled || isReturned;
     const effectiveStatus = isRefunded ? 'completed' : rawStatus;
     const statusIndex = flow.indexOf(effectiveStatus);
     const isPaid = paymentStatus === 'paid' || paymentStatus === 'refunded';
@@ -124,9 +126,20 @@ const buildTrackingTimeline = (order) => {
     steps.push(
         { key: 'processing', label: 'Processing', active: statusIndex >= flow.indexOf('processing') },
         { key: 'packing', label: 'Packing', active: statusIndex >= flow.indexOf('packing') },
-        { key: readyKey, label: readyLabel, active: statusIndex >= flow.indexOf(readyKey) },
-        { key: 'completed', label: 'Completed', active: statusIndex >= flow.indexOf('completed') }
+        { key: readyKey, label: readyLabel, active: statusIndex >= flow.indexOf(readyKey) }
     );
+
+    if (deliveryMethod === 'delivery') {
+        steps.push({ key: 'delivered', label: 'Delivered', active: statusIndex >= flow.indexOf('delivered') });
+    }
+
+    steps.push({ key: 'completed', label: 'Completed', active: statusIndex >= flow.indexOf('completed') });
+
+    if (isCancelled) {
+        steps.push({ key: 'cancelled', label: 'Cancelled', active: true });
+    } else if (isReturned) {
+        steps.push({ key: 'returned', label: 'Returned', active: true });
+    }
 
     if (isRefunded) {
         steps.push({ key: 'refunded', label: 'Refunded', active: true });

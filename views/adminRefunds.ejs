@@ -47,7 +47,9 @@
             <% requests.forEach(function(request) { %>
               <tr>
                 <td class="fw-semibold">#<%= request.id %></td>
-                <td>Order #<%= request.orderId %></td>
+                <td>
+                  <%= request.orderNumber ? `Order #${request.orderNumber} (ID: ${request.orderId})` : `Order #${request.orderId}` %>
+                </td>
                 <td>
                   <div><%= request.username %></div>
                   <div class="text-muted small"><%= request.email %></div>

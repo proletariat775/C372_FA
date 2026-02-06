@@ -180,7 +180,7 @@ CREATE TABLE orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_number VARCHAR(40) NOT NULL,
   user_id INT NOT NULL,
-  status ENUM('processing','packing','ready_for_pickup','shipped','completed','refunded') NOT NULL DEFAULT 'processing',
+  status ENUM('processing','packing','ready_for_pickup','shipped','delivered','completed','cancelled','returned') NOT NULL DEFAULT 'processing',
   subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,

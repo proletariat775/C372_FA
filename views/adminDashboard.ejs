@@ -2,7 +2,7 @@
   <%- include('partials/adminNavbar', { user: user }) %>
 
     <% const statusClasses={ processing: 'bg-warning text-dark' , packing: 'bg-info text-dark' , ready_for_pickup: 'bg-primary-subtle text-primary' ,
-      shipped: 'bg-primary' , completed: 'bg-success' , refunded: 'bg-info' }; %>
+      shipped: 'bg-primary' , delivered: 'bg-success-subtle text-success', completed: 'bg-success' , cancelled: 'bg-danger-subtle text-danger', returned: 'bg-warning-subtle text-warning' }; %>
 
       <section class="page-section">
         <div class="container">

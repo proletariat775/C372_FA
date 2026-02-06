@@ -55,7 +55,7 @@
             <% requests.forEach(function(request) { %>
               <tr>
                 <td class="fw-semibold">#<%= request.id %></td>
-                <td>Order #<%= request.orderId %></td>
+                <td>Order #<%= request.orderNumber || request.orderId %></td>
                 <td><span class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span></td>
                 <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
                 <td>

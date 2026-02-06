@@ -5,7 +5,8 @@
   <div class="container">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
       <div>
-        <p class="mb-1 text-muted">Order #<%= order.id %></p>
+        <% const displayOrderNumber = order.order_number || order.id; %>
+        <p class="mb-1 text-muted">Order #<%= displayOrderNumber %></p>
         <h2 class="mb-0">Request a refund</h2>
       </div>
       <a href="/orders/history" class="btn btn-outline-secondary">Back to orders</a>
@@ -48,7 +49,7 @@
                 <% if (!eligibility.paid) { %>
                   Payment has not been completed.
                 <% } else if (!eligibility.statusEligible) { %>
-                  Only completed orders can be refunded.
+                  Only delivered or completed orders can be refunded.
                 <% } else if (!eligibility.withinWindow) { %>
                   Refunds must be requested within <%= refundWindowDays %> days.
                 <% } %>

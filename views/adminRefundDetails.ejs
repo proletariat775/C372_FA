@@ -28,7 +28,7 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="small text-muted">Order</div>
-            <div class="fw-semibold">Order #<%= request.orderId %></div>
+            <div class="fw-semibold"><%= request.orderNumber ? `Order #${request.orderNumber} (ID: ${request.orderId})` : `Order #${request.orderId}` %></div>
             <div class="small text-muted mt-2">User</div>
             <div><%= request.username %> (<%= request.email %>)</div>
           </div>

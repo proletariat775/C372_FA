@@ -1,4 +1,4 @@
-<% const pageTitle=`Invoice #${order.id} | Shirt Shop`; const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; const extraHead=` <style>
+<% const displayOrderNumber = order && (order.order_number || order.id); const invoiceHeading = displayOrderNumber ? `Invoice #${displayOrderNumber}` : 'Invoice'; const pageTitle=`${invoiceHeading} | Shirt Shop`; const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; const extraHead=` <style>
   body {
   background: #f5f7fb;
   color: #0f172a;
@@ -70,7 +70,8 @@
             <small class="text-muted">Quality shirts delivered</small>
           </div>
           <div class="invoice-meta text-end">
-            <span class="fw-bold">Invoice #<%= order.id %></span>
+            <% const invoiceLabel = (user && user.role === 'admin' && order.order_number) ? `Invoice #${displayOrderNumber} (ID: ${order.id})` : `Invoice #${displayOrderNumber}`; %>
+            <span class="fw-bold"><%= invoiceLabel %></span>
             <span>Date: <%= new Date(order.created_at).toLocaleString() %></span>
             <span>Total: $<%= Number(order.total_amount || order.total || 0).toFixed(2) %></span>
             <% if (refund && refund.refundedAmount > 0) { %>

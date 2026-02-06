@@ -6,7 +6,7 @@ const refundModel = require('../models/refund');
 const orderStatusService = require('../services/orderStatusService');
 
 const REFUND_WINDOW_DAYS = 14;
-const ELIGIBLE_ORDER_STATUSES = new Set(['completed']);
+const ELIGIBLE_ORDER_STATUSES = new Set(['completed', 'delivered']);
 
 // Refund lifecycle: pending -> processing -> completed (or rejected/failed). Amounts are validated server-side.
 

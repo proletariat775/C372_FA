@@ -1,20 +1,27 @@
 // Order lifecycle:
 // Pickup: processing -> packing -> ready_for_pickup -> completed
-// Delivery: processing -> packing -> shipped -> completed
-// Refunded is terminal and only set by the refund workflow.
+// Delivery: processing -> packing -> shipped -> delivered -> completed
+// Cancelled/returned are terminal states set by the refund workflow.
 const STATUS_FLOW = {
     pickup: ['processing', 'packing', 'ready_for_pickup', 'completed'],
-    delivery: ['processing', 'packing', 'shipped', 'completed']
+    delivery: ['processing', 'packing', 'shipped', 'delivered', 'completed']
 };
 
-const ALL_STATUSES = ['processing', 'packing', 'ready_for_pickup', 'shipped', 'completed', 'refunded'];
+const ALL_STATUSES = [
+    'processing',
+    'packing',
+    'ready_for_pickup',
+    'shipped',
+    'delivered',
+    'completed',
+    'cancelled',
+    'returned'
+];
 
 const LEGACY_STATUS_MAP = {
     pending: 'processing',
     packed: 'packing',
-    delivered: 'completed',
-    returned: 'refunded',
-    cancelled: 'refunded'
+    refunded: 'returned'
 };
 
 const toKey = (value) => String(value || '').trim().toLowerCase();
@@ -41,6 +48,10 @@ const getStatusIndex = (status, method) => {
 
 const getNextStatus = (currentStatus, method) => {
     const flow = getFlowForMethod(method);
+    const currentKey = mapLegacyStatus(currentStatus);
+    if (currentKey === 'cancelled' || currentKey === 'returned') {
+        return null;
+    }
     const currentIndex = getStatusIndex(currentStatus, method);
     if (currentIndex < 0) {
         return flow[0] || null;
@@ -66,8 +77,16 @@ const canTransition = (currentStatus, nextStatus, method) => {
     return nextIndex === currentIndex || nextIndex === currentIndex + 1;
 };
 
-const isRefundedStatus = (status) => mapLegacyStatus(status) === 'refunded';
-const isCompletedStatus = (status) => mapLegacyStatus(status) === 'completed';
+const isCancelledStatus = (status) => mapLegacyStatus(status) === 'cancelled';
+const isReturnedStatus = (status) => mapLegacyStatus(status) === 'returned';
+const isCompletedStatus = (status) => {
+    const key = mapLegacyStatus(status);
+    return key === 'completed' || key === 'delivered';
+};
+const isTerminalStatus = (status) => {
+    const key = mapLegacyStatus(status);
+    return key === 'completed' || key === 'cancelled' || key === 'returned';
+};
 
 module.exports = {
     STATUS_FLOW,
@@ -79,6 +98,8 @@ module.exports = {
     getStatusIndex,
     getNextStatus,
     canTransition,
-    isRefundedStatus,
-    isCompletedStatus
+    isCancelledStatus,
+    isReturnedStatus,
+    isCompletedStatus,
+    isTerminalStatus
 };

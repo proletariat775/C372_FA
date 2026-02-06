@@ -3,9 +3,7 @@
 -- Map legacy statuses to the new streamlined flow.
 UPDATE orders SET status = 'processing' WHERE status IN ('pending');
 UPDATE orders SET status = 'packing' WHERE status IN ('packed');
-UPDATE orders SET status = 'completed' WHERE status IN ('delivered');
-UPDATE orders SET status = 'refunded' WHERE status IN ('returned');
-UPDATE orders SET status = 'refunded' WHERE status IN ('cancelled');
+UPDATE orders SET status = 'returned' WHERE status IN ('refunded');
 
 -- Add completion/refund timestamps (nullable).
 ALTER TABLE orders
@@ -23,4 +21,4 @@ WHERE status = 'refunded' AND refunded_at IS NULL;
 
 -- Restrict status enum to the new flow only.
 ALTER TABLE orders
-  MODIFY status ENUM('processing','packing','ready_for_pickup','shipped','completed','refunded') NOT NULL DEFAULT 'processing';
+  MODIFY status ENUM('processing','packing','ready_for_pickup','shipped','delivered','completed','cancelled','returned') NOT NULL DEFAULT 'processing';

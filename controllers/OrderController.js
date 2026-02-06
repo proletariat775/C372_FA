@@ -987,7 +987,7 @@ const history = (req, res) => {
             return res.redirect(onErrorRedirect);
         }
 
-        const orders = (orderRows || []).map((order) => {
+          const orders = (orderRows || []).map((order) => {
             const fallbackMethod = order.shipping_address || order.delivery_address ? 'delivery' : 'pickup';
             const deliveryMethod = order.delivery_method
                 ? orderStatusService.resolveDeliveryMethod(order.delivery_method)
@@ -1053,7 +1053,10 @@ const history = (req, res) => {
                             acc[row.orderId] = {
                                 status: row.status,
                                 requestId: row.id,
+                                requestedAmount: row.requestedAmount,
                                 approvedAmount: row.approvedAmount,
+                                adminReason: row.adminReason,
+                                createdAt: row.createdAt,
                                 updatedAt: row.updatedAt
                             };
                             return acc;
@@ -1062,7 +1065,10 @@ const history = (req, res) => {
                             const refundInfo = refundByOrder[order.id] || {};
                             order.refund_status = refundInfo.status || null;
                             order.refund_request_id = refundInfo.requestId || null;
+                            order.refund_requested_amount = refundInfo.requestedAmount || null;
                             order.refund_approved_amount = refundInfo.approvedAmount || null;
+                            order.refund_admin_reason = refundInfo.adminReason || null;
+                            order.refund_created_at = refundInfo.createdAt || null;
                             order.refund_updated_at = refundInfo.updatedAt || null;
                         });
                         return next();
@@ -1150,8 +1156,8 @@ const listAllDeliveries = (req, res) => {
             const currentIndex = flow.indexOf(normalizedStatus);
             const allowedStatuses = [];
 
-            if (orderStatusService.isRefundedStatus(normalizedStatus)) {
-                allowedStatuses.push('refunded');
+            if (orderStatusService.isTerminalStatus(normalizedStatus)) {
+                allowedStatuses.push(normalizedStatus);
             } else if (currentIndex < 0) {
                 allowedStatuses.push(flow[0]);
             } else {
@@ -1161,16 +1167,44 @@ const listAllDeliveries = (req, res) => {
                 }
             }
 
-            return {
-                ...order,
-                status: normalizedStatus,
-                delivery_method: deliveryMethod,
-                delivery_address: deliveryAddress,
-                total: Number(order.total_amount || order.total || 0),
-                allowed_statuses: allowedStatuses,
-                next_status: orderStatusService.getNextStatus(normalizedStatus, deliveryMethod)
-            };
-        });
+              return {
+                  ...order,
+                  status: normalizedStatus,
+                  delivery_method: deliveryMethod,
+                  delivery_address: deliveryAddress,
+                  total: Number(order.total_amount || order.total || 0),
+                  allowed_statuses: allowedStatuses,
+                  next_status: orderStatusService.getNextStatus(normalizedStatus, deliveryMethod)
+              };
+          });
+
+          const kpis = orders.reduce((acc, order) => {
+              const statusKey = order.status;
+              const paymentKey = order.payment_status ? String(order.payment_status).toLowerCase() : '';
+              const isRefunded = paymentKey === 'refunded' || ['cancelled', 'returned'].includes(statusKey);
+
+              if (!['completed', 'cancelled', 'returned'].includes(statusKey)) {
+                  acc.openOrders += 1;
+              }
+              if (statusKey === 'packing') {
+                  acc.pendingPacking += 1;
+              }
+              if (order.delivery_method === 'pickup' && statusKey === 'ready_for_pickup') {
+                  acc.awaitingFulfilment += 1;
+              }
+              if (order.delivery_method === 'delivery' && statusKey === 'shipped') {
+                  acc.awaitingFulfilment += 1;
+              }
+              if (isRefunded) {
+                  acc.refundedOrders += 1;
+              }
+              return acc;
+          }, {
+              openOrders: 0,
+              pendingPacking: 0,
+              awaitingFulfilment: 0,
+              refundedOrders: 0
+          });
 
         const filteredOrders = orders.filter((order) => {
             if (Number.isFinite(userFilter) && Number(order.user_id) !== userFilter) {
@@ -1225,7 +1259,11 @@ const listAllDeliveries = (req, res) => {
                 const refundByOrder = (refundRows || []).reduce((acc, row) => {
                     acc[row.orderId] = {
                         status: row.status,
+                        requestId: row.id,
+                        requestedAmount: row.requestedAmount,
                         approvedAmount: row.approvedAmount,
+                        adminReason: row.adminReason,
+                        createdAt: row.createdAt,
                         updatedAt: row.updatedAt
                     };
                     return acc;
@@ -1233,17 +1271,22 @@ const listAllDeliveries = (req, res) => {
                 filteredOrders.forEach((order) => {
                     const refundInfo = refundByOrder[order.id] || {};
                     order.refund_status = refundInfo.status || null;
+                    order.refund_request_id = refundInfo.requestId || null;
+                    order.refund_requested_amount = refundInfo.requestedAmount || null;
                     order.refund_approved_amount = refundInfo.approvedAmount || null;
+                    order.refund_admin_reason = refundInfo.adminReason || null;
+                    order.refund_created_at = refundInfo.createdAt || null;
                     order.refund_updated_at = refundInfo.updatedAt || null;
                 });
 
-                res.render('adminDeliveries', {
-                    user: req.session.user,
-                    orders: filteredOrders,
-                    orderItems: itemsByOrder,
-                    filters: {
-                        status: statusFilter,
-                        method: methodFilter,
+                  res.render('adminDeliveries', {
+                      user: req.session.user,
+                      orders: filteredOrders,
+                      orderItems: itemsByOrder,
+                      kpis,
+                      filters: {
+                          status: statusFilter,
+                          method: methodFilter,
                         search: searchTerm,
                         userId: Number.isFinite(userFilter) ? userFilter : ''
                     },
@@ -1340,8 +1383,8 @@ const updateAdminOrder = (req, res) => {
         req.flash('error', 'Please select a valid order status.');
         return res.redirect('/admin/deliveries');
     }
-    if (status === 'refunded') {
-        req.flash('error', 'Refunded status can only be set by the refund process.');
+    if (status === 'cancelled' || status === 'returned') {
+        req.flash('error', 'Cancelled/returned status can only be set by the refund process.');
         return res.redirect('/admin/deliveries');
     }
 
@@ -1392,13 +1435,8 @@ const updateAdminOrder = (req, res) => {
             return res.redirect('/admin/deliveries');
         }
 
-        if (orderStatusService.isRefundedStatus(currentStatus)) {
-            req.flash('error', 'Refunded orders are locked from further edits.');
-            return res.redirect('/admin/deliveries');
-        }
-
-        if (orderStatusService.isCompletedStatus(currentStatus)) {
-            req.flash('error', 'Completed orders are locked from further edits.');
+        if (orderStatusService.isTerminalStatus(currentStatus)) {
+            req.flash('error', 'Completed/cancelled/returned orders are locked from further edits.');
             return res.redirect('/admin/deliveries');
         }
 
@@ -1414,6 +1452,17 @@ const updateAdminOrder = (req, res) => {
             }
             if (!shippingProvider || !trackingNumber) {
                 req.flash('error', 'Shipping provider and tracking number are required to mark as shipped.');
+                return res.redirect('/admin/deliveries');
+            }
+        }
+
+        if (status === 'delivered') {
+            if (effectiveMethod !== 'delivery') {
+                req.flash('error', 'Pickup orders cannot be marked as delivered.');
+                return res.redirect('/admin/deliveries');
+            }
+            if (!shippingProvider || !trackingNumber) {
+                req.flash('error', 'Shipping provider and tracking number are required to mark as delivered.');
                 return res.redirect('/admin/deliveries');
             }
         }
@@ -1880,8 +1929,10 @@ const invoice = (req, res) => {
                 const deliveryFee = Number(order.shipping_amount || 0);
                 const subtotal = Number(order.subtotal || 0);
                 const refundedAmount = Number(order.refunded_amount || 0);
+                const statusKey = String(order.status || '').toLowerCase();
                 const isRefunded = String(order.payment_status || '').toLowerCase() === 'refunded'
-                    || String(order.status || '').toLowerCase() === 'refunded';
+                    || statusKey === 'cancelled'
+                    || statusKey === 'returned';
                 const refundDate = order.refunded_at || null;
                 const netPaid = Math.max(0, Number(order.total_amount || order.total || 0) - refundedAmount);
                 const renderInvoice = (loyaltySummary = {}) => {

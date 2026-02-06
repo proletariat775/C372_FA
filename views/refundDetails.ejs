@@ -24,9 +24,11 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="small text-muted">Order</div>
-            <div class="fw-semibold">Order #<%= request.orderId %></div>
+            <div class="fw-semibold">Order #<%= request.orderNumber || request.orderId %></div>
             <div class="small text-muted mt-2">Payment method</div>
             <div><span class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span></div>
+            <div class="small text-muted mt-2">Requested on</div>
+            <div><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Requested amount</div>
@@ -35,6 +37,8 @@
             <div><%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %></div>
             <div class="small text-muted mt-2">Status</div>
             <div><span class="badge bg-light text-dark border"><%= (request.status || 'unknown').toUpperCase() %></span></div>
+            <div class="small text-muted mt-2">Refunded on</div>
+            <div><%= request.refundedAt ? new Date(request.refundedAt).toLocaleString() : (request.status === 'completed' ? (request.updatedAt ? new Date(request.updatedAt).toLocaleString() : '-') : '-') %></div>
           </div>
           <% if (request.reason) { %>
             <div class="col-12">
