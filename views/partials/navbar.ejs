@@ -15,41 +15,170 @@
                     </li>
                     <% } else if (user.role==='admin' ) { %>
                         <li class="nav-item">
-                            <a class="nav-link" href="/inventory">Inventory</a>
+                            <a class="nav-link" href="/inventory">
+                                <span class="nav-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 7l1.5-3h15L21 7" />
+                                        <path d="M3 7h18v13H3z" />
+                                        <path d="M9 11h6" />
+                                    </svg>
+                                </span>
+                                Inventory
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/addProduct">Add Product</a>
+                            <a class="nav-link" href="/addProduct">
+                                <span class="nav-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="3" />
+                                        <path d="M12 8v8M8 12h8" />
+                                    </svg>
+                                </span>
+                                Add Product
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/deliveries">Deliveries</a>
+                            <a class="nav-link" href="/admin/deliveries">
+                                <span class="nav-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 7h11v8H3z" />
+                                        <path d="M14 9h4l3 3v3h-7z" />
+                                        <circle cx="7" cy="18" r="2" />
+                                        <circle cx="17" cy="18" r="2" />
+                                    </svg>
+                                </span>
+                                Deliveries
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/users">Manage Users</a>
+                            <a class="nav-link" href="/admin/users">
+                                <span class="nav-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="9" cy="8" r="3" />
+                                        <path d="M4 19v-1a4 4 0 0 1 4-4h2" />
+                                        <circle cx="17" cy="10" r="2.5" />
+                                        <path d="M14.5 19v-1a3.5 3.5 0 0 1 3.5-3.5h1" />
+                                    </svg>
+                                </span>
+                                Manage Users
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/logout">Logout</a>
+                            <a class="nav-link" href="/logout">
+                                <span class="nav-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                        <path d="M16 17l5-5-5-5" />
+                                        <path d="M21 12H9" />
+                                    </svg>
+                                </span>
+                                Logout
+                            </a>
                         </li>
                         <% } else { %>
                             <li class="nav-item">
-                                <a class="nav-link" href="/shopping">Shop</a>
+                                <a class="nav-link" href="/shopping">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 9l2-4h14l2 4" />
+                                            <path d="M4 9h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                                            <path d="M10 13h4v6h-4z" />
+                                        </svg>
+                                    </span>
+                                    Shop
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/cart">Cart</a>
+                                <a class="nav-link" href="/cart">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 5h2l2.5 11h9.5l2-7H7" />
+                                            <circle cx="9" cy="19" r="1.5" />
+                                            <circle cx="17" cy="19" r="1.5" />
+                                        </svg>
+                                    </span>
+                                    Cart
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/user/coupons">Coupons</a>
+                                <a class="nav-link" href="/user/coupons">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path
+                                                d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z" />
+                                            <path d="M12 7v10" />
+                                        </svg>
+                                    </span>
+                                    Coupons
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/fit-assistant">Fit Assistant</a>
+                                <a class="nav-link" href="/wishlist">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+                                        </svg>
+                                    </span>
+                                    Wishlist
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/user">User</a>
+                                <a class="nav-link" href="/fit-assistant">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="3" y="7" width="18" height="10" rx="2" />
+                                            <path d="M7 7v10M11 7v10M15 7v10" />
+                                        </svg>
+                                    </span>
+                                    Fit Assistant
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/refunds">Refunds</a>
+                                <a class="nav-link" href="/user">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="8" r="3" />
+                                            <path d="M4 20a8 8 0 0 1 16 0" />
+                                        </svg>
+                                    </span>
+                                    User
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/logout">Logout</a>
+                                <span class="nav-link nav-ecopoints">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M12 3c3.5 2.5 6 5.6 6 9a6 6 0 1 1-12 0c0-3.4 2.5-6.5 6-9z" />
+                                            <path d="M9 14c1.2 1.5 3 2.5 5 2.5" />
+                                        </svg>
+                                    </span>
+                                    EcoPoints: <strong><%= Number(user && user.loyalty_points || 0) %></strong>
+                                </span>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/logout">
+                                    <span class="nav-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                            <path d="M16 17l5-5-5-5" />
+                                            <path d="M21 12H9" />
+                                        </svg>
+                                    </span>
+                                    Logout
+                                </a>
                             </li>
                             <% } %>
             </ul>

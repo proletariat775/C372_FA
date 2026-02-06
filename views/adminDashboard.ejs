@@ -1,8 +1,16 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Zhang KaiXiang 
+// Student ID:24041976
+// Class:C372-002
+// Date created:06/02/2026
 <%- include('partials/header', { title: 'Admin Dashboard | Shirt Shop' }) %>
   <%- include('partials/adminNavbar', { user: user }) %>
 
-    <% const statusClasses={ pending: 'bg-warning text-dark' , packed: 'bg-info text-dark' , shipped: 'bg-primary' ,
-      delivered: 'bg-success' , completed: 'bg-success' , cancelled: 'bg-secondary' , returned: 'bg-danger' }; %>
+    <% const statusClasses={ processing: 'bg-warning text-dark' , packing: 'bg-info text-dark' , ready_for_pickup: 'bg-primary-subtle text-primary' ,
+      shipped: 'bg-primary' , delivered: 'bg-success-subtle text-success', completed: 'bg-success' , cancelled: 'bg-danger-subtle text-danger', returned: 'bg-warning-subtle text-warning' }; %>
 
       <section class="page-section">
         <div class="container">
@@ -13,7 +21,7 @@
             </div>
             <div class="d-flex gap-2">
               <a href="/addProduct" class="btn btn-primary">Add product</a>
-              <a href="/admin/loyalty" class="btn btn-outline-secondary">Loyalty directory</a>
+              <a href="/admin/loyalty" class="btn btn-outline-secondary">EcoPoints directory</a>
               <a href="/admin/coupons" class="btn btn-outline-secondary">Manage coupons</a>
               <a href="/admin/deliveries" class="btn btn-outline-secondary">View orders</a>
             </div>
@@ -69,9 +77,9 @@
                             <div class="col-12 col-md-6 col-lg-3">
                               <div class="card shadow-sm h-100">
                                 <div class="card-body">
-                                  <p class="text-muted mb-1">Delivered (7 days)</p>
+                                  <p class="text-muted mb-1">Completed (7 days)</p>
                                   <h3 class="mb-0">
-                                    <%= metrics.deliveredLast7Days %>
+                                    <%= metrics.completedLast7Days %>
                                   </h3>
                                 </div>
                               </div>
@@ -120,8 +128,8 @@
                             <div class="card-body">
                               <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
                                 <div>
-                                  <h4 class="mb-1">Customer loyalty</h4>
-                                  <p class="text-muted mb-0">Review and adjust loyalty balances for customer accounts.</p>
+                                  <h4 class="mb-1">Customer EcoPoints</h4>
+                                  <p class="text-muted mb-0">Review EcoPoints balances for customer accounts.</p>
                                 </div>
                                 <a href="/admin/loyalty" class="btn btn-outline-primary btn-sm">Open directory</a>
                               </div>

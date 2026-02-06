@@ -1,20 +1,37 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 <%- include('partials/header', { title: 'Order Details | Shirt Shop' }) %>
 <% const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; %>
   <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
-    <main class="page-section">
+    <main class="page-section order-details-page">
       <div class="container">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 order-details-header">
           <div>
-            <h2 class="mb-0">Order #<%= order.id %>
+            <% const displayOrderNumber = order.order_number || order.id; %>
+            <h2 class="mb-0">Order #<%= displayOrderNumber %>
             </h2>
             <p class="text-muted mb-0">
               Placed on <%= new Date(order.created_at).toLocaleString() %>
             </p>
           </div>
-          <div class="d-flex flex-wrap gap-2">
-            <span class="badge bg-primary-subtle text-primary text-uppercase">Status: <%= order.status %></span>
-            <span class="badge bg-dark-subtle text-dark text-uppercase">Payment: <%= order.payment_status %></span>
+          <div class="d-flex flex-wrap gap-2 align-items-center order-details-actions">
+            <a href="/user?tab=orders" class="btn btn-outline-secondary btn-sm">Back</a>
+            <% const statusLabels = { processing: 'Processing', packing: 'Packing', ready_for_pickup: 'Ready for pickup', shipped: 'Shipped', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled', returned: 'Returned' }; %>
+            <% const statusKey = String(order.status || 'processing').toLowerCase(); %>
+            <% const statusLabel = statusLabels[statusKey] || statusKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); %>
+            <% const paymentStatusRaw = String(order.payment_status || 'pending').toLowerCase(); %>
+            <% const isRefundedOrder = ['cancelled','returned'].includes(statusKey) || paymentStatusRaw === 'refunded' || (refundRequest && String(refundRequest.status || '').toLowerCase() === 'completed'); %>
+            <% const displayPaymentStatus = isRefundedOrder ? 'refunded' : paymentStatusRaw; %>
+            <% const paymentLabel = displayPaymentStatus.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); %>
+            <span class="badge bg-primary-subtle text-primary text-uppercase">Status: <%= isRefundedOrder ? 'Refunded' : statusLabel %></span>
+            <span class="badge bg-dark-subtle text-dark text-uppercase">Payment: <%= paymentLabel %></span>
           </div>
         </div>
 
@@ -34,7 +51,7 @@
                     <% }); %>
                       <% } %>
 
-                        <div class="card shadow-sm mb-4">
+                        <div class="card shadow-sm mb-4 order-details-card">
                           <div class="card-body">
                             <div
                               class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
@@ -61,21 +78,33 @@
                                       </p>
                               </div>
                               <div class="d-flex flex-wrap gap-2">
-                                <a href="/order/<%= order.id %>/track" class="btn btn-outline-primary">Track order</a>
-                                <a href="/order/<%= order.id %>/review"
-                                  class="btn btn-outline-secondary <%= canReview ? '' : 'disabled' %>">
-                                  Leave review
-                                </a>
-                                <a href="/order/<%= order.id %>/return"
-                                  class="btn btn-outline-dark <%= returnEligibility.allowed ? '' : 'disabled' %>">
-                                  Request return
-                                </a>
+                                <% if (!isRefundedOrder) { %>
+                                  <a href="/order/<%= order.id %>/track" class="btn btn-outline-primary">Track order</a>
+                                <% } %>
+                                <% if (!isRefundedOrder) { %>
+                                  <a href="/order/<%= order.id %>/review"
+                                    class="btn btn-outline-secondary <%= canReview ? '' : 'disabled' %>">
+                                    Leave review
+                                  </a>
+                                <% } %>
+                                <% const refundEligible = refundEligibility && refundEligibility.allowed; %>
+                                <% if (refundRequest && refundRequest.id) { %>
+                                  <a href="/refunds/<%= refundRequest.id %>" class="btn btn-outline-secondary">
+                                    View refund details
+                                  </a>
+                                <% } else { %>
+                                  <a href="/refunds/request/<%= order.id %>"
+                                    class="btn btn-outline-dark <%= refundEligible ? '' : 'opacity-75' %>"
+                                    <%= refundEligible ? '' : 'aria-disabled="true" title="Refunds are available after completion and within the refund window."' %>>
+                                    Request refund
+                                  </a>
+                                <% } %>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div class="card shadow-sm mb-4">
+                        <div class="card shadow-sm mb-4 order-details-card">
                           <div class="card-body">
                             <h5 class="mb-3">Items in this order</h5>
                             <% if (items && items.length) { %>
@@ -148,7 +177,7 @@
 
                         <div class="row g-3">
                           <div class="col-12 col-lg-6">
-                            <div class="card shadow-sm">
+                            <div class="card shadow-sm order-details-card order-summary-card">
                               <div class="card-body">
                                 <h5 class="mb-3">Totals</h5>
                                 <div class="d-flex justify-content-between mb-2">
@@ -174,39 +203,7 @@
                               </div>
                             </div>
                           </div>
-                          <div class="col-12 col-lg-6">
-                            <div class="card shadow-sm">
-                              <div class="card-body">
-                                <h5 class="mb-3">Return request status</h5>
-                                <% if (returnRequest) { %>
-                                  <p class="mb-2 text-muted">Type: <strong>
-                                      <%= returnRequest.requestType %>
-                                    </strong></p>
-                                  <p class="mb-2 text-muted">Reason: <%= returnRequest.reason %>
-                                  </p>
-                                  <% if (returnRequest.notes) { %>
-                                    <p class="mb-3 text-muted">Notes: <%= returnRequest.notes %>
-                                    </p>
-                                    <% } %>
-                                      <% } else { %>
-                                        <p class="text-muted">No return or exchange request yet.</p>
-                                        <% } %>
-                                          <div class="list-group">
-                                            <% (returnTimeline || []).forEach(function(step) { %>
-                                              <div
-                                                class="list-group-item d-flex justify-content-between align-items-center <%= step.active ? 'list-group-item-success' : '' %>">
-                                                <span>
-                                                  <%= step.label %>
-                                                </span>
-                                                <span class="badge <%= step.active ? 'bg-success' : 'bg-secondary' %>">
-                                                  <%= step.active ? 'Active' : 'Pending' %>
-                                                </span>
-                                              </div>
-                                              <% }); %>
-                                          </div>
-                              </div>
-                            </div>
-                          </div>
+                          <!-- Refund request status box removed per request -->
                         </div>
       </div>
     </main>

@@ -1,5 +1,19 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: wendy liew wen ying 
+// Student ID: 24038281
+// Class: C372-002
+// Date created: 06/02/2026
+const crypto = require('crypto');
 const Coupon = require('../models/coupon');
 const Product = require('../models/product');
+const loyaltyService = require('../services/loyaltyService');
+
+const ECOPOINTS_VOUCHER_COST = 100;
+const ECOPOINTS_VOUCHER_VALUE = 5;
+const ECOPOINTS_VOUCHER_DAYS = 30;
 
 const normalizeCode = (value) => String(value || '').trim();
 
@@ -194,6 +208,55 @@ const toNumber = (value, fallback = 0) => {
     return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const toMysqlDateTime = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+};
+
+const generateEcoVoucherCode = (userId) => {
+    const safeUserId = Number.parseInt(userId, 10);
+    const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+    return `ECO5-${Number.isFinite(safeUserId) ? safeUserId : 'USER'}-${suffix}`;
+};
+
+const buildEcoVoucherPayload = (code, userId) => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (ECOPOINTS_VOUCHER_DAYS * 24 * 60 * 60 * 1000));
+
+    return {
+        code,
+        discount_type: 'fixed_amount',
+        discount_value: ECOPOINTS_VOUCHER_VALUE,
+        min_order_amount: 0,
+        max_discount_amount: ECOPOINTS_VOUCHER_VALUE,
+        start_date: toMysqlDateTime(now),
+        end_date: toMysqlDateTime(expiresAt),
+        usage_limit: 1,
+        per_user_limit: 1,
+        brand_id: null,
+        owner_user_id: userId,
+        is_active: 1
+    };
+};
+
+const createCoupon = (payload) => new Promise((resolve, reject) => {
+    Coupon.create(payload, (err, result) => {
+        if (err) {
+            return reject(err);
+        }
+        return resolve(result);
+    });
+});
+
+const deactivateCoupon = (couponId) => new Promise((resolve) => {
+    if (!Number.isFinite(Number(couponId))) {
+        return resolve();
+    }
+    Coupon.remove(couponId, () => resolve());
+});
+
 const mapAvailableCoupon = (coupon) => {
     const endDate = coupon && coupon.end_date ? new Date(coupon.end_date) : null;
     const nowMs = Date.now();
@@ -386,13 +449,24 @@ const CouponController = {
 
     availablePage: (req, res) => {
         const userId = req.session.user && req.session.user.id;
-        loadAvailableCoupons(userId, (err, coupons) => {
+        loadAvailableCoupons(userId, async (err, coupons) => {
+            let loyaltyBalance = 0;
+            try {
+                loyaltyBalance = await loyaltyService.getBalance(userId);
+            } catch (balanceErr) {
+                console.error('Error loading EcoPoints balance for coupons page:', balanceErr);
+            }
+
             if (err) {
                 console.error('Error loading available coupons:', err);
                 req.flash('error', 'Unable to load available coupons right now.');
                 return res.render('availableCoupons', {
                     user: req.session.user,
                     coupons: [],
+                    loyaltyBalance,
+                    ecoVoucherCost: ECOPOINTS_VOUCHER_COST,
+                    ecoVoucherValue: ECOPOINTS_VOUCHER_VALUE,
+                    ecoVoucherDays: ECOPOINTS_VOUCHER_DAYS,
                     messages: req.flash('success'),
                     errors: req.flash('error')
                 });
@@ -401,6 +475,10 @@ const CouponController = {
             return res.render('availableCoupons', {
                 user: req.session.user,
                 coupons,
+                loyaltyBalance,
+                ecoVoucherCost: ECOPOINTS_VOUCHER_COST,
+                ecoVoucherValue: ECOPOINTS_VOUCHER_VALUE,
+                ecoVoucherDays: ECOPOINTS_VOUCHER_DAYS,
                 messages: req.flash('success'),
                 errors: req.flash('error')
             });
@@ -424,6 +502,75 @@ const CouponController = {
                 coupons
             });
         });
+    },
+
+    redeemEcoPointsVoucher: async (req, res) => {
+        const user = req.session.user;
+        if (!user || user.role !== 'customer') {
+            req.flash('error', 'Only shoppers can redeem EcoPoints vouchers.');
+            return res.redirect('/user/coupons');
+        }
+
+        let loyaltyBalance = 0;
+        try {
+            loyaltyBalance = await loyaltyService.getBalance(user.id);
+        } catch (balanceErr) {
+            console.error('Error loading EcoPoints balance for voucher redemption:', balanceErr);
+            req.flash('error', 'Unable to verify your EcoPoints balance right now.');
+            return res.redirect('/user/coupons');
+        }
+
+        if (loyaltyBalance < ECOPOINTS_VOUCHER_COST) {
+            req.flash('error', `You need at least ${ECOPOINTS_VOUCHER_COST} EcoPoints to redeem this voucher.`);
+            return res.redirect('/user/coupons');
+        }
+
+        let voucherCode = '';
+        let voucherId = null;
+        let created = false;
+
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            voucherCode = generateEcoVoucherCode(user.id);
+            const payload = buildEcoVoucherPayload(voucherCode, user.id);
+            try {
+                const result = await createCoupon(payload);
+                voucherId = result && result.insertId ? result.insertId : null;
+                created = true;
+                break;
+            } catch (createErr) {
+                if (createErr && createErr.code === 'ER_DUP_ENTRY') {
+                    continue;
+                }
+                console.error('Error creating EcoPoints voucher:', createErr);
+                req.flash('error', 'Unable to create EcoPoints voucher right now.');
+                return res.redirect('/user/coupons');
+            }
+        }
+
+        if (!created) {
+            req.flash('error', 'Unable to generate a unique EcoPoints voucher. Please try again.');
+            return res.redirect('/user/coupons');
+        }
+
+        try {
+            const redemption = await loyaltyService.redeemPointsForVoucher({
+                userId: user.id,
+                pointsToRedeem: ECOPOINTS_VOUCHER_COST,
+                voucherCode
+            });
+
+            if (req.session.user && Number.isFinite(redemption.balance)) {
+                req.session.user.loyalty_points = redemption.balance;
+            }
+
+            req.flash('success', `EcoPoints voucher created! Code: ${voucherCode} (worth $${ECOPOINTS_VOUCHER_VALUE.toFixed(2)}).`);
+            return res.redirect('/user/coupons');
+        } catch (redeemErr) {
+            console.error('Error redeeming EcoPoints for voucher:', redeemErr);
+            await deactivateCoupon(voucherId);
+            req.flash('error', 'Voucher created but EcoPoints redemption failed. Please try again.');
+            return res.redirect('/user/coupons');
+        }
     }
 };
 

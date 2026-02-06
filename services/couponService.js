@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: wendy liew wen ying 
+// Student ID: 24038281
+// Class: C372-002
+// Date created: 06/02/2026
 const Coupon = require('../models/coupon');
 
 const normalizeMoney = (value) => {
@@ -149,6 +157,17 @@ const validateCoupon = async (code, userId, subtotal, cartItems) => {
 
     if (!coupon) {
         return { valid: false, message: 'Coupon code not found.' };
+    }
+
+    if (coupon.owner_user_id) {
+        const ownerId = Number(coupon.owner_user_id);
+        const requesterId = Number(userId || 0);
+        if (!Number.isFinite(ownerId) || ownerId <= 0) {
+            return { valid: false, message: 'This coupon is not valid for your account.' };
+        }
+        if (!Number.isFinite(requesterId) || requesterId !== ownerId) {
+            return { valid: false, message: 'This coupon is tied to a different account.' };
+        }
     }
 
     if (!coupon.is_active) {

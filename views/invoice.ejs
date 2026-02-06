@@ -1,4 +1,12 @@
-<% const pageTitle=`Invoice #${order.id} | Shirt Shop`; const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; const extraHead=` <style>
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Yeo Jun Long Dave 
+// Student ID:24046757
+// Class:C372-002
+// Date created:06/02/2026
+<% const displayOrderNumber = order && (order.order_number || order.id); const invoiceHeading = displayOrderNumber ? `Invoice #${displayOrderNumber}` : 'Invoice'; const pageTitle=`${invoiceHeading} | Shirt Shop`; const slotLabels = { '09:00-12:00': '9:00 AM - 12:00 PM', '12:00-15:00': '12:00 PM - 3:00 PM', '15:00-18:00': '3:00 PM - 6:00 PM' }; const slotWindowLabel = order && order.delivery_slot_window ? (slotLabels[order.delivery_slot_window] || order.delivery_slot_window) : null; const extraHead=` <style>
   body {
   background: #f5f7fb;
   color: #0f172a;
@@ -58,8 +66,6 @@
   <%- include('partials/header', { title: pageTitle, extraHead }) %>
     <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
       <div class="print-actions text-center mt-3">
-        <a href="<%= (user && user.role === 'admin') ? '/admin/deliveries' : '/orders/history' %>"
-          class="btn btn-outline-secondary btn-sm me-2">Back</a>
         <button onclick="window.print()" class="btn btn-primary btn-sm">Print invoice</button>
       </div>
 
@@ -70,9 +76,18 @@
             <small class="text-muted">Quality shirts delivered</small>
           </div>
           <div class="invoice-meta text-end">
-            <span class="fw-bold">Invoice #<%= order.id %></span>
+            <% const invoiceLabel = (user && user.role === 'admin' && order.order_number) ? `Invoice #${displayOrderNumber} (ID: ${order.id})` : `Invoice #${displayOrderNumber}`; %>
+            <span class="fw-bold"><%= invoiceLabel %></span>
             <span>Date: <%= new Date(order.created_at).toLocaleString() %></span>
             <span>Total: $<%= Number(order.total_amount || order.total || 0).toFixed(2) %></span>
+            <% if (refund && refund.refundedAmount > 0) { %>
+              <span class="badge bg-info-subtle text-info mt-1">
+                <%= refund.isRefunded ? 'Refunded' : 'Partial refund' %>
+              </span>
+              <% if (refund.refundDate) { %>
+                <span class="text-muted small">Refunded on <%= new Date(refund.refundDate).toLocaleDateString() %></span>
+              <% } %>
+            <% } %>
           </div>
         </div>
 
@@ -167,18 +182,18 @@
                   </div>
                   <% if (loyalty && Number(loyalty.loyaltyDiscountAmount || 0) > 0) { %>
                     <div class="d-flex justify-content-between mb-2 text-success">
-                      <span>Loyalty Points Discount</span>
+                      <span>EcoPoints discount</span>
                       <span class="fw-semibold">- $<%= Number(loyalty.loyaltyDiscountAmount).toFixed(2) %></span>
                     </div>
                     <% } %>
                       <% if (loyalty && (Number(loyalty.earnedPoints || 0) > 0 || Number(loyalty.redeemedPoints || 0) > 0)) { %>
                         <div class="d-flex justify-content-between small text-muted mb-1">
-                          <span>Points earned</span>
-                          <span>+<%= Number(loyalty.earnedPoints || 0) %></span>
+                          <span>EcoPoints earned</span>
+                          <span>+<%= Number(loyalty.earnedPoints || 0) %> EcoPoints</span>
                         </div>
                         <div class="d-flex justify-content-between small text-muted mb-2">
-                          <span>Points redeemed</span>
-                          <span>-<%= Number(loyalty.redeemedPoints || 0) %></span>
+                          <span>EcoPoints redeemed</span>
+                          <span>-<%= Number(loyalty.redeemedPoints || 0) %> EcoPoints</span>
                         </div>
                         <% } %>
                   <hr>
@@ -186,6 +201,16 @@
                     <span class="fw-bold">Total</span>
                     <span class="fw-bold">$<%= totals.total %></span>
                   </div>
+                  <% if (refund && refund.refundedAmount > 0) { %>
+                    <div class="d-flex justify-content-between text-danger mt-2">
+                      <span>Refunded amount</span>
+                      <span class="fw-semibold">-$<%= totals.refundedAmount.toFixed(2) %></span>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                      <span class="fw-bold">Net paid</span>
+                      <span class="fw-bold">$<%= totals.netPaid.toFixed(2) %></span>
+                    </div>
+                  <% } %>
                 </div>
               </div>
             </div>

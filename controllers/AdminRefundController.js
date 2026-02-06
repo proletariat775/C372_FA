@@ -1,16 +1,29 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
+
+
+const db = require('../db');
 const refundRequestModel = require('../models/refundRequest');
 const refundRequestItemModel = require('../models/refundRequestItem');
 const refundModel = require('../models/refund');
 const Order = require('../models/order');
 const Product = require('../models/product');
 const paypalRefund = require('../services/paypalRefund');
+const stripeService = require('../services/stripe');
 const loyaltyService = require('../services/loyaltyService');
+const orderStatusService = require('../services/orderStatusService');
 
 const renderView = (res, name, data = {}) => res.render(name, { ...data, user: res.locals.user || res.req.session.user });
 
 const getRemainingAmount = (order) => {
     const total = Number(order.total_amount || order.total || 0);
-    const refunded = Number(order.refunded_amount || 0);
+    const refunded = Number(order.refunded_amount || order.refundedAmount || 0);
     return Number(Math.max(0, total - refunded).toFixed(2));
 };
 
@@ -55,28 +68,81 @@ const restockRequestItems = (requestId, callback) => {
     });
 };
 
-const finalizeRefund = (req, res, requestId, adminNote, restockItems, successMessage) => {
-    refundRequestModel.updateStatus(requestId, 'COMPLETED', adminNote, () => {
-        if (!restockItems) {
-            req.flash('success', successMessage);
-            return res.redirect(`/admin/refunds/${requestId}`);
+const resolveRefundOutcomeStatus = (orderStatus) => {
+    const statusKey = orderStatusService.mapLegacyStatus(orderStatus || 'processing');
+    if (['processing', 'packing', 'ready_for_pickup', 'shipped'].includes(statusKey)) {
+        return 'cancelled';
+    }
+    if (statusKey === 'cancelled') {
+        return 'cancelled';
+    }
+    return 'returned';
+};
+
+const completeRefundTransaction = (request, approvedAmount, adminReason, refundRecord, callback) => {
+    const previousRefunded = Number(request && (request.refundedAmount || request.refunded_amount) ? (request.refundedAmount || request.refunded_amount) : 0);
+    const total = Number(request && request.total ? request.total : 0);
+    const safeApproved = Number(approvedAmount || 0);
+    const newRefunded = Number((Math.max(0, previousRefunded) + Math.max(0, safeApproved)).toFixed(2));
+    const fullRefund = total > 0 && newRefunded >= total - 0.01;
+    const statusOverride = fullRefund ? resolveRefundOutcomeStatus(request.orderStatus) : null;
+
+    db.beginTransaction((txErr) => {
+        if (txErr) {
+            return callback(txErr);
         }
 
-        restockRequestItems(requestId, (restockErr) => {
-            if (restockErr) {
-                console.error('Error restocking items:', restockErr);
-                req.flash('error', 'Refund processed, but restocking failed.');
-                return res.redirect(`/admin/refunds/${requestId}`);
+        refundModel.create(request.orderId, request.id, refundRecord, (createErr) => {
+            if (createErr) {
+                return db.rollback(() => callback(createErr));
             }
 
-            req.flash('success', `${successMessage} Stock has been returned.`);
-            return res.redirect(`/admin/refunds/${requestId}`);
+            refundRequestModel.updateRequest(request.id, 'completed', adminReason, safeApproved, (updateErr) => {
+                if (updateErr) {
+                    return db.rollback(() => callback(updateErr));
+                }
+
+                Order.updateRefundTotals(request.orderId, newRefunded, {
+                    markAsRefunded: fullRefund,
+                    statusOverride
+                }, (statusErr) => {
+                    if (statusErr) {
+                        return db.rollback(() => callback(statusErr));
+                    }
+
+                    return db.commit((commitErr) => {
+                        if (commitErr) {
+                            return db.rollback(() => callback(commitErr));
+                        }
+                        return callback(null, { fullRefund, newRefunded });
+                    });
+                });
+            });
         });
     });
 };
 
+const finalizeRefund = (req, res, requestId, restockItems, successMessage) => {
+    if (!restockItems) {
+        req.flash('success', successMessage);
+        return res.redirect(`/admin/refunds/${requestId}`);
+    }
+
+    restockRequestItems(requestId, (restockErr) => {
+        if (restockErr) {
+            console.error('Error restocking items:', restockErr);
+            req.flash('error', 'Refund processed, but restocking failed.');
+            return res.redirect(`/admin/refunds/${requestId}`);
+        }
+
+        req.flash('success', `${successMessage} Stock has been returned.`);
+        return res.redirect(`/admin/refunds/${requestId}`);
+    });
+};
+
+// EcoPoints: reverse earned points proportional to refunded value; redeemed points are returned only on full refunds.
 const applyRefundLoyaltyClawback = async ({ req, request, requestId, amount }) => {
-    const previousRefunded = Number(request && request.refundedAmount ? request.refundedAmount : 0);
+    const previousRefunded = Number(request && (request.refundedAmount || request.refunded_amount) ? (request.refundedAmount || request.refunded_amount) : 0);
     const safeAmount = Number(amount || 0);
     const cumulativeRefunded = Number((Math.max(0, previousRefunded) + Math.max(0, safeAmount)).toFixed(2));
 
@@ -93,8 +159,8 @@ const applyRefundLoyaltyClawback = async ({ req, request, requestId, amount }) =
             result
         };
     } catch (error) {
-        console.error('Error reversing loyalty points for refund:', error);
-        req.flash('error', 'Refund completed, but loyalty reversal could not be applied.');
+        console.error('Error reversing EcoPoints for refund:', error);
+        req.flash('error', 'Refund completed, but EcoPoints reversal could not be applied.');
         return {
             ok: false,
             error
@@ -143,9 +209,9 @@ module.exports = {
                 }
 
                 const latestRefund = refunds && refunds.length ? refunds[0] : null;
-                const requestStatus = String(request.status || '').toUpperCase();
-                const refundStatus = latestRefund ? String(latestRefund.status || '').toUpperCase() : '';
-                const shouldMarkCompleted = latestRefund && refundStatus === 'COMPLETED' && requestStatus !== 'COMPLETED';
+                const requestStatus = String(request.status || '').toLowerCase();
+                const refundStatus = latestRefund ? String(latestRefund.status || '').toLowerCase() : '';
+                const shouldMarkCompleted = latestRefund && refundStatus === 'completed' && requestStatus !== 'completed';
 
                 const renderDetails = () => refundRequestItemModel.getByRequestId(requestId, (itemsErr, items = []) => {
                     if (itemsErr) {
@@ -168,11 +234,11 @@ module.exports = {
                     return renderDetails();
                 }
 
-                refundRequestModel.updateStatus(requestId, 'COMPLETED', null, (statusErr) => {
+                refundRequestModel.updateRequest(requestId, 'completed', null, request.approvedAmount || null, (statusErr) => {
                     if (statusErr) {
                         console.error('Error reconciling refund status:', statusErr);
                     } else {
-                        request.status = 'COMPLETED';
+                        request.status = 'completed';
                         request.adminNote = null;
                     }
                     return renderDetails();
@@ -183,7 +249,7 @@ module.exports = {
 
     async approve(req, res) {
         const requestId = Number(req.params.id);
-        const adminNote = req.body.adminNote;
+        const adminReason = req.body.adminNote ? String(req.body.adminNote).trim() : null;
         const overrideAmount = req.body.amount;
         const restockItems = String(req.body.restock || '') === 'on';
 
@@ -201,7 +267,8 @@ module.exports = {
                 return res.redirect('/admin/refunds');
             }
 
-            if (request.status !== 'PENDING') {
+            const currentStatus = String(request.status || '').toLowerCase();
+            if (currentStatus !== 'pending') {
                 req.flash('error', 'Refund request is no longer pending.');
                 return res.redirect(`/admin/refunds/${requestId}`);
             }
@@ -222,122 +289,122 @@ module.exports = {
                 return res.redirect(`/admin/refunds/${requestId}`);
             }
 
-            const paymentMethod = String(request.paymentMethod || '').toLowerCase();
+            const paymentMethod = String(request.paymentMethod || request.payment_method || '').toLowerCase();
             const captureId = request.paypalCaptureId || null;
+            const stripeIntentId = request.stripePaymentIntentId || null;
 
-            if (paymentMethod === 'paypal' && captureId) {
-                try {
-                    const result = await paypalRefund.refundCapture(captureId, amount, 'USD');
-                    if (result.status >= 200 && result.status < 300) {
-                        const refundData = result.data || {};
-                        const createdAt = refundData.create_time
-                            ? new Date(refundData.create_time)
-                            : new Date();
+            const markFailed = (reason) => {
+                const safeReason = reason || 'Refund failed.';
+                refundRequestModel.updateRequest(requestId, 'failed', safeReason, amount, () => {
+                    req.flash('error', safeReason);
+                    return res.redirect(`/admin/refunds/${requestId}`);
+                });
+            };
 
-                        refundModel.create(request.orderId, requestId, {
-                            amount,
-                            currency: 'USD',
-                            status: refundData.status || 'COMPLETED',
-                            paypalRefundId: refundData.id,
-                            paypalCaptureId: captureId,
-                            createdAt
-                        }, (createErr) => {
-                            if (createErr) {
-                                console.error('Error saving refund record:', createErr);
-                                req.flash('error', 'Refund processed but failed to save record.');
-                                return res.redirect(`/admin/refunds/${requestId}`);
-                            }
-
-                            Order.addRefundedAmount(request.orderId, amount, (amountErr) => {
-                                if (amountErr) {
-                                    console.error('Error updating refunded amount:', amountErr);
-                                    req.flash('error', 'Refund processed but failed to update order.');
-                                    return res.redirect(`/admin/refunds/${requestId}`);
-                                }
-
-                                return applyRefundLoyaltyClawback({
-                                    req,
-                                    request,
-                                    requestId,
-                                    amount
-                                }).then((clawback) => {
-                                    const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
-                                    const successMessage = clawedPoints > 0
-                                        ? `Refund processed through PayPal. Reversed ${clawedPoints} loyalty points.`
-                                        : 'Refund processed through PayPal.';
-
-                                    return finalizeRefund(
-                                        req,
-                                        res,
-                                        requestId,
-                                        adminNote,
-                                        restockItems,
-                                        successMessage
-                                    );
-                                });
-                            });
-                        });
-                        return;
-                    }
-
-                    const errorMsg = result.data && result.data.message
-                        ? result.data.message
-                        : 'PayPal refund failed.';
-                    refundRequestModel.updateStatus(requestId, 'FAILED', errorMsg, () => {
-                        req.flash('error', errorMsg);
-                        return res.redirect(`/admin/refunds/${requestId}`);
-                    });
-                } catch (error) {
-                    console.error('PayPal refund error:', error);
-                    refundRequestModel.updateStatus(requestId, 'FAILED', 'PayPal refund failed.', () => {
-                        req.flash('error', 'PayPal refund failed.');
-                        return res.redirect(`/admin/refunds/${requestId}`);
-                    });
-                }
-                return;
-            }
-
-            refundModel.create(request.orderId, requestId, {
-                amount,
-                currency: 'USD',
-                status: 'MANUAL',
-                paypalRefundId: null,
-                paypalCaptureId: null,
-                createdAt: new Date()
-            }, (createErr) => {
-                if (createErr) {
-                    console.error('Error saving refund record:', createErr);
-                    req.flash('error', 'Unable to record manual refund.');
+            refundRequestModel.updateRequest(requestId, 'processing', adminReason, amount, async (processingErr) => {
+                if (processingErr) {
+                    console.error('Error updating refund request status:', processingErr);
+                    req.flash('error', 'Unable to process refund request.');
                     return res.redirect(`/admin/refunds/${requestId}`);
                 }
 
-                Order.addRefundedAmount(request.orderId, amount, (amountErr) => {
-                    if (amountErr) {
-                        console.error('Error updating refunded amount:', amountErr);
-                        req.flash('error', 'Manual refund recorded but failed to update order.');
-                        return res.redirect(`/admin/refunds/${requestId}`);
-                    }
+                const handleSuccess = (refundRecord) => {
+                    completeRefundTransaction(request, amount, adminReason, refundRecord, (persistErr, result = {}) => {
+                        if (persistErr) {
+                            console.error('Error saving refund record:', persistErr);
+                            return markFailed('Refund processed but failed to save record.');
+                        }
 
-                    return applyRefundLoyaltyClawback({
-                        req,
-                        request,
-                        requestId,
-                        amount
-                    }).then((clawback) => {
-                        const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
-                        const successMessage = clawedPoints > 0
-                            ? `Refund marked as completed. Reversed ${clawedPoints} loyalty points.`
-                            : 'Refund marked as completed.';
-
-                        return finalizeRefund(
+                        return applyRefundLoyaltyClawback({
                             req,
-                            res,
+                            request,
                             requestId,
-                            adminNote,
-                            restockItems,
-                            successMessage
-                        );
+                            amount
+                        }).then(async (clawback) => {
+                            const clawedPoints = Number(clawback && clawback.result ? clawback.result.clawedBackPoints : 0);
+                            const fullRefund = Boolean(result.fullRefund);
+
+                            if (fullRefund && Number(request.loyaltyPointsRedeemed || 0) > 0) {
+                                try {
+                                    await loyaltyService.returnRedeemedPointsForOrder({
+                                        userId: request.userId,
+                                        orderId: request.orderId,
+                                        pointsToReturn: Number(request.loyaltyPointsRedeemed || 0),
+                                        reference: `request #${requestId}`
+                                    });
+                                } catch (returnErr) {
+                                    console.error('Error returning redeemed EcoPoints:', returnErr);
+                                }
+                            }
+
+                            const successMessage = clawedPoints > 0
+                                ? `Refund processed. Reversed ${clawedPoints} EcoPoints.`
+                                : 'Refund processed.';
+
+                            return finalizeRefund(
+                                req,
+                                res,
+                                requestId,
+                                restockItems,
+                                successMessage
+                            );
+                        });
                     });
+                };
+
+                if (paymentMethod === 'paypal' && captureId) {
+                    try {
+                        const result = await paypalRefund.refundCapture(captureId, amount, 'USD');
+                        if (result.status >= 200 && result.status < 300) {
+                            const refundData = result.data || {};
+                            const createdAt = refundData.create_time
+                                ? new Date(refundData.create_time)
+                                : new Date();
+
+                            return handleSuccess({
+                                amount,
+                                currency: 'USD',
+                                status: (refundData.status || 'COMPLETED').toLowerCase(),
+                                paypalRefundId: refundData.id,
+                                paypalCaptureId: captureId,
+                                createdAt
+                            });
+                        }
+
+                        const errorMsg = result.data && result.data.message
+                            ? result.data.message
+                            : 'PayPal refund failed.';
+                        return markFailed(errorMsg);
+                    } catch (error) {
+                        console.error('PayPal refund error:', error);
+                        return markFailed('PayPal refund failed.');
+                    }
+                }
+
+                if (paymentMethod === 'stripe' && stripeIntentId) {
+                    try {
+                        const stripeRefund = await stripeService.refundPayment(stripeIntentId, amount);
+                        return handleSuccess({
+                            amount,
+                            currency: String(stripeRefund.currency || 'USD').toUpperCase(),
+                            status: String(stripeRefund.status || 'completed').toLowerCase(),
+                            paypalRefundId: stripeRefund.id || null,
+                            paypalCaptureId: stripeIntentId,
+                            createdAt: stripeRefund.created ? new Date(stripeRefund.created * 1000) : new Date()
+                        });
+                    } catch (stripeErr) {
+                        console.error('Stripe refund error:', stripeErr);
+                        return markFailed('Stripe refund failed.');
+                    }
+                }
+
+                return handleSuccess({
+                    amount,
+                    currency: 'USD',
+                    status: 'completed',
+                    paypalRefundId: null,
+                    paypalCaptureId: captureId || stripeIntentId || null,
+                    createdAt: new Date()
                 });
             });
         });
@@ -345,13 +412,17 @@ module.exports = {
 
     reject(req, res) {
         const requestId = Number(req.params.id);
-        const adminNote = req.body.adminNote;
+        const adminReason = req.body.adminNote ? String(req.body.adminNote).trim() : '';
 
         if (!Number.isFinite(requestId)) {
             return res.redirect('/admin/refunds');
         }
+        if (!adminReason) {
+            req.flash('error', 'Rejection reason is required.');
+            return res.redirect(`/admin/refunds/${requestId}`);
+        }
 
-        refundRequestModel.updateStatus(requestId, 'REJECTED', adminNote, (err) => {
+        refundRequestModel.updateRequest(requestId, 'rejected', adminReason, null, (err) => {
             if (err) {
                 console.error('Error rejecting refund request:', err);
                 req.flash('error', 'Unable to reject refund request.');

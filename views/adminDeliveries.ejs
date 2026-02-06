@@ -1,9 +1,9 @@
 <%- include('partials/header', { title: 'Deliveries | Shirt Shop' }) %>
   <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
-    <% const statusClasses={ pending: 'bg-warning-subtle text-warning' , processing: 'bg-info-subtle text-info' ,
-      shipped: 'bg-primary-subtle text-primary' , delivered: 'bg-success-subtle text-success' ,
-      completed: 'bg-success-subtle text-success' , cancelled: 'bg-danger-subtle text-danger' ,
-      returned: 'bg-secondary-subtle text-secondary' }; %>
+    <% const statusClasses={ processing: 'bg-warning-subtle text-warning' , packing: 'bg-info-subtle text-info' ,
+      ready_for_pickup: 'bg-primary-subtle text-primary' , shipped: 'bg-primary-subtle text-primary' ,
+      delivered: 'bg-success-subtle text-success' , completed: 'bg-dark-subtle text-dark' , cancelled: 'bg-danger-subtle text-danger', returned: 'bg-warning-subtle text-warning' }; %>
+    <% const statusLabels = { processing: 'Processing', packing: 'Packing', ready_for_pickup: 'Ready for pickup', shipped: 'Shipped', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled', returned: 'Returned' }; %>
 
       <section class="page-section">
         <div class="container">
@@ -17,6 +17,8 @@
               </strong></span>
           </div>
 
+          <!-- KPI boxes removed per request -->
+
           <div class="card shadow-sm mb-4">
             <div class="card-body">
               <form action="/admin/deliveries" method="GET" class="row g-3 align-items-end">
@@ -26,8 +28,8 @@
                     <option value="all" <%=(!filters || filters.status==='all' ) ? 'selected' : '' %>>All statuses
                     </option>
                     <% (statusOptions || []).forEach(function(status) { %>
-                      <option value="<%= status %>" <%=filters && filters.status===status ? 'selected' : '' %>><%=
-                          status %>
+                      <option value="<%= status %>" <%=filters && filters.status===status ? 'selected' : '' %>>
+                        <%= statusLabels[status] || status %>
                       </option>
                       <% }); %>
                   </select>
@@ -44,7 +46,7 @@
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="form-label">Search</label>
-                  <input type="text" class="form-control" name="search" placeholder="Order ID or customer"
+                  <input type="text" class="form-control" name="search" placeholder="Order # or customer"
                     value="<%= filters && filters.search ? filters.search : '' %>">
                 </div>
                 <div class="col-12 col-md-2 d-grid">
@@ -81,7 +83,21 @@
                             <% } else { %>
                               <div class="accordion" id="admin-orders">
                                 <% orders.forEach(function(order, index) { %>
-                                  <% const isCompleted=order.status==='completed' ; %>
+                                  <% const isTerminal=['completed', 'cancelled', 'returned'].includes(order.status); %>
+                                  <% const flow = order.delivery_method === 'pickup' ? ['processing','packing','ready_for_pickup','completed'] : ['processing','packing','shipped','delivered','completed']; %>
+                                  <% const paymentStatusKey = order.payment_status ? String(order.payment_status).toLowerCase() : 'pending'; %>
+                                  <% const refundStatusRaw = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
+                                  <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
+                                  <% const refundRequestedAmount = Number(order.refund_requested_amount || 0); %>
+                                  <% const refundApprovedAmount = Number(order.refund_approved_amount || 0); %>
+                                  <% const refundDate = order.refund_updated_at || order.refund_created_at; %>
+                                  <% const isRefunded = ['cancelled','returned'].includes(order.status) || paymentStatusKey === 'refunded'; %>
+                                  <% const effectiveStatus = isRefunded ? 'completed' : order.status; %>
+                                  <% const statusIndex = flow.indexOf(effectiveStatus); %>
+                                  <% const readyKey = order.delivery_method === 'pickup' ? 'ready_for_pickup' : 'shipped'; %>
+                                  <% const readyLabel = order.delivery_method === 'pickup' ? 'Ready for pickup' : 'Shipped'; %>
+                                  <% const displayOrderNumber = order.order_number || order.id; %>
+                                  <% const stepClass = (active) => active ? 'bg-success-subtle text-success' : 'bg-light text-muted'; %>
                                     <div class="accordion-item">
                                       <h2 class="accordion-header" id="order-heading-<%= order.id %>">
                                         <button class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
@@ -89,27 +105,39 @@
                                           data-bs-target="#order-<%= order.id %>"
                                           aria-expanded="<%= index === 0 ? 'true' : 'false' %>"
                                           aria-controls="order-<%= order.id %>">
-                                          <div
-                                            class="w-100 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                                            <div>
-                                              <strong>Order #<%= order.order_number || order.id %></strong>
-                                              <span class="text-muted small ms-2">
-                                                <%= new Date(order.created_at).toLocaleString() %>
+                                          <div class="w-100 row g-2 align-items-center">
+                                            <div class="col-12 col-md-3">
+                                              <div class="fw-semibold">Order #<%= displayOrderNumber %> (ID: <%= order.id %>)</div>
+                                              <div class="small text-muted"><%= new Date(order.created_at).toLocaleString() %></div>
+                                            </div>
+                                            <div class="col-12 col-md-3">
+                                              <div class="small text-muted">Customer</div>
+                                              <div class="fw-semibold"><%= order.email || order.username %></div>
+                                            </div>
+                                            <div class="col-6 col-md-2">
+                                              <div class="small text-muted">Refund</div>
+                                              <% const refundDisplay = refundStatusRaw ? refundStatusRaw : (isRefunded ? 'refunded' : 'none'); %>
+                                              <% const refundBadgeClass = refundDisplay === 'completed' ? 'bg-success-subtle text-success' : (refundDisplay === 'pending' || refundDisplay === 'approved' || refundDisplay === 'processing' ? 'bg-warning-subtle text-warning' : (refundDisplay === 'rejected' || refundDisplay === 'failed' ? 'bg-danger-subtle text-danger' : (refundDisplay === 'refunded' ? 'bg-info-subtle text-info' : 'bg-light text-dark'))); %>
+                                              <span class="badge <%= refundBadgeClass %> text-uppercase">
+                                                <%= refundDisplay.toUpperCase() %>
                                               </span>
                                             </div>
-                                            <div class="d-flex flex-wrap align-items-center gap-2">
-                                              <span class="badge bg-light text-dark">Customer: <%= order.username %>
+                                            <div class="col-6 col-md-2">
+                                              <div class="small text-muted">Status</div>
+                                              <% const displayStatus = statusLabels[order.status] || order.status; %>
+                                              <span class="badge <%= statusClasses[order.status] || 'bg-light text-dark' %> text-uppercase">
+                                                <%= displayStatus %>
                                               </span>
-                                              <span
-                                                class="badge <%= order.delivery_method === 'delivery' ? 'bg-primary-subtle text-primary' : 'bg-light text-dark' %>">
-                                                <%= order.delivery_method==='delivery' ? 'Delivery' : 'Pickup' %>
+                                            </div>
+                                            <div class="col-6 col-md-1">
+                                              <div class="small text-muted">Method</div>
+                                              <span class="badge <%= order.delivery_method === 'delivery' ? 'bg-primary-subtle text-primary' : 'bg-light text-dark' %>">
+                                                <%= order.delivery_method === 'delivery' ? 'Delivery' : 'Pickup' %>
                                               </span>
-                                              <span
-                                                class="badge <%= statusClasses[order.status] || 'bg-light text-dark' %> text-uppercase">
-                                                <%= order.status %>
-                                              </span>
-                                              <span class="badge bg-dark-subtle text-dark">Total $<%= Number(order.total
-                                                  || 0).toFixed(2) %></span>
+                                            </div>
+                                            <div class="col-6 col-md-1 text-md-end">
+                                              <div class="small text-muted">Total</div>
+                                              <div class="fw-semibold">$<%= Number(order.total || 0).toFixed(2) %></div>
                                             </div>
                                           </div>
                                         </button>
@@ -145,9 +173,9 @@
                                                 <div class="card-body">
                                                   <div class="d-flex justify-content-between align-items-center mb-3">
                                                     <h5 class="mb-0">Items</h5>
+                                                    <% const invoiceLabel = (['cancelled','returned'].includes(order.status) || String(order.payment_status || '').toLowerCase() === 'refunded') ? 'View invoice (refunded)' : 'View invoice'; %>
                                                     <a href="/orders/<%= order.id %>/invoice" target="_blank"
-                                                      rel="noopener" class="btn btn-outline-secondary btn-sm">View
-                                                      invoice</a>
+                                                      rel="noopener" class="btn btn-outline-secondary btn-sm"><%= invoiceLabel %></a>
                                                   </div>
                                                   <% const items=orderItems[order.id] || []; %>
                                                     <% if (items.length) { %>
@@ -190,69 +218,95 @@
                                               <div class="card shadow-sm">
                                                 <div class="card-body">
                                                   <h5 class="mb-3">Admin updates</h5>
+                                                  <div class="mb-3">
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                      <span class="badge <%= stepClass(true) %>">Order placed</span>
+                                                      <span class="badge <%= stepClass(paymentStatusKey === 'paid' || paymentStatusKey === 'refunded') %>">Payment confirmed</span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf('processing')) %>">Processing</span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf('packing')) %>">Packing</span>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf(readyKey)) %>"><%= readyLabel %></span>
+                                                      <% if (order.delivery_method === 'delivery') { %>
+                                                        <span class="badge <%= stepClass(statusIndex >= flow.indexOf('delivered')) %>">Delivered</span>
+                                                      <% } %>
+                                                      <span class="badge <%= stepClass(statusIndex >= flow.indexOf('completed')) %>">Completed</span>
+                                                      <% if (order.status === 'cancelled') { %>
+                                                        <span class="badge bg-danger-subtle text-danger">Cancelled</span>
+                                                      <% } else if (order.status === 'returned') { %>
+                                                        <span class="badge bg-warning-subtle text-warning">Returned</span>
+                                                      <% } else if (paymentStatusKey === 'refunded') { %>
+                                                        <span class="badge bg-info-subtle text-info">Refunded</span>
+                                                      <% } %>
+                                                    </div>
+                                                  </div>
+                                                  <% if (order.delivery_method === 'pickup' && order.status === 'ready_for_pickup' && !isTerminal) { %>
+                                                    <div class="alert alert-info">
+                                                      Ready for pickup. Confirm collection to complete this order.
+                                                    </div>
+                                                  <% } %>
                                                   <form action="/admin/orders/<%= order.id %>/update" method="POST"
-                                                    class="row gy-3">
+                                                    class="row gy-3 admin-order-form" data-delivery-method="<%= order.delivery_method %>">
                                                     <div class="col-12 col-md-4">
                                                       <label class="form-label">Status</label>
-                                                      <select name="status" class="form-select" <%=isCompleted
+                                                      <% const allowedStatuses = (order.allowed_statuses && order.allowed_statuses.length) ? order.allowed_statuses : statusOptions; %>
+                                                      <select name="status" class="form-select admin-status-select" <%=isTerminal
                                                         ? 'disabled' : '' %>>
-                                                        <% if (!statusOptions.includes(order.status)) { %>
+                                                        <% if (!allowedStatuses.includes(order.status)) { %>
                                                           <option value="<%= order.status %>" selected disabled>
-                                                            <%= order.status %>
+                                                            <%= statusLabels[order.status] || order.status %>
                                                           </option>
                                                           <% } %>
-                                                            <% statusOptions.forEach(function(status) { %>
+                                                            <% allowedStatuses.forEach(function(status) { %>
                                                               <option value="<%= status %>" <%=order.status===status
-                                                                ? 'selected' : '' %>><%= status %>
+                                                                ? 'selected' : '' %>>
+                                                                <%= statusLabels[status] || status %>
                                                               </option>
                                                               <% }); %>
                                                       </select>
                                                     </div>
                                                     <div class="col-12 col-md-4">
                                                       <label class="form-label">Delivery method</label>
-                                                      <select name="deliveryMethod" class="form-select" <%=isCompleted
-                                                        ? 'disabled' : '' %>>
+                                                      <select name="deliveryMethod" class="form-select" disabled>
                                                         <option value="pickup" <%=order.delivery_method==='pickup'
                                                           ? 'selected' : '' %>>Pickup</option>
                                                         <option value="delivery" <%=order.delivery_method==='delivery'
                                                           ? 'selected' : '' %>>Delivery</option>
                                                       </select>
+                                                      <input type="hidden" name="deliveryMethod" value="<%= order.delivery_method %>">
                                                     </div>
                                                     <div class="col-12 col-md-4">
-                                                      <label class="form-label">Estimated delivery date</label>
+                                                      <label class="form-label">Estimated delivery/pickup date</label>
                                                       <input type="date" class="form-control" name="estDeliveryDate"
                                                         value="<%= order.est_delivery_date ? new Date(order.est_delivery_date).toISOString().slice(0,10) : '' %>"
-                                                        <%=isCompleted ? 'disabled' : '' %>>
+                                                        <%=isTerminal ? 'disabled' : '' %>>
                                                     </div>
                                                     <div class="col-12">
                                                       <label class="form-label">Delivery address</label>
                                                       <textarea class="form-control" name="deliveryAddress" rows="2"
-                                                        <%=isCompleted ? 'disabled' : ''
+                                                        <%=isTerminal ? 'disabled' : ''
                                                         %>><%= order.delivery_address || order.account_address || '' %></textarea>
                                                     </div>
                                                     <div class="col-12 col-md-6">
                                                       <label class="form-label">Shipping provider</label>
                                                       <input type="text" class="form-control" name="shippingProvider"
-                                                        value="<%= order.shipping_provider || '' %>" <%=isCompleted
+                                                        value="<%= order.shipping_provider || '' %>" <%=isTerminal
                                                         ? 'disabled' : '' %>>
                                                     </div>
                                                     <div class="col-12 col-md-6">
                                                       <label class="form-label">Tracking number</label>
                                                       <input type="text" class="form-control" name="trackingNumber"
-                                                        value="<%= order.tracking_number || '' %>" <%=isCompleted
+                                                        value="<%= order.tracking_number || '' %>" <%=isTerminal
                                                         ? 'disabled' : '' %>>
                                                     </div>
                                                     <div class="col-12">
                                                       <label class="form-label">Admin notes</label>
                                                       <textarea class="form-control" name="adminNotes" rows="3"
-                                                        <%=isCompleted ? 'disabled' : ''
+                                                        <%=isTerminal ? 'disabled' : ''
                                                         %>><%= order.admin_notes || '' %></textarea>
                                                     </div>
                                                     <div
                                                       class="col-12 d-flex justify-content-between align-items-center">
-                                                      <% if (isCompleted) { %>
-                                                        <span class="text-success">This order is completed and
-                                                          locked.</span>
+                                                      <% if (isTerminal) { %>
+                                                        <span class="text-success">This order is completed/cancelled/returned and locked.</span>
                                                         <% } else { %>
                                                           <button type="submit" class="btn btn-outline-primary">Save
                                                             changes</button>
@@ -260,10 +314,19 @@
                                                     </div>
                                                   </form>
 
-                                                  <% if (order.status==='delivered' && !isCompleted) { %>
+                                                  <!-- Refund card removed per request -->
+
+                                                  <% const nextStatus = order.next_status; %>
+                                                  <% const requiresTracking = nextStatus === 'shipped' || nextStatus === 'delivered'; %>
+                                                  <% const hasTrackingInfo = Boolean(order.shipping_provider && order.tracking_number); %>
+                                                  <% const canAdvance = nextStatus && (!requiresTracking || hasTrackingInfo); %>
+                                                  <% if (!isTerminal && nextStatus) { %>
+                                                    <% if (requiresTracking && !hasTrackingInfo) { %>
+                                                      <div class="small text-muted mt-2">Add shipping provider and tracking number to advance this order.</div>
+                                                    <% } %>
                                                     <form action="/admin/orders/<%= order.id %>/update" method="POST"
                                                       class="mt-3">
-                                                      <input type="hidden" name="status" value="completed">
+                                                      <input type="hidden" name="status" value="<%= nextStatus %>">
                                                       <input type="hidden" name="deliveryMethod"
                                                         value="<%= order.delivery_method %>">
                                                       <input type="hidden" name="deliveryAddress"
@@ -276,8 +339,9 @@
                                                         value="<%= order.est_delivery_date ? new Date(order.est_delivery_date).toISOString().slice(0,10) : '' %>">
                                                       <input type="hidden" name="adminNotes"
                                                         value="<%= order.admin_notes || '' %>">
-                                                      <button type="submit" class="btn btn-success">Mark as
-                                                        completed</button>
+                                                      <button type="submit" class="btn btn-success" <%= !canAdvance ? 'disabled' : '' %>>
+                                                        Advance to <%= statusLabels[nextStatus] || nextStatus %>
+                                                      </button>
                                                     </form>
                                                     <% } %>
                                                 </div>
@@ -293,4 +357,48 @@
         </div>
       </section>
 
-      <%- include('partials/footer') %>
+    <%- include('partials/footer') %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var forms = document.querySelectorAll('.admin-order-form');
+    forms.forEach(function (form) {
+      var statusSelect = form.querySelector('.admin-status-select');
+      var providerInput = form.querySelector('input[name="shippingProvider"]');
+      var trackingInput = form.querySelector('input[name="trackingNumber"]');
+      var dateInput = form.querySelector('input[name="estDeliveryDate"]');
+      var method = form.getAttribute('data-delivery-method');
+      var isPickup = method === 'pickup';
+
+      var toggleShippingFields = function () {
+        if (!providerInput || !trackingInput) return;
+        if (isPickup) {
+          providerInput.value = '';
+          trackingInput.value = '';
+          providerInput.setAttribute('disabled', 'disabled');
+          trackingInput.setAttribute('disabled', 'disabled');
+        } else {
+          providerInput.removeAttribute('disabled');
+          trackingInput.removeAttribute('disabled');
+        }
+      };
+
+      var toggleDateRequired = function () {
+        if (!dateInput || !statusSelect) return;
+        var status = statusSelect.value;
+        var requiresDate = (status === 'ready_for_pickup') || (status === 'shipped') || (status === 'delivered');
+        if (requiresDate) {
+          dateInput.setAttribute('required', 'required');
+        } else {
+          dateInput.removeAttribute('required');
+        }
+      };
+
+      toggleShippingFields();
+      toggleDateRequired();
+      if (statusSelect) {
+        statusSelect.addEventListener('change', toggleDateRequired);
+      }
+    });
+  });
+</script>

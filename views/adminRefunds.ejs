@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 <%- include('partials/header', { title: 'Refund Requests | Shirt Shop' }) %>
 <%- include('partials/adminNavbar', { user: typeof user !== 'undefined' ? user : null }) %>
 
@@ -37,6 +45,7 @@
               <th>Order</th>
               <th>User</th>
               <th>Amount</th>
+              <th>Approved</th>
               <th>Status</th>
               <th>Submitted</th>
               <th></th>
@@ -46,13 +55,16 @@
             <% requests.forEach(function(request) { %>
               <tr>
                 <td class="fw-semibold">#<%= request.id %></td>
-                <td>Order #<%= request.orderId %></td>
+                <td>
+                  <%= request.orderNumber ? `Order #${request.orderNumber} (ID: ${request.orderId})` : `Order #${request.orderId}` %>
+                </td>
                 <td>
                   <div><%= request.username %></div>
                   <div class="text-muted small"><%= request.email %></div>
                 </td>
                 <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
-                <td><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></td>
+                <td><%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %></td>
+                <td><span class="badge bg-light text-dark border"><%= (request.status || 'UNKNOWN').toUpperCase() %></span></td>
                 <td><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></td>
                 <td>
                   <a href="/admin/refunds/<%= request.id %>" class="btn btn-sm btn-outline-primary">View</a>

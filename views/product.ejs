@@ -1,8 +1,341 @@
-<%- include('partials/header', { title: metaTitle, extraHead: extraHead }) %>
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Wong De En Amos
+// Student ID: 24042274
+// Class: C372-002
+// Date created: 06/02/2026
+<% const baseExtraHead = typeof extraHead !== 'undefined' ? extraHead : ''; %>
+<% const pageExtraHead = `${baseExtraHead}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .product-page {
+    --pdp-bg: #f7f4ef;
+    --pdp-surface: #ffffff;
+    --pdp-ink: #111111;
+    --pdp-muted: #6b7280;
+    --pdp-accent: #c7925a;
+    --pdp-line: rgba(17, 24, 39, 0.08);
+    --pdp-shadow: 0 28px 60px rgba(15, 23, 42, 0.12);
+    font-family: "Manrope", "Poppins", "Segoe UI", sans-serif;
+    color: var(--pdp-ink);
+    background: radial-gradient(circle at 10% 10%, rgba(199, 146, 90, 0.12), transparent 40%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 239, 0.98));
+    border-radius: 2rem;
+    padding: 2.5rem 0;
+  }
+
+  .product-page .product-shell {
+    background: var(--pdp-surface);
+    border-radius: 2.2rem;
+    padding: clamp(1.5rem, 2.5vw, 3rem);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: var(--pdp-shadow);
+  }
+
+  .product-page .product-hero-grid {
+    gap: clamp(1.5rem, 3vw, 3.5rem);
+  }
+
+  .product-page .product-image-grid {
+    gap: 1.2rem;
+  }
+
+  .product-page .image-tile {
+    border-radius: 1.35rem;
+    min-height: 420px;
+    background: #f4f4f4;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  }
+
+  .product-page .image-tile img {
+    transform: scale(1.01);
+    transition: transform 0.4s ease;
+  }
+
+  .product-page .image-tile:hover img {
+    transform: scale(1.04);
+  }
+
+  .product-page .image-label {
+    background: rgba(17, 17, 17, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.65rem;
+  }
+
+  .product-page .gallery-detail-block {
+    margin-top: 1.75rem;
+    padding: 1.5rem;
+    border-radius: 1.2rem;
+    background: #f8f6f3;
+    border: 1px solid var(--pdp-line);
+  }
+
+  .product-page .gallery-detail-block h4 {
+    font-family: "Fraunces", serif;
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .product-page .product-detail-panel {
+    background: var(--pdp-surface);
+    border-radius: 1.6rem;
+    padding: 2rem;
+    border: 1px solid var(--pdp-line);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.1);
+    position: sticky;
+    top: 96px;
+  }
+
+  .product-page .product-meta {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.65rem;
+    color: var(--pdp-muted);
+  }
+
+  .product-page .product-title {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .product-page .price-current {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .product-page .price-stack .text-decoration-line-through {
+    font-size: 1rem;
+  }
+
+  .product-page .gst-note {
+    color: var(--pdp-muted);
+    letter-spacing: 0.2em;
+  }
+
+  .product-page .promo-box {
+    background: rgba(199, 146, 90, 0.12);
+    border: 1px solid rgba(199, 146, 90, 0.35);
+    border-left: 4px solid var(--pdp-accent);
+  }
+
+  .product-page .product-option {
+    padding-top: 1rem;
+    border-top: 1px solid var(--pdp-line);
+  }
+
+  .product-page .product-option:first-of-type {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .product-page .size-choice-group {
+    gap: 0.6rem;
+  }
+
+  .product-page .size-option {
+    border-radius: 0.75rem;
+    min-width: 52px;
+    height: 40px;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid rgba(17, 17, 17, 0.2);
+  }
+
+  .product-page .btn-check:checked + .size-option {
+    background: #111111;
+    border-color: #111111;
+    color: #ffffff;
+  }
+
+  .product-page .action-row {
+    gap: 1rem;
+  }
+
+  .product-page .action-form .form-control {
+    border-radius: 0.85rem;
+    border: 1px solid rgba(17, 17, 17, 0.15);
+  }
+
+  .product-page #add-to-bag-button,
+  .product-page .wishlist-form .btn {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.85rem;
+    border-radius: 0.85rem;
+  }
+
+  .product-page .fit-helper {
+    background: linear-gradient(135deg, rgba(17, 17, 17, 0.04), rgba(199, 146, 90, 0.12));
+    border: 1px solid var(--pdp-line);
+  }
+
+  .product-page .size-guide {
+    background: #ffffff;
+    border-radius: 1.5rem;
+    padding: 2rem;
+    border: 1px solid var(--pdp-line);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  .product-page .size-guide-tabs {
+    gap: 0.5rem;
+  }
+
+  .product-page .size-guide-tabs .nav-link {
+    border-radius: 999px;
+    border: 1px solid var(--pdp-line);
+    color: var(--pdp-ink);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .product-page .size-guide-tabs .nav-link.active {
+    background: #111111;
+    color: #ffffff;
+    border-color: #111111;
+  }
+
+  .product-page .table-modern {
+    border-collapse: separate;
+    border-spacing: 0 0.6rem;
+  }
+
+  .product-page .table-modern thead {
+    background: #f6f5f2;
+  }
+
+  .product-page .table-modern th {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--pdp-muted);
+  }
+
+  .product-page .table-modern tbody tr {
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+  }
+
+  .product-page .table-modern tbody tr td:first-child {
+    border-top-left-radius: 0.75rem;
+    border-bottom-left-radius: 0.75rem;
+  }
+
+  .product-page .table-modern tbody tr td:last-child {
+    border-top-right-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+  }
+
+  .product-page .review-section {
+    background: #ffffff;
+    border-radius: 1.6rem;
+    padding: 2rem;
+    border: 1px solid var(--pdp-line);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  }
+
+  .product-page .review-item {
+    background: #f9f8f6;
+    border-radius: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(17, 17, 17, 0.06);
+  }
+
+  .product-page .related-section .card {
+    border-radius: 1.4rem;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(17, 17, 17, 0.08);
+  }
+
+  .product-page .related-section .card-img-top {
+    border-top-left-radius: 1.4rem;
+    border-top-right-radius: 1.4rem;
+  }
+
+  .product-page .price-stack .text-muted {
+    color: var(--pdp-muted) !important;
+  }
+
+  @keyframes pdpFadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .product-page .product-hero-grid,
+  .product-page .size-guide,
+  .product-page .review-section,
+  .product-page .related-section {
+    animation: pdpFadeUp 0.6s ease both;
+  }
+
+  .product-page .size-guide {
+    animation-delay: 0.05s;
+  }
+
+  .product-page .review-section {
+    animation-delay: 0.08s;
+  }
+
+  .product-page .related-section {
+    animation-delay: 0.1s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-page .product-hero-grid,
+    .product-page .size-guide,
+    .product-page .review-section,
+    .product-page .related-section {
+      animation: none;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .product-page .product-detail-panel {
+      position: static;
+      padding: 1.5rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .product-page {
+      padding: 1.5rem 0;
+      border-radius: 1.5rem;
+    }
+
+    .product-page .product-shell {
+      padding: 1.5rem;
+    }
+
+    .product-page .image-tile {
+      min-height: 300px;
+    }
+
+    .product-page .product-title {
+      font-size: 1.8rem;
+    }
+  }
+</style>
+`; %>
+<%- include('partials/header', { title: metaTitle, extraHead: pageExtraHead }) %>
   <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
     <section class="page-section product-page">
-      <div class="container">
+      <div class="container product-shell">
         <% if (messages && messages.length) { %>
           <% messages.forEach(function(message) { %>
             <div class="alert alert-success">
@@ -130,6 +463,14 @@
               <% } %>
         </div>
         <div class="gst-note">GST included</div>
+        <div class="authenticity-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          100% Authenticity Guaranteed
+        </div>
 
         <% if (product.offerMessage) { %>
           <div class="promo-box">
@@ -139,13 +480,6 @@
             </p>
           </div>
           <% } %>
-
-            <div class="product-option">
-              <span class="option-label">Color</span>
-              <p class="mb-0">
-                <%= detail.color ? detail.color : 'Not specified' %>
-              </p>
-            </div>
 
             <% if (user && user.role==='customer' ) { %>
               <% if (product.quantity <=0) { %>
@@ -231,45 +565,99 @@
       </div>
 
       <div class="size-guide" id="size-guide">
+        <% const resolvedType=(typeof productType !== 'undefined' && productType === 'pants') ? 'pants' : 'shirt'; %>
+        <% const baseChart=resolvedType === 'pants' ? (pantsSizeChart || []) : (shirtSizeChart || []); %>
+        <% const sizeFilter=Array.isArray(sizesToShow) ? sizesToShow : []; %>
+        <% let filteredChart=baseChart; %>
+        <% let stockNote=''; %>
+        <% if (sizeFilter.length) { %>
+          <% const matches=baseChart.filter(row => sizeFilter.includes(row.size)); %>
+          <% if (matches.length) { %>
+            <% filteredChart=matches; %>
+            <% if (matches.length !== baseChart.length) { stockNote='Stock may vary by size.'; } %>
+          <% } else { %>
+            <% stockNote='Stock may vary by size.'; %>
+          <% } %>
+        <% } %>
+
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 mb-3">
           <div>
             <h3 class="mb-1">Size guide</h3>
             <p class="text-muted mb-0">Measurements shown in cm with inches in parentheses.</p>
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-modern align-middle mb-0">
-            <thead>
-              <tr>
-                <th scope="col">Size</th>
-                <th scope="col">Chest width</th>
-                <th scope="col">Shoulder</th>
-                <th scope="col">Length</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% (sizeChart || []).forEach(function(row) { %>
+
+        <% if (resolvedType === 'pants') { %>
+          <div class="table-responsive">
+            <table class="table table-modern align-middle mb-0">
+              <thead>
                 <tr>
-                  <td class="fw-semibold">
-                    <%= row.size %>
-                  </td>
-                  <td>
-                    <%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)
-                  </td>
-                  <td>
-                    <%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)
-                  </td>
-                  <td>
-                    <%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)
-                  </td>
+                  <th scope="col">Size</th>
+                  <th scope="col">Waist</th>
+                  <th scope="col">Hip</th>
+                  <th scope="col">Inseam</th>
                 </tr>
+              </thead>
+              <tbody>
+                <% (filteredChart || []).forEach(function(row) { %>
+                  <tr>
+                    <td class="fw-semibold"><%= row.size %></td>
+                    <td><%= row.waistMin %>-<%= row.waistMax %> cm (<%= cmToIn(row.waistMin) %>-<%= cmToIn(row.waistMax) %> in)</td>
+                    <td><%= row.hipMin %>-<%= row.hipMax %> cm (<%= cmToIn(row.hipMin) %>-<%= cmToIn(row.hipMax) %> in)</td>
+                    <td><%= row.inseam %> cm (<%= cmToIn(row.inseam) %> in)</td>
+                  </tr>
                 <% }); %>
-            </tbody>
-          </table>
-        </div>
-        <p class="text-muted small mb-0 mt-2">
-          <%= sizeGuideDisclaimer %>
-        </p>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <% const fitTabs=[{ key: 'regular', label: 'Regular' }, { key: 'slimming', label: 'Slimming' }, { key: 'relaxed', label: 'Relaxed' }, { key: 'dry-fit', label: 'Dry-fit' }]; %>
+          <% const activeFit=defaultFitType || 'regular'; %>
+          <ul class="nav nav-pills size-guide-tabs" role="tablist">
+            <% fitTabs.forEach(function(tab) { %>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link <%= tab.key === activeFit ? 'active' : '' %>" id="size-tab-<%= tab.key %>"
+                  data-bs-toggle="tab" data-bs-target="#size-pane-<%= tab.key %>" type="button" role="tab">
+                  <%= tab.label %>
+                </button>
+              </li>
+            <% }); %>
+          </ul>
+          <div class="tab-content mt-3">
+            <% fitTabs.forEach(function(tab) { %>
+              <div class="tab-pane fade <%= tab.key === activeFit ? 'show active' : '' %>" id="size-pane-<%= tab.key %>" role="tabpanel">
+                <p class="text-muted small mb-3"><%= fitNotes && fitNotes[tab.key] ? fitNotes[tab.key] : '' %></p>
+                <div class="table-responsive">
+                  <table class="table table-modern align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Size</th>
+                        <th scope="col">Chest width</th>
+                        <th scope="col">Shoulder</th>
+                        <th scope="col">Length</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% (filteredChart || []).forEach(function(row) { %>
+                        <tr>
+                          <td class="fw-semibold"><%= row.size %></td>
+                          <td><%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)</td>
+                          <td><%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)</td>
+                          <td><%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)</td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+
+        <% if (stockNote) { %>
+          <p class="text-muted small mb-0 mt-2"><%= stockNote %></p>
+        <% } %>
+        <p class="text-muted small mb-0 mt-2"><%= sizeGuideDisclaimer %></p>
       </div>
 
       <div class="review-section mt-5">
@@ -363,7 +751,7 @@
       </div>
 
       <% if (typeof relatedProducts !=='undefined' && relatedProducts && relatedProducts.length) { %>
-        <div class="row g-4 mt-5">
+        <div class="row g-4 mt-5 related-section">
           <div class="col-12">
             <h3 class="mb-3">You may also like</h3>
             <div class="row g-3">
@@ -385,7 +773,7 @@
                                 <%= item.productName || item.name %>
                               </a>
                             </h5>
-                            <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
+                            <p class="text-muted mb-3">New arrivals in inclusive sizes.</p>
                             <div class="mt-auto">
                               <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2)
                                   %></span>

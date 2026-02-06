@@ -1,3 +1,4 @@
+
 const db = require('../db');
 
 const createMany = (requestId, items, callback) => {
@@ -11,12 +12,13 @@ const createMany = (requestId, items, callback) => {
         item.productId,
         item.variantId,
         item.quantity,
-        item.unitPrice
+        item.unitPrice,
+        item.lineRefundAmount
     ]));
 
     const sql = `
-        INSERT INTO refund_request_items
-            (request_id, order_item_id, product_id, product_variant_id, quantity, unit_price)
+        INSERT INTO refund_items
+            (refund_request_id, order_item_id, product_id, product_variant_id, refund_qty, unit_price, line_refund_amount)
         VALUES ?
     `;
     db.query(sql, [values], callback);
@@ -25,23 +27,39 @@ const createMany = (requestId, items, callback) => {
 const getByRequestId = (requestId, callback) => {
     const sql = `
         SELECT
-            rri.id,
-            rri.request_id AS requestId,
-            rri.order_item_id AS orderItemId,
-            rri.product_id AS productId,
-            rri.product_variant_id AS variantId,
-            rri.quantity,
-            rri.unit_price AS unitPrice,
+            ri.id,
+            ri.refund_request_id AS requestId,
+            ri.order_item_id AS orderItemId,
+            ri.product_id AS productId,
+            ri.product_variant_id AS variantId,
+            ri.refund_qty AS quantity,
+            ri.unit_price AS unitPrice,
+            ri.line_refund_amount AS lineRefundAmount,
             p.name AS productName
-        FROM refund_request_items rri
-        LEFT JOIN products p ON p.id = rri.product_id
-        WHERE rri.request_id = ?
-        ORDER BY rri.id ASC
+        FROM refund_items ri
+        LEFT JOIN products p ON p.id = ri.product_id
+        WHERE ri.refund_request_id = ?
+        ORDER BY ri.id ASC
     `;
     db.query(sql, [requestId], callback);
 };
 
+const getRefundedQuantitiesByOrder = (orderId, callback) => {
+    const sql = `
+        SELECT
+            ri.order_item_id AS orderItemId,
+            SUM(ri.refund_qty) AS refundedQty
+        FROM refund_items ri
+        INNER JOIN refund_requests rr ON rr.id = ri.refund_request_id
+        WHERE rr.order_id = ?
+          AND rr.status IN ('approved', 'processing', 'completed')
+        GROUP BY ri.order_item_id
+    `;
+    db.query(sql, [orderId], callback);
+};
+
 module.exports = {
     createMany,
-    getByRequestId
+    getByRequestId,
+    getRefundedQuantitiesByOrder
 };

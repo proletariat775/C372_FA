@@ -1,5 +1,19 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Zhang KaiXiang 
+// Student ID:24041976
+// Class:C372-002
+// Date created:06/02/2026
+
 const User = require('../models/user');
 const Order = require('../models/order');
+const OrderReview = require('../models/orderReview');
+const refundRequestModel = require('../models/refundRequest');
+const orderStatusService = require('../services/orderStatusService');
+
+const REFUND_WINDOW_DAYS = 14;
 
 const normaliseOrderItem = (item) => {
     if (!item) {
@@ -12,6 +26,44 @@ const normaliseOrderItem = (item) => {
         productName: name,
         is_deleted: isDeleted ? 1 : 0
     };
+};
+
+const buildUserReviewList = (orderItemsByOrder = {}, reviewRows = []) => {
+    const itemMap = {};
+    Object.values(orderItemsByOrder).forEach((items) => {
+        (items || []).forEach((item) => {
+            if (item && item.id) {
+                itemMap[item.id] = item;
+            }
+        });
+    });
+
+    const getTime = (value) => {
+        if (!value) return 0;
+        const time = new Date(value).getTime();
+        return Number.isNaN(time) ? 0 : time;
+    };
+
+    return (reviewRows || []).map((review) => {
+        const item = itemMap[review.order_item_id] || {};
+        return {
+            id: review.id,
+            rating: Number(review.rating || 0),
+            comment: review.comment || '',
+            createdAt: review.created_at,
+            updatedAt: review.updated_at,
+            orderItemId: review.order_item_id,
+            orderId: item.order_id || null,
+            productId: item.product_id || review.product_id || null,
+            productName: item.productName || 'Product',
+            size: item.size || '',
+            color: item.color || ''
+        };
+    }).sort((a, b) => {
+        const aTime = getTime(a.createdAt || a.updatedAt);
+        const bTime = getTime(b.createdAt || b.updatedAt);
+        return bTime - aTime;
+    });
 };
 
 const showRegister = (req, res) => {
@@ -84,8 +136,21 @@ const login = (req, res) => {
         }
 
         if (results.length === 0) {
-            req.flash('error', 'Invalid email or password.');
-            return res.redirect('/login');
+            return User.findByEmail(email, (lookupErr, lookupResults) => {
+                if (lookupErr) {
+                    console.error('Error checking account status:', lookupErr);
+                    req.flash('error', 'Invalid email or password.');
+                    return res.redirect('/login');
+                }
+
+                if (lookupResults && lookupResults[0] && lookupResults[0].activate === 0) {
+                    req.flash('error', 'This account is deactivated. Please contact support.');
+                    return res.redirect('/login');
+                }
+
+                req.flash('error', 'Invalid email or password.');
+                return res.redirect('/login');
+            });
         }
 
         const user = results[0];
@@ -117,6 +182,10 @@ const showUserDashboard = (req, res) => {
         return res.redirect('/login');
     }
 
+    const tabParam = req.query && req.query.tab ? String(req.query.tab).toLowerCase() : 'account';
+    const allowedTabs = new Set(['account', 'orders', 'returns', 'reviews']);
+    const activeTab = allowedTabs.has(tabParam) ? tabParam : 'account';
+
     User.findById(userId, (err, results) => {
         if (err) {
             console.error('Error fetching user dashboard:', err);
@@ -129,52 +198,94 @@ const showUserDashboard = (req, res) => {
             return res.redirect('/shopping');
         }
 
+        const renderDashboard = (orders, orderItems) => {
+            const orderItemIds = new Set();
+            Object.values(orderItems || {}).forEach((items) => {
+                (items || []).forEach((item) => {
+                    if (item && item.id) {
+                        orderItemIds.add(item.id);
+                    }
+                });
+            });
+
+            refundRequestModel.getByUser(userId, (refundErr, requests = []) => {
+                if (refundErr) {
+                    console.error('Error loading refund requests:', refundErr);
+                    requests = [];
+                }
+
+                const refundLatestByOrder = {};
+                (requests || []).forEach((request) => {
+                    if (request && request.orderId && !refundLatestByOrder[request.orderId]) {
+                        refundLatestByOrder[request.orderId] = request;
+                    }
+                });
+                (orders || []).forEach((order) => {
+                    const latest = refundLatestByOrder[order.id];
+                    order.refund_status = latest ? latest.status : null;
+                    order.refund_request_id = latest ? latest.id : null;
+                    order.refund_approved_amount = latest ? latest.approvedAmount : null;
+                    order.refund_updated_at = latest ? latest.updatedAt : null;
+                });
+
+                OrderReview.findByUserAndOrderItems(userId, Array.from(orderItemIds), (reviewErr, reviewRows = []) => {
+                    if (reviewErr) {
+                        console.error('Error loading user reviews:', reviewErr);
+                        reviewRows = [];
+                    }
+
+                    const userReviews = buildUserReviewList(orderItems, reviewRows);
+
+                    return res.render('userDashboard', {
+                        user: req.session.user,
+                        profile: results[0],
+                        orders,
+                        orderItems,
+                        refundRequests: requests,
+                        userReviews,
+                        activeTab,
+                        refundWindowDays: REFUND_WINDOW_DAYS,
+                        errors: req.flash('error'),
+                        messages: req.flash('success')
+                    });
+                });
+            });
+        };
+
         Order.findByUser(userId, (orderErr, orderRows) => {
             if (orderErr) {
                 console.error('Error fetching user orders:', orderErr);
                 req.flash('error', 'Unable to load your orders.');
-                return res.render('userDashboard', {
-                    user: req.session.user,
-                    profile: results[0],
-                    orders: [],
-                    orderItems: {},
-                    errors: req.flash('error'),
-                    messages: req.flash('success')
-                });
+                return renderDashboard([], {});
             }
 
-            const orders = (orderRows || []).map((order) => ({
-                ...order,
-                delivery_method: order.shipping_address ? 'delivery' : 'pickup',
-                delivery_address: order.shipping_address,
-                delivery_fee: Number(order.shipping_amount || 0),
-                total: Number(order.total_amount || order.total || 0)
-            }));
+            const orders = (orderRows || []).map((order) => {
+                const fallbackMethod = order.shipping_address || order.delivery_address ? 'delivery' : 'pickup';
+                const deliveryMethod = order.delivery_method
+                    ? orderStatusService.resolveDeliveryMethod(order.delivery_method)
+                    : orderStatusService.resolveDeliveryMethod(fallbackMethod);
+                const deliveryAddress = order.delivery_address || order.shipping_address || null;
+
+                return {
+                    ...order,
+                    status: orderStatusService.mapLegacyStatus(order.status || 'processing'),
+                    delivery_method: deliveryMethod,
+                    delivery_address: deliveryAddress,
+                    delivery_fee: Number(order.delivery_fee || order.shipping_amount || 0),
+                    total: Number(order.total_amount || order.total || 0)
+                };
+            });
             const orderIds = orders.map(order => order.id);
 
             if (!orderIds.length) {
-                return res.render('userDashboard', {
-                    user: req.session.user,
-                    profile: results[0],
-                    orders,
-                    orderItems: {},
-                    errors: req.flash('error'),
-                    messages: req.flash('success')
-                });
+                return renderDashboard(orders, {});
             }
 
             Order.findItemsByOrderIds(orderIds, (itemsErr, itemRows) => {
                 if (itemsErr) {
                     console.error('Error fetching order items:', itemsErr);
                     req.flash('error', 'Unable to load order items.');
-                    return res.render('userDashboard', {
-                        user: req.session.user,
-                        profile: results[0],
-                        orders,
-                        orderItems: {},
-                        errors: req.flash('error'),
-                        messages: req.flash('success')
-                    });
+                    return renderDashboard(orders, {});
                 }
 
                 const itemsByOrder = orderIds.reduce((acc, id) => {
@@ -190,14 +301,7 @@ const showUserDashboard = (req, res) => {
                     itemsByOrder[safeItem.order_id].push(safeItem);
                 });
 
-                return res.render('userDashboard', {
-                    user: req.session.user,
-                    profile: results[0],
-                    orders,
-                    orderItems: itemsByOrder,
-                    errors: req.flash('error'),
-                    messages: req.flash('success')
-                });
+                return renderDashboard(orders, itemsByOrder);
             });
         });
     });
@@ -337,8 +441,82 @@ const updateUserRole = (req, res) => {
         return res.redirect('/admin/users');
     }
 
-    req.flash('error', 'Editing customer accounts is disabled in this admin view.');
-    return res.redirect('/admin/users');
+    User.findById(userId, (findErr, results) => {
+        if (findErr) {
+            console.error('Error fetching user:', findErr);
+            req.flash('error', 'Unable to update user.');
+            return res.redirect('/admin/users');
+        }
+
+        if (!results || results.length === 0) {
+            req.flash('error', 'User not found.');
+            return res.redirect('/admin/users');
+        }
+
+        if (results[0].role !== 'customer') {
+            req.flash('error', 'Admin accounts are not managed in this view.');
+            return res.redirect('/admin/users');
+        }
+
+        const allowedRoles = ['customer', 'admin'];
+        const safeRole = allowedRoles.includes(req.body.role) ? req.body.role : 'customer';
+        const activateValue = req.body.activate === '0' ? 0 : 1;
+        const password = req.body.password ? String(req.body.password).trim() : '';
+        const safeUsername = req.body.username ? String(req.body.username).trim() : '';
+        const safeEmail = req.body.email ? String(req.body.email).trim() : '';
+        const safePhone = req.body.phone ? String(req.body.phone).trim() : '';
+        const safeFirstName = req.body.first_name ? String(req.body.first_name).trim() : '';
+        const safeLastName = req.body.last_name ? String(req.body.last_name).trim() : '';
+        const safeAddress = req.body.address ? String(req.body.address).trim() : '';
+        const safeCity = req.body.city ? String(req.body.city).trim() : '';
+        const safeState = req.body.state ? String(req.body.state).trim() : '';
+        const safeZip = req.body.zip_code ? String(req.body.zip_code).trim() : '';
+        const safeCountry = req.body.country ? String(req.body.country).trim() : '';
+
+        if (!safeUsername) {
+            req.flash('error', 'Username is required.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        }
+
+        if (!safeEmail) {
+            req.flash('error', 'Email is required.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        }
+
+        if (password && password.length < 6) {
+            req.flash('error', 'Password must be at least 6 characters.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        }
+
+        return User.updateAdmin(userId, {
+            username: safeUsername,
+            email: safeEmail,
+            first_name: safeFirstName || null,
+            last_name: safeLastName || null,
+            address: safeAddress || null,
+            city: safeCity || null,
+            state: safeState || null,
+            zip_code: safeZip || null,
+            country: safeCountry || null,
+            phone: safePhone || null,
+            role: safeRole,
+            activate: activateValue,
+            password
+        }, (updateErr) => {
+            if (updateErr) {
+                console.error('Error updating user:', updateErr);
+                if (updateErr.code === 'ER_DUP_ENTRY') {
+                    req.flash('error', 'Email already exists.');
+                } else {
+                    req.flash('error', 'Unable to update user.');
+                }
+                return res.redirect(`/admin/users/${userId}/edit`);
+            }
+
+            req.flash('success', 'Customer account updated.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        });
+    });
 };
 
 const deleteUser = (req, res) => {

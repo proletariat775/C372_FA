@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 <%- include('partials/header', { title: 'Refund Request | Shirt Shop' }) %>
 <%- include('partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
 
@@ -8,13 +16,14 @@
         <p class="mb-1 text-muted">Request #<%= request.id %></p>
         <h2 class="mb-0">Refund request details</h2>
       </div>
-      <a href="/refunds" class="btn btn-outline-secondary">Back to requests</a>
+      <a href="/user?tab=returns" class="btn btn-outline-secondary">Back to requests</a>
     </div>
 
     <% const paymentLabel = (method) => {
       const value = (method || '').toString().toLowerCase();
       if (value === 'paypal') return 'PayPal';
-      if (value === 'card') return 'Card';
+      if (value === 'stripe') return 'Stripe';
+      if (value === 'netsqr') return 'NETS QR';
       return method ? method.toUpperCase() : 'Unknown';
     }; %>
 
@@ -23,15 +32,30 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="small text-muted">Order</div>
-            <div class="fw-semibold">Order #<%= request.orderId %></div>
+            <div class="fw-semibold">Order #<%= request.orderNumber || request.orderId %></div>
+            <% if (order) { %>
+              <% const orderStatus = String(order.status || 'processing').toLowerCase(); %>
+              <% const paymentStatus = String(order.payment_status || 'pending').toLowerCase(); %>
+              <div class="small text-muted mt-2">Order status</div>
+              <div>
+                <span class="badge bg-primary-subtle text-primary text-uppercase"><%= orderStatus.replace(/_/g, ' ') %></span>
+                <span class="badge bg-dark-subtle text-dark text-uppercase">Payment: <%= paymentStatus %></span>
+              </div>
+            <% } %>
             <div class="small text-muted mt-2">Payment method</div>
             <div><span class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span></div>
+            <div class="small text-muted mt-2">Requested on</div>
+            <div><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Requested amount</div>
             <div class="fw-semibold">$<%= Number(request.requestedAmount || 0).toFixed(2) %></div>
+            <div class="small text-muted mt-2">Approved amount</div>
+            <div><%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %></div>
             <div class="small text-muted mt-2">Status</div>
-            <div><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></div>
+            <div><span class="badge bg-light text-dark border"><%= (request.status || 'unknown').toUpperCase() %></span></div>
+            <div class="small text-muted mt-2">Refunded on</div>
+            <div><%= request.refundedAt ? new Date(request.refundedAt).toLocaleString() : (request.status === 'completed' ? (request.updatedAt ? new Date(request.updatedAt).toLocaleString() : '-') : '-') %></div>
           </div>
           <% if (request.reason) { %>
             <div class="col-12">
@@ -49,6 +73,40 @@
       </div>
     </div>
 
+    <% if (order && orderItems && orderItems.length) { %>
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Order summary</h5>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-end">Unit price</th>
+                  <th class="text-end">Line total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% orderItems.forEach(function(item) { %>
+                  <tr>
+                    <td><%= item.productName || ('Product #' + item.product_id) %></td>
+                    <td class="text-center"><%= item.quantity %></td>
+                    <td class="text-end">$<%= Number(item.price || 0).toFixed(2) %></td>
+                    <td class="text-end">$<%= Number(item.total_price || (Number(item.price || 0) * Number(item.quantity || 0))).toFixed(2) %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-between border-top pt-3 mt-3">
+            <span class="text-muted">Order total</span>
+            <span class="fw-semibold">$<%= Number(order.total_amount || order.total || 0).toFixed(2) %></span>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
     <div class="card shadow-sm">
       <div class="card-body">
         <h5 class="card-title">Refund items</h5>
@@ -62,7 +120,7 @@
                   <th>Item</th>
                   <th class="text-center">Qty</th>
                   <th class="text-end">Unit price</th>
-                  <th class="text-end">Subtotal</th>
+                  <th class="text-end">Line refund</th>
                 </tr>
               </thead>
               <tbody>
@@ -71,7 +129,7 @@
                     <td><%= item.productName || ('Product #' + item.productId) %></td>
                     <td class="text-center"><%= item.quantity %></td>
                     <td class="text-end">$<%= Number(item.unitPrice).toFixed(2) %></td>
-                    <td class="text-end">$<%= (Number(item.unitPrice) * Number(item.quantity)).toFixed(2) %></td>
+                    <td class="text-end">$<%= Number(item.lineRefundAmount || (Number(item.unitPrice) * Number(item.quantity))).toFixed(2) %></td>
                   </tr>
                 <% }); %>
               </tbody>

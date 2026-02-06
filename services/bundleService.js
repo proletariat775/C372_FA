@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 const DEFAULT_BUNDLE_RATE = 0.1;
 
 const toNumber = (value) => {
@@ -79,7 +87,7 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
         .map(normalizeBundleDefinition)
         .filter(Boolean);
 
-    if (!Array.isArray(cartItems) || cartItems.length === 0 || bundles.length === 0) {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) {
         return {
             totalBundleSets: 0,
             discountPercent: 0,
@@ -105,8 +113,8 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
         valueByProduct[productId] = (valueByProduct[productId] || 0) + (price * quantity);
 
         if (!metaByProduct[productId]) {
-            const brandLabel = normalizeLabel(item.brand);
-            const categoryLabel = normalizeLabel(item.category);
+            const brandLabel = normalizeLabel(item.brand || item.brand_name || item.brandName);
+            const categoryLabel = normalizeLabel(item.category || item.category_name || item.categoryName);
             metaByProduct[productId] = {
                 brandLabel,
                 categoryLabel,

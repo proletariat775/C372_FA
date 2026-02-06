@@ -1,3 +1,12 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
+
 <%- include('partials/header', { title: 'Refund Requests | Shirt Shop' }) %>
 <%- include('partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
 
@@ -26,7 +35,8 @@
     <% const paymentLabel = (method) => {
       const value = (method || '').toString().toLowerCase();
       if (value === 'paypal') return 'PayPal';
-      if (value === 'card') return 'Card';
+      if (value === 'stripe') return 'Stripe';
+      if (value === 'netsqr') return 'NETS QR';
       return method ? method.toUpperCase() : 'Unknown';
     }; %>
 
@@ -44,6 +54,7 @@
               <th>Order</th>
               <th>Payment</th>
               <th>Requested Amount</th>
+              <th>Approved Amount</th>
               <th>Status</th>
               <th>Submitted</th>
               <th></th>
@@ -53,10 +64,19 @@
             <% requests.forEach(function(request) { %>
               <tr>
                 <td class="fw-semibold">#<%= request.id %></td>
-                <td>Order #<%= request.orderId %></td>
+                <td>Order #<%= request.orderNumber || request.orderId %></td>
                 <td><span class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span></td>
                 <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
-                <td><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></td>
+                <td>
+                  <%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border"><%= (request.status || 'unknown').toUpperCase() %></span>
+                  <% const statusKey = (request.status || '').toLowerCase(); %>
+                  <% if ((statusKey === 'rejected' || statusKey === 'failed') && request.adminNote) { %>
+                    <div class="small text-muted mt-1"><%= request.adminNote %></div>
+                  <% } %>
+                </td>
                 <td><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></td>
                 <td>
                   <a href="/refunds/<%= request.id %>" class="btn btn-sm btn-outline-primary">View</a>

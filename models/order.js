@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Yeo Jun Long Dave 
+// Student ID:24046757
+// Class:C372-002
+// Date created:06/02/2026
 const connection = require('../db');
 
 const generateOrderNumber = () => 'ORD-' + Date.now().toString(36).toUpperCase();
@@ -18,8 +26,9 @@ const create = (userId, cartItems, options, callback) => {
         payment_method = 'cod',
         payment_status = 'pending',
         paypal_capture_id = null,
+        stripe_payment_intent_id = null,
         refunded_amount = 0.00,
-        status = 'pending',
+        status = 'processing',
         discount_amount = 0.00,
         loyalty_points_redeemed = 0,
         loyalty_discount_amount = 0.00,
@@ -67,6 +76,7 @@ const create = (userId, cartItems, options, callback) => {
                 payment_method,
                 payment_status,
                 paypal_capture_id,
+                stripe_payment_intent_id,
                 refunded_amount,
                 shipping_address,
                 billing_address,
@@ -78,7 +88,7 @@ const create = (userId, cartItems, options, callback) => {
                 delivery_slot_window,
                 order_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         connection.query(orderSql, [
@@ -95,6 +105,7 @@ const create = (userId, cartItems, options, callback) => {
             payment_method,
             payment_status,
             paypal_capture_id,
+            stripe_payment_intent_id,
             refunded_amount,
             shipping_address,
             billing_address,
@@ -182,7 +193,7 @@ const create = (userId, cartItems, options, callback) => {
  */
 const findByUser = (userId, callback) => {
     const sql = `
-        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, loyalty_points_redeemed, loyalty_discount_amount, total_amount, payment_method, payment_status, shipping_address, delivery_slot_date, delivery_slot_window, order_notes, created_at
+        SELECT id, order_number, status, subtotal, tax_amount, shipping_amount, discount_amount, loyalty_points_redeemed, loyalty_discount_amount, total_amount, payment_method, payment_status, refunded_amount, shipping_address, delivery_method, delivery_address, delivery_fee, shipping_provider, tracking_number, est_delivery_date, completed_at, refunded_at, delivery_slot_date, delivery_slot_window, order_notes, created_at
         FROM orders
         WHERE user_id = ?
             ORDER BY created_at DESC, id DESC
@@ -215,6 +226,8 @@ const findAllWithUsers = (callback) => {
             o.loyalty_discount_amount,
             o.total_amount,
             o.payment_method,
+            o.payment_status,
+            o.refunded_amount,
             o.shipping_address,
             o.delivery_slot_date,
             o.delivery_slot_window,
@@ -226,6 +239,8 @@ const findAllWithUsers = (callback) => {
             o.tracking_number,
             o.est_delivery_date,
             o.admin_notes,
+            o.completed_at,
+            o.refunded_at,
             o.total,
             o.created_at,
             u.username,
@@ -301,6 +316,59 @@ const addRefundedAmount = (orderId, amount, callback) => {
     connection.query(sql, [safeAmount, orderId], callback);
 };
 
+const markRefunded = (orderId, callback) => {
+    const safeOrderId = Number(orderId);
+    if (!Number.isFinite(safeOrderId)) {
+        return callback(new Error('Invalid order id.'));
+    }
+    const sql = `
+        UPDATE orders
+        SET status = 'returned',
+            payment_status = 'refunded',
+            refunded_at = COALESCE(refunded_at, NOW())
+        WHERE id = ?
+    `;
+    connection.query(sql, [safeOrderId], callback);
+};
+
+const updateRefundTotals = (orderId, refundedAmount, options, callback) => {
+    const safeOrderId = Number(orderId);
+    const safeAmount = Number(refundedAmount);
+    if (!Number.isFinite(safeOrderId) || !Number.isFinite(safeAmount)) {
+        return callback(new Error('Invalid refund update.'));
+    }
+
+    let markAsRefunded = false;
+    let statusOverride = null;
+    if (typeof options === 'object' && options !== null) {
+        markAsRefunded = Boolean(options.markAsRefunded);
+        statusOverride = options.statusOverride ? String(options.statusOverride).trim() : null;
+    } else {
+        markAsRefunded = Boolean(options);
+    }
+
+    if (markAsRefunded) {
+        const resolvedStatus = statusOverride || 'returned';
+        const sql = `
+            UPDATE orders
+            SET refunded_amount = ?,
+                status = ?,
+                payment_status = 'refunded',
+                refunded_at = COALESCE(refunded_at, NOW())
+            WHERE id = ?
+        `;
+        return connection.query(sql, [safeAmount, resolvedStatus, safeOrderId], callback);
+    }
+
+    const sql = `
+        UPDATE orders
+        SET refunded_amount = ?,
+            payment_status = 'paid'
+        WHERE id = ?
+    `;
+    return connection.query(sql, [safeAmount, safeOrderId], callback);
+};
+
 /**
  * Retrieve global best-selling products ordered by total quantity sold.
  * @param {number} limit Number of products to fetch
@@ -373,13 +441,16 @@ module.exports = {
     getBestSellers,
     updateDelivery,
     addRefundedAmount,
+    markRefunded,
+    updateRefundTotals,
     updateAdminOrder: (orderId, updateData, callback) => {
         const {
-            status = 'pending',
+            status = 'processing',
             shipping_provider = null,
             tracking_number = null,
             est_delivery_date = null,
-            admin_notes = null
+            admin_notes = null,
+            completed_at = null
         } = updateData || {};
 
         const sql = `
@@ -388,16 +459,17 @@ module.exports = {
                 shipping_provider = ?,
                 tracking_number = ?,
                 est_delivery_date = ?,
-                admin_notes = ?
+                admin_notes = ?,
+                completed_at = CASE WHEN ? IS NOT NULL THEN ? ELSE completed_at END
             WHERE id = ?
         `;
-        connection.query(sql, [status, shipping_provider, tracking_number, est_delivery_date, admin_notes, orderId], callback);
+        connection.query(sql, [status, shipping_provider, tracking_number, est_delivery_date, admin_notes, completed_at, completed_at, orderId], callback);
     },
     countOpenOrders: (callback) => {
         const sql = `
             SELECT COUNT(*) AS count
             FROM orders
-            WHERE status NOT IN ('delivered', 'completed', 'cancelled', 'returned')
+            WHERE status NOT IN ('completed', 'cancelled', 'returned')
         `;
         connection.query(sql, (err, rows) => {
             if (err) return callback(err);
@@ -410,8 +482,8 @@ module.exports = {
         const sql = `
             SELECT COUNT(*) AS count
             FROM orders
-            WHERE status IN ('delivered', 'completed')
-              AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+            WHERE status = 'completed'
+              AND COALESCE(completed_at, created_at) >= DATE_SUB(NOW(), INTERVAL ? DAY)
         `;
         connection.query(sql, [safeDays], (err, rows) => {
             if (err) return callback(err);

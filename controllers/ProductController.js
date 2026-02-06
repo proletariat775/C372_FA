@@ -1,9 +1,17 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Wong De En Amos
+// Student ID: 24042274
+// Class: C372-002
+// Date created: 06/02/2026
 const Product = require('../models/product');
 const Review = require('../models/review');
 const OrderReview = require('../models/orderReview');
 const Order = require('../models/order');
 const ProductDetails = require('../models/productDetails');
-const sizeChartService = require('../services/sizeChartService');
+const sizeGuideService = require('../services/sizeGuideService');
 const bundleService = require('../services/bundleService');
 
 const normalizeSizeLabel = (raw) => {
@@ -18,6 +26,28 @@ const normalizeSizeLabel = (raw) => {
         return cleaned;
     }
     return cleaned;
+};
+
+const normalizeProductType = (value) => {
+    if (String(value || '').toLowerCase() === 'pants') {
+        return 'pants';
+    }
+    return 'shirt';
+};
+
+const inferProductType = (product) => {
+    if (!product) {
+        return 'shirt';
+    }
+    const rawType = product.product_type || product.productType;
+    if (rawType === 'shirt' || rawType === 'pants') {
+        return rawType;
+    }
+    const category = String(product.category_name || product.category || '').toLowerCase();
+    if (category.includes('pant')) {
+        return 'pants';
+    }
+    return 'shirt';
 };
 
 const parseSizeKey = (key) => {
@@ -104,7 +134,8 @@ const buildProductPayload = (body, image, sizeInfo) => {
         discount,
         offer,
         category,
-        brand
+        brand,
+        productType
     } = body;
 
     const fallbackQuantity = Math.max(0, Number.parseInt(quantity, 10) || 0);
@@ -121,6 +152,7 @@ const buildProductPayload = (body, image, sizeInfo) => {
         imageBack: image && image.back ? image.back : null,
         image: image && image.single ? image.single : null,
         category: category ? category.trim() || 'General' : 'General',
+        product_type: normalizeProductType(productType),
         sizeQuantities: sizeInfo && sizeInfo.hasAny ? sizeInfo.sizeQuantities : null
     };
 };
@@ -174,6 +206,7 @@ const enhanceProductRecord = (product) => {
         hasDiscount,
         category: product.category_name || product.category || 'General',
         brand: product.brand_name || product.brand || null,
+        productType: inferProductType(product),
         quantity: Number(product.quantity || product.total_quantity || 0),
         image: product.image || null,
         defaultVariantId: product.default_variant_id || product.defaultVariantId || null,
@@ -443,9 +476,10 @@ const ProductController = {
                     }
 
                     const productList = (products || []).map(enhanceProductRecord);
+                    const visibleProducts = productList.filter((product) => Number(product.quantity || 0) > 0);
                     const categories = (categoryRows || []).map((row) => row.name || row.category).filter(Boolean);
                     const brands = (brandRows || []).map((row) => row.name).filter(Boolean);
-                    const bundles = buildStyleBundles(productList);
+                    const bundles = buildStyleBundles(visibleProducts);
 
                     Order.getBestSellers(3, (bestErr, bestSellers) => {
                         if (bestErr) {
@@ -454,7 +488,7 @@ const ProductController = {
 
                         res.render('shopping', {
                             user: req.session.user,
-                            products: productList,
+                            products: visibleProducts,
                             categories,
                             brands,
                             activeCategory,
@@ -462,7 +496,9 @@ const ProductController = {
                             activeSort,
                             searchQuery,
                             bundles,
-                            bestSellers: (bestSellers && bestSellers.length) ? bestSellers.map(enhanceProductRecord) : [],
+                            bestSellers: (bestSellers && bestSellers.length)
+                                ? bestSellers.map(enhanceProductRecord).filter((product) => Number(product.quantity || 0) > 0)
+                                : [],
                             messages: req.flash('success'),
                             errors: req.flash('error')
                         });
@@ -549,6 +585,8 @@ const ProductController = {
         const resolvedCategory = resolveCategory(req.body);
         const resolvedBrand = resolveBrand(req.body);
         const sizeInfo = parseSizeQuantities(req.body);
+        const resolvedProductType = normalizeProductType(req.body.productType);
+        req.body.productType = resolvedProductType;
 
         if (!resolvedCategory) {
             req.flash('error', 'Please choose a category or enter a new category name.');
@@ -560,7 +598,7 @@ const ProductController = {
         const productData = buildProductPayload(req.body, { front: imageFront, back: imageBack, single: image }, sizeInfo);
         const detailsData = {
             description: req.body.description,
-            fitType: req.body.fitType,
+            fitType: resolvedProductType === 'pants' ? null : req.body.fitType,
             material: req.body.material,
             color: req.body.color,
             sizeRange: req.body.sizeRange,
@@ -691,13 +729,14 @@ const ProductController = {
 
         req.body.category = resolvedCategory;
         req.body.brand = resolvedBrand;
+        req.body.productType = normalizeProductType(req.body.productType);
         const sizeInfo = parseSizeQuantities(req.body);
         console.log('DEBUG:updateProduct parsed sizeInfo ->', JSON.stringify(sizeInfo));
         console.log('DEBUG:updateProduct body size keys ->', Object.keys(req.body).filter(k => String(k).startsWith('size_')));
         const productData = buildProductPayload(req.body, { front: imageFront, back: imageBack, single: image }, sizeInfo);
         const detailsData = {
             description: req.body.description,
-            fitType: req.body.fitType,
+            fitType: req.body.productType === 'pants' ? null : req.body.fitType,
             material: req.body.material,
             color: req.body.color,
             sizeRange: req.body.sizeRange,
@@ -749,6 +788,11 @@ const ProductController = {
             if (error) throw error;
             if (results.length > 0) {
                 const product = enhanceProductRecord(results[0]);
+                const isAdmin = req.session.user && req.session.user.role === 'admin';
+                if (!isAdmin && Number(product.quantity || 0) <= 0) {
+                    req.flash('error', 'This item is out of stock.');
+                    return res.redirect('/shopping');
+                }
                 fetchProductImages(productId, (imageErr, productImages) => {
                     if (imageErr) {
                         console.error('Error fetching product images:', imageErr);
@@ -758,6 +802,9 @@ const ProductController = {
                         if (variantErr) {
                             console.error('Error fetching product variants:', variantErr);
                         }
+                        const visibleVariants = isAdmin
+                            ? (productVariants || [])
+                            : (productVariants || []).filter((variant) => Number(variant.quantity || 0) > 0);
 
                         ProductDetails.findByProductId(productId, (detailError, detailResults) => {
                             if (detailError) {
@@ -765,6 +812,8 @@ const ProductController = {
                             }
 
                             const productDetails = detailResults && detailResults.length ? detailResults[0] : null;
+                            const productType = inferProductType({ ...product, product_type: product.productType });
+                            const defaultFitType = sizeGuideService.normalizeFitType(productDetails && productDetails.fitType);
 
                             OrderReview.findByProduct(productId, (orderReviewErr, orderReviewRows) => {
                                 if (orderReviewErr) {
@@ -811,26 +860,33 @@ const ProductController = {
                                                 if (relatedError) {
                                                     console.error('Error fetching related products:', relatedError);
                                                 }
+                                                const visibleRelated = isAdmin
+                                                    ? (relatedProducts || [])
+                                                    : (relatedProducts || []).filter((item) => Number(item.quantity || 0) > 0);
 
                                                 const { metaTitle, extraHead } = buildProductMeta(product);
 
                                                 res.render('product', {
                                                     product,
+                                                    productType,
+                                                    defaultFitType,
                                                     productDetails,
                                                     productImages: productImages || [],
-                                                    productVariants: productVariants || [],
+                                                    productVariants: visibleVariants,
                                                     user: req.session.user,
                                                     metaTitle,
                                                     extraHead,
                                                     reviews,
-                                                    relatedProducts: relatedProducts || [],
+                                                    relatedProducts: visibleRelated,
                                                     averageRating,
                                                     reviewSummary: summary,
                                                     userReview,
                                                     canReview: Boolean(canReview),
-                                                    sizeChart: sizeChartService.getSizeChart(),
-                                                    cmToIn: sizeChartService.cmToIn,
-                                                    sizeGuideDisclaimer: sizeChartService.SIZE_DISCLAIMER,
+                                                    shirtSizeChart: sizeGuideService.getShirtSizeChart(),
+                                                    pantsSizeChart: sizeGuideService.getPantsSizeChart(),
+                                                    fitNotes: sizeGuideService.SHIRT_FIT_NOTES,
+                                                    cmToIn: sizeGuideService.cmToIn,
+                                                    sizeGuideDisclaimer: sizeGuideService.SIZE_DISCLAIMER,
                                                     messages: req.flash('success'),
                                                     errors: req.flash('error')
                                                 });

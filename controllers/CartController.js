@@ -1,4 +1,12 @@
-﻿const Product = require('../models/product');
+﻿//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: wendy liew wen ying 
+// Student ID: 24038281
+// Class: C372-002
+// Date created: 06/02/2026
+const Product = require('../models/product');
 const couponService = require('../services/couponService');
 const bundleService = require('../services/bundleService');
 const loyaltyService = require('../services/loyaltyService');
@@ -310,10 +318,10 @@ const viewCart = async (req, res) => {
     try {
         loyaltyBalance = await loyaltyService.getBalance(req.session.user && req.session.user.id);
         if (req.session.user) {
-            req.session.user.loyalty_points_balance = loyaltyBalance;
+            req.session.user.loyalty_points = loyaltyBalance;
         }
     } catch (error) {
-        console.error('Error loading loyalty balance for cart:', error);
+        console.error('Error loading EcoPoints balance for cart:', error);
     }
 
     // Cart estimate excludes delivery because delivery method/fee is selected at checkout.

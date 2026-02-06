@@ -1,3 +1,11 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 <%- include('partials/header', { title: 'Refund Request | Shirt Shop' }) %>
 <%- include('partials/adminNavbar', { user: typeof user !== 'undefined' ? user : null }) %>
 
@@ -28,13 +36,15 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="small text-muted">Order</div>
-            <div class="fw-semibold">Order #<%= request.orderId %></div>
+            <div class="fw-semibold"><%= request.orderNumber ? `Order #${request.orderNumber} (ID: ${request.orderId})` : `Order #${request.orderId}` %></div>
             <div class="small text-muted mt-2">User</div>
             <div><%= request.username %> (<%= request.email %>)</div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Requested amount</div>
             <div class="fw-semibold">$<%= Number(request.requestedAmount || 0).toFixed(2) %></div>
+            <div class="small text-muted mt-2">Approved amount</div>
+            <div><%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %></div>
             <div class="small text-muted mt-2">Remaining balance</div>
             <div>$<%= Number(remaining || 0).toFixed(2) %></div>
           </div>
@@ -57,7 +67,7 @@
           <% } %>
           <div class="col-12">
             <div class="small text-muted">Status</div>
-            <div><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></div>
+            <div><span class="badge bg-light text-dark border"><%= (request.status || 'unknown').toUpperCase() %></span></div>
           </div>
         </div>
       </div>
@@ -66,7 +76,7 @@
     <div class="card shadow-sm mb-4">
       <div class="card-body">
         <h5 class="card-title">Process request</h5>
-        <% if (request.status !== 'PENDING') { %>
+        <% if ((request.status || '').toLowerCase() !== 'pending') { %>
           <p class="text-muted mb-0">This request is already <%= request.status %>.</p>
         <% } else { %>
           <form action="/admin/refunds/<%= request.id %>/approve" method="POST" class="row g-3 mb-3">
@@ -83,7 +93,7 @@
                 value="<%= Number(request.requestedAmount || 0).toFixed(2) %>"
                 required
                 inputmode="decimal">
-              <small class="text-muted">Requested: $<%= Number(request.requestedAmount || 0).toFixed(2) %></small>
+                <small class="text-muted">Requested: $<%= Number(request.requestedAmount || 0).toFixed(2) %></small>
             </div>
             <div class="col-12 col-md-4 d-flex align-items-end">
               <div class="form-check">
@@ -126,7 +136,7 @@
                   <th>Item</th>
                   <th class="text-center">Qty</th>
                   <th class="text-end">Unit price</th>
-                  <th class="text-end">Subtotal</th>
+                  <th class="text-end">Line refund</th>
                 </tr>
               </thead>
               <tbody>
@@ -135,7 +145,7 @@
                     <td><%= item.productName || ('Product #' + item.productId) %></td>
                     <td class="text-center"><%= item.quantity %></td>
                     <td class="text-end">$<%= Number(item.unitPrice).toFixed(2) %></td>
-                    <td class="text-end">$<%= (Number(item.unitPrice) * Number(item.quantity)).toFixed(2) %></td>
+                    <td class="text-end">$<%= Number(item.lineRefundAmount || (Number(item.unitPrice) * Number(item.quantity))).toFixed(2) %></td>
                   </tr>
                 <% }); %>
               </tbody>

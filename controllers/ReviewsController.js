@@ -1,4 +1,14 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 const OrderReview = require('../models/orderReview');
+const loyaltyService = require('../services/loyaltyService');
+const orderStatusService = require('../services/orderStatusService');
 
 const createReview = (req, res) => {
     const user = req.session.user;
@@ -34,7 +44,7 @@ const createReview = (req, res) => {
         }
 
         const context = contextRows[0];
-        const status = context.status ? String(context.status).toLowerCase() : 'pending';
+        const status = orderStatusService.mapLegacyStatus(context.status || '');
         if (status !== 'completed') {
             req.flash('error', 'Reviews are available after the order is completed.');
             return res.redirect('/orders/history');
@@ -73,6 +83,19 @@ const createReview = (req, res) => {
                     }
                     return res.redirect('/orders/history');
                 }
+
+                loyaltyService.awardPointsForReview({
+                    userId: user.id,
+                    orderId: context.order_id,
+                    orderItemId,
+                    productId: context.product_id
+                }).then((award) => {
+                    if (req.session.user && Number.isFinite(award.balance)) {
+                        req.session.user.loyalty_points = award.balance;
+                    }
+                }).catch((awardErr) => {
+                    console.error('Error awarding EcoPoints for review:', awardErr);
+                });
 
                 req.flash('success', 'Thanks for sharing your review.');
                 return res.redirect('/orders/history');

@@ -1,3 +1,12 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Yeo Jun Long Dave 
+// Student ID:24046757
+// Class:C372-002
+// Date created:06/02/2026 
+
 <%- include('partials/header', { title: 'Return or Exchange | Shirt Shop' }) %>
   <%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
 
@@ -6,7 +15,8 @@
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
           <div>
             <p class="mb-1 text-muted">Returns & exchanges</p>
-            <h2 class="mb-0">Order #<%= order.id %>
+            <% const displayOrderNumber = order.order_number || order.id; %>
+            <h2 class="mb-0">Order #<%= displayOrderNumber %>
             </h2>
             <p class="text-muted mb-0">Placed on <%= new Date(order.created_at).toLocaleString() %>
             </p>
@@ -36,11 +46,11 @@
                               <div class="card-body">
                                 <h5 class="mb-3">Request a return or exchange</h5>
                                 <% if (!returnEligibility.statusEligible) { %>
-                                  <div class="alert alert-warning">Returns open after an order is delivered.</div>
+                                  <div class="alert alert-warning">Returns open after an order is completed.</div>
                                   <% } %>
                                     <% if (returnEligibility.statusEligible && !returnEligibility.withinWindow) { %>
                                       <div class="alert alert-warning">
-                                        The 7-day return window has passed.
+                                        The 14-day return window has passed.
                                       </div>
                                       <% } %>
 

@@ -1,5 +1,14 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
 const Review = require('../models/review');
 const Order = require('../models/order');
+const loyaltyService = require('../services/loyaltyService');
 
 /**
  * Create or update a review for a product by the logged-in user.
@@ -57,6 +66,18 @@ const upsert = (req, res) => {
                         console.error('Error creating review:', createError);
                         req.flash('error', 'Unable to submit review.');
                     } else {
+                        loyaltyService.awardPointsForReview({
+                            userId: user.id,
+                            orderId: null,
+                            orderItemId: null,
+                            productId
+                        }).then((award) => {
+                            if (req.session.user && Number.isFinite(award.balance)) {
+                                req.session.user.loyalty_points = award.balance;
+                            }
+                        }).catch((awardErr) => {
+                            console.error('Error awarding EcoPoints for review:', awardErr);
+                        });
                         req.flash('success', 'Thanks for sharing your thoughts!');
                     }
                     return res.redirect(`/product/${productId}`);

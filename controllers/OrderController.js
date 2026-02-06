@@ -1,17 +1,29 @@
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+ 
+// Student Name: Yeo Jun Long Dave 
+// Student ID:24046757
+// Class:C372-002
+// Date created:06/02/2026
+
 const Order = require('../models/order');
 const Product = require('../models/product');
 const User = require('../models/user');
 const Coupon = require('../models/coupon');
 const OrderReview = require('../models/orderReview');
+const refundRequestModel = require('../models/refundRequest');
 const couponService = require('../services/couponService');
 const bundleService = require('../services/bundleService');
 const sustainabilityService = require('../services/sustainabilityService');
 const paypalService = require('../services/paypalService');
 const stripeService = require('../services/stripe');
 const loyaltyService = require('../services/loyaltyService');
+const orderStatusService = require('../services/orderStatusService');
 
 const DELIVERY_FEE = 1.5;
-const ADMIN_STATUS_FLOW = ['pending', 'packed', 'shipped', 'delivered', 'completed'];
+const REFUND_WINDOW_DAYS = 14;
+const ADMIN_STATUS_FLOW = orderStatusService.ALL_STATUSES;
 const PAYMENT_METHODS = [
     { value: 'paypal', label: 'PayPal (Sandbox)' },
     { value: 'stripe', label: 'Stripe (Card)' }
@@ -44,14 +56,14 @@ const buildLoyaltyFlashMessage = (earnedPoints, redeemedPoints) => {
     }
 
     if (safeEarned && safeRedeemed) {
-        return `Loyalty update: redeemed ${safeRedeemed} points and earned ${safeEarned} points.`;
+        return `EcoPoints update: redeemed ${safeRedeemed} points and earned ${safeEarned} points.`;
     }
 
     if (safeEarned) {
-        return `You earned ${safeEarned} loyalty points from this order.`;
+        return `You earned ${safeEarned} EcoPoints from this order.`;
     }
 
-    return `You redeemed ${safeRedeemed} loyalty points on this order.`;
+    return `You redeemed ${safeRedeemed} EcoPoints on this order.`;
 };
 
 const decorateProduct = (product) => {
@@ -130,6 +142,7 @@ const buildCartItem = (product, variant, quantity) => {
         productName: product.productName || product.name,
         brandId: product.brand_id || product.brandId || null,
         brand: product.brand || product.brand_name || null,
+        category: product.category || product.category_name || null,
         price: finalPrice,
         quantity,
         image: product.image || null,
@@ -312,10 +325,7 @@ const sanitiseDeliveryAddress = (address) => {
     return trimmed.length ? trimmed.slice(0, 255) : null;
 };
 
-const resolveOrderStatus = (value) => {
-    const selected = String(value || '').trim().toLowerCase();
-    return ADMIN_STATUS_FLOW.includes(selected) ? selected : null;
-};
+const resolveOrderStatus = (value) => orderStatusService.resolveStatus(value);
 
 const resolvePaymentMethod = (value, allowedValues = PAYMENT_METHODS.map((method) => method.value)) => {
     const selected = String(value || '').trim().toLowerCase();
@@ -435,10 +445,10 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
     try {
         loyaltyBalance = await loyaltyService.getBalance(req.session.user.id);
         if (req.session && req.session.user) {
-            req.session.user.loyalty_points_balance = loyaltyBalance;
+            req.session.user.loyalty_points = loyaltyBalance;
         }
     } catch (error) {
-        console.error('Error loading loyalty balance for checkout snapshot:', error);
+        console.error('Error loading EcoPoints balance for checkout snapshot:', error);
     }
 
     let loyaltyPointsRequested = 0;
@@ -453,9 +463,9 @@ const buildCheckoutSnapshot = async (req, deliveryMethod, deliveryAddress, order
             maxDiscountableAmount: totalBeforeLoyalty
         });
 
-        // Server-side loyalty validation to prevent over-redemption.
+        // Server-side EcoPoints validation to prevent over-redemption.
         if (!redemption.valid && redemption.requestedPoints > 0) {
-            return { error: redemption.message || 'Invalid loyalty redemption request.' };
+            return { error: redemption.message || 'Invalid EcoPoints redemption request.' };
         }
 
         loyaltyPointsRedeemed = redemption.pointsToRedeem;
@@ -513,7 +523,8 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
         delivery_slot_date: snapshot.deliverySlot ? snapshot.deliverySlot.date : null,
         delivery_slot_window: snapshot.deliverySlot ? snapshot.deliverySlot.window : null,
         order_notes: snapshot.orderNotes || null,
-        paypal_capture_id: paymentMeta.paypalCaptureId || null
+        paypal_capture_id: paymentMeta.paypalCaptureId || null,
+        stripe_payment_intent_id: paymentMeta.stripePaymentIntentId || null
     }, async (error, result) => {
         if (error) {
             return reject(error);
@@ -543,8 +554,8 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
                     pointsToRedeem: loyaltyPointsRedeemed
                 });
             } catch (loyaltyError) {
-                // Loyalty must not block successful order placement/payment completion.
-                console.error('Error redeeming loyalty points:', loyaltyError);
+                // EcoPoints must not block successful order placement/payment completion.
+                console.error('Error redeeming EcoPoints:', loyaltyError);
             }
         }
 
@@ -559,15 +570,15 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
                 orderStatus: 'processing'
             });
         } catch (loyaltyError) {
-            // Loyalty is additive-only and should not fail payment flow.
-            console.error('Error awarding loyalty points:', loyaltyError);
+            // EcoPoints are additive-only and should not fail payment flow.
+            console.error('Error awarding EcoPoints:', loyaltyError);
         }
 
         const resolvedBalance = Number.isFinite(loyaltyAwardResult.balance)
             ? loyaltyAwardResult.balance
             : (Number.isFinite(loyaltyRedeemResult.balance) ? loyaltyRedeemResult.balance : null);
         if (req.session.user && Number.isFinite(resolvedBalance)) {
-            req.session.user.loyalty_points_balance = resolvedBalance;
+            req.session.user.loyalty_points = resolvedBalance;
         }
 
         req.session.lastLoyaltyOrder = {
@@ -575,6 +586,11 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
             earnedPoints: Number(loyaltyAwardResult.awardedPoints || 0),
             redeemedPoints: Number(loyaltyRedeemResult.redeemedPoints || loyaltyPointsRedeemed || 0),
             loyaltyDiscountAmount
+        };
+
+        req.session.lastOrderSuccess = {
+            orderId: result.orderId,
+            createdAt: Date.now()
         };
 
         req.session.cart = [];
@@ -670,10 +686,10 @@ const showCheckout = async (req, res) => {
         try {
             loyaltyBalance = await loyaltyService.getBalance(req.session.user.id);
             if (req.session.user) {
-                req.session.user.loyalty_points_balance = loyaltyBalance;
+                req.session.user.loyalty_points = loyaltyBalance;
             }
         } catch (loyaltyError) {
-            console.error('Error loading loyalty balance for checkout page:', loyaltyError);
+            console.error('Error loading EcoPoints balance for checkout page:', loyaltyError);
         }
 
         const estimatedPointsToEarn = loyaltyService.calculateEarnPoints(baseTotal);
@@ -776,7 +792,7 @@ const checkout = (req, res) => {
             const createOrderWithLoyalty = () => loyaltyService.getBalance(req.session.user.id)
                 .then((loyaltyBalance) => {
                     if (req.session.user) {
-                        req.session.user.loyalty_points_balance = loyaltyBalance;
+                        req.session.user.loyalty_points = loyaltyBalance;
                     }
 
                     const totalBeforeLoyalty = Number(Math.max(0, subtotal - discountAmount - bundleDiscount) + (deliveryMethod === 'delivery' ? deliveryFee : 0));
@@ -792,7 +808,7 @@ const checkout = (req, res) => {
 
                         // Server-side validation prevents invalid point redemption requests.
                         if (!redemption.valid && redemption.requestedPoints > 0) {
-                            req.flash('error', redemption.message || 'Invalid loyalty redemption request.');
+                            req.flash('error', redemption.message || 'Invalid EcoPoints redemption request.');
                             return res.redirect('/checkout');
                         }
 
@@ -820,8 +836,8 @@ const checkout = (req, res) => {
                     });
                 })
                 .catch((loyaltyError) => {
-                    console.error('Error processing loyalty redemption during checkout:', loyaltyError);
-                    req.flash('error', 'Unable to validate loyalty points right now.');
+                    console.error('Error processing EcoPoints redemption during checkout:', loyaltyError);
+                    req.flash('error', 'Unable to validate EcoPoints right now.');
                     return res.redirect('/checkout');
                 });
 
@@ -927,10 +943,10 @@ const createOrderWithCoupon = ({
                 });
                 redeemedPoints = Number(loyaltyResult.redeemedPoints || 0);
                 if (req.session.user && Number.isFinite(loyaltyResult.balance)) {
-                    req.session.user.loyalty_points_balance = loyaltyResult.balance;
+                    req.session.user.loyalty_points = loyaltyResult.balance;
                 }
             } catch (loyaltyError) {
-                console.error('Error redeeming loyalty points for direct checkout:', loyaltyError);
+                console.error('Error redeeming EcoPoints for direct checkout:', loyaltyError);
             }
         }
 
@@ -942,9 +958,16 @@ const createOrderWithCoupon = ({
             delete req.session.bundle;
         }
 
+        req.session.lastOrderSuccess = {
+            orderId: result.orderId,
+            createdAt: Date.now()
+        };
+
         const loyaltyMessage = buildLoyaltyFlashMessage(0, redeemedPoints || Number(loyaltyPointsRedeemed || 0));
-        req.flash('success', `Thanks for your purchase! ${deliveryAddress ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}${loyaltyMessage ? ` ${loyaltyMessage}` : ''}`);
-        return res.redirect('/orders/history');
+        if (loyaltyMessage) {
+            req.flash('success', loyaltyMessage);
+        }
+        return res.redirect(`/orders/success?orderId=${result.orderId}`);
     });
 };
 
@@ -973,13 +996,22 @@ const history = (req, res) => {
             return res.redirect(onErrorRedirect);
         }
 
-        const orders = (orderRows || []).map((order) => ({
-            ...order,
-            delivery_method: order.shipping_address ? 'delivery' : 'pickup',
-            delivery_address: order.shipping_address,
-            delivery_fee: Number(order.shipping_amount || 0),
-            total: Number(order.total_amount || order.total || 0)
-        }));
+          const orders = (orderRows || []).map((order) => {
+            const fallbackMethod = order.shipping_address || order.delivery_address ? 'delivery' : 'pickup';
+            const deliveryMethod = order.delivery_method
+                ? orderStatusService.resolveDeliveryMethod(order.delivery_method)
+                : orderStatusService.resolveDeliveryMethod(fallbackMethod);
+            const deliveryAddress = order.delivery_address || order.shipping_address || null;
+
+            return {
+                ...order,
+                status: orderStatusService.mapLegacyStatus(order.status || 'processing'),
+                delivery_method: deliveryMethod,
+                delivery_address: deliveryAddress,
+                delivery_fee: Number(order.delivery_fee || order.shipping_amount || 0),
+                total: Number(order.total_amount || order.total || 0)
+            };
+        });
         const orderIds = orders.map(order => order.id);
 
         Order.findItemsByOrderIds(orderIds, (itemsError, itemRows) => {
@@ -1018,6 +1050,40 @@ const history = (req, res) => {
                     });
                 }
 
+                const attachRefundStatus = (next) => {
+                    if (!orderIds.length) {
+                        return next();
+                    }
+                    refundRequestModel.getLatestByOrderIds(orderIds, isCustomer ? sessionUser.id : null, (refundErr, refundRows = []) => {
+                        if (refundErr) {
+                            console.error('Error loading refund status for order history:', refundErr);
+                        }
+                        const refundByOrder = (refundRows || []).reduce((acc, row) => {
+                            acc[row.orderId] = {
+                                status: row.status,
+                                requestId: row.id,
+                                requestedAmount: row.requestedAmount,
+                                approvedAmount: row.approvedAmount,
+                                adminReason: row.adminReason,
+                                createdAt: row.createdAt,
+                                updatedAt: row.updatedAt
+                            };
+                            return acc;
+                        }, {});
+                        orders.forEach((order) => {
+                            const refundInfo = refundByOrder[order.id] || {};
+                            order.refund_status = refundInfo.status || null;
+                            order.refund_request_id = refundInfo.requestId || null;
+                            order.refund_requested_amount = refundInfo.requestedAmount || null;
+                            order.refund_approved_amount = refundInfo.approvedAmount || null;
+                            order.refund_admin_reason = refundInfo.adminReason || null;
+                            order.refund_created_at = refundInfo.createdAt || null;
+                            order.refund_updated_at = refundInfo.updatedAt || null;
+                        });
+                        return next();
+                    });
+                };
+
                 const renderWithLoyalty = (loyaltySummary = {}) => {
                     orders.forEach((order) => {
                         const summary = loyaltySummary[order.id] || {};
@@ -1036,21 +1102,24 @@ const history = (req, res) => {
                             orders,
                             orderItems: itemsByOrder,
                             bestSellers: (bestRows || []).map(decorateProduct),
+                            refundWindowDays: REFUND_WINDOW_DAYS,
                             messages: req.flash('success'),
                             errors: req.flash('error')
                         });
                     });
                 };
 
-                loyaltyService.getOrderPointsSummary({
-                    orderIds,
-                    userId: isCustomer ? sessionUser.id : null
-                })
-                    .then(renderWithLoyalty)
-                    .catch((loyaltyErr) => {
-                        console.error('Error loading loyalty summary for order history:', loyaltyErr);
-                        renderWithLoyalty({});
-                    });
+                attachRefundStatus(() => {
+                    loyaltyService.getOrderPointsSummary({
+                        orderIds,
+                        userId: isCustomer ? sessionUser.id : null
+                    })
+                        .then(renderWithLoyalty)
+                        .catch((loyaltyErr) => {
+                            console.error('Error loading EcoPoints summary for order history:', loyaltyErr);
+                            renderWithLoyalty({});
+                        });
+                });
             };
 
             if (!isCustomer || itemIds.length === 0) {
@@ -1069,8 +1138,12 @@ const history = (req, res) => {
 };
 
 const listAllDeliveries = (req, res) => {
-    const statusFilter = req.query.status ? String(req.query.status).trim().toLowerCase() : 'all';
-    const methodFilter = req.query.method ? String(req.query.method).trim().toLowerCase() : 'all';
+    const statusFilterRaw = req.query.status ? String(req.query.status).trim().toLowerCase() : 'all';
+    const statusFilter = statusFilterRaw === 'all' ? 'all' : (orderStatusService.resolveStatus(statusFilterRaw) || 'all');
+    const methodFilterRaw = req.query.method ? String(req.query.method).trim().toLowerCase() : 'all';
+    const methodFilter = methodFilterRaw === 'all'
+        ? 'all'
+        : (['pickup', 'delivery'].includes(methodFilterRaw) ? orderStatusService.resolveDeliveryMethod(methodFilterRaw) : 'all');
     const searchTerm = req.query.search ? String(req.query.search).trim().toLowerCase() : '';
     const userFilter = req.query.userId ? Number.parseInt(req.query.userId, 10) : null;
 
@@ -1082,18 +1155,65 @@ const listAllDeliveries = (req, res) => {
         }
 
         const orders = (orderRows || []).map((order) => {
+            const fallbackMethod = order.shipping_address || order.delivery_address ? 'delivery' : 'pickup';
             const deliveryMethod = order.delivery_method
-                ? String(order.delivery_method).toLowerCase()
-                : (order.shipping_address ? 'delivery' : 'pickup');
+                ? orderStatusService.resolveDeliveryMethod(order.delivery_method)
+                : orderStatusService.resolveDeliveryMethod(fallbackMethod);
             const deliveryAddress = order.delivery_address || order.shipping_address || order.account_address || '';
-            return {
-                ...order,
-                status: order.status || 'pending',
-                delivery_method: deliveryMethod,
-                delivery_address: deliveryAddress,
-                total: Number(order.total_amount || order.total || 0)
-            };
-        });
+            const normalizedStatus = orderStatusService.mapLegacyStatus(order.status || 'processing');
+            const flow = orderStatusService.getFlowForMethod(deliveryMethod);
+            const currentIndex = flow.indexOf(normalizedStatus);
+            const allowedStatuses = [];
+
+            if (orderStatusService.isTerminalStatus(normalizedStatus)) {
+                allowedStatuses.push(normalizedStatus);
+            } else if (currentIndex < 0) {
+                allowedStatuses.push(flow[0]);
+            } else {
+                allowedStatuses.push(normalizedStatus);
+                if (currentIndex < flow.length - 1) {
+                    allowedStatuses.push(flow[currentIndex + 1]);
+                }
+            }
+
+              return {
+                  ...order,
+                  status: normalizedStatus,
+                  delivery_method: deliveryMethod,
+                  delivery_address: deliveryAddress,
+                  total: Number(order.total_amount || order.total || 0),
+                  allowed_statuses: allowedStatuses,
+                  next_status: orderStatusService.getNextStatus(normalizedStatus, deliveryMethod)
+              };
+          });
+
+          const kpis = orders.reduce((acc, order) => {
+              const statusKey = order.status;
+              const paymentKey = order.payment_status ? String(order.payment_status).toLowerCase() : '';
+              const isRefunded = paymentKey === 'refunded' || ['cancelled', 'returned'].includes(statusKey);
+
+              if (!['completed', 'cancelled', 'returned'].includes(statusKey)) {
+                  acc.openOrders += 1;
+              }
+              if (statusKey === 'packing') {
+                  acc.pendingPacking += 1;
+              }
+              if (order.delivery_method === 'pickup' && statusKey === 'ready_for_pickup') {
+                  acc.awaitingFulfilment += 1;
+              }
+              if (order.delivery_method === 'delivery' && statusKey === 'shipped') {
+                  acc.awaitingFulfilment += 1;
+              }
+              if (isRefunded) {
+                  acc.refundedOrders += 1;
+              }
+              return acc;
+          }, {
+              openOrders: 0,
+              pendingPacking: 0,
+              awaitingFulfilment: 0,
+              refundedOrders: 0
+          });
 
         const filteredOrders = orders.filter((order) => {
             if (Number.isFinite(userFilter) && Number(order.user_id) !== userFilter) {
@@ -1141,19 +1261,48 @@ const listAllDeliveries = (req, res) => {
                 itemsByOrder[safeItem.order_id].push(safeItem);
             });
 
-            res.render('adminDeliveries', {
-                user: req.session.user,
-                orders: filteredOrders,
-                orderItems: itemsByOrder,
-                filters: {
-                    status: statusFilter,
-                    method: methodFilter,
-                    search: searchTerm,
-                    userId: Number.isFinite(userFilter) ? userFilter : ''
-                },
-                statusOptions: ADMIN_STATUS_FLOW,
-                messages: req.flash('success'),
-                errors: req.flash('error')
+            refundRequestModel.getLatestByOrderIds(orderIds, null, (refundErr, refundRows = []) => {
+                if (refundErr) {
+                    console.error('Error loading refund status for admin deliveries:', refundErr);
+                }
+                const refundByOrder = (refundRows || []).reduce((acc, row) => {
+                    acc[row.orderId] = {
+                        status: row.status,
+                        requestId: row.id,
+                        requestedAmount: row.requestedAmount,
+                        approvedAmount: row.approvedAmount,
+                        adminReason: row.adminReason,
+                        createdAt: row.createdAt,
+                        updatedAt: row.updatedAt
+                    };
+                    return acc;
+                }, {});
+                filteredOrders.forEach((order) => {
+                    const refundInfo = refundByOrder[order.id] || {};
+                    order.refund_status = refundInfo.status || null;
+                    order.refund_request_id = refundInfo.requestId || null;
+                    order.refund_requested_amount = refundInfo.requestedAmount || null;
+                    order.refund_approved_amount = refundInfo.approvedAmount || null;
+                    order.refund_admin_reason = refundInfo.adminReason || null;
+                    order.refund_created_at = refundInfo.createdAt || null;
+                    order.refund_updated_at = refundInfo.updatedAt || null;
+                });
+
+                  res.render('adminDeliveries', {
+                      user: req.session.user,
+                      orders: filteredOrders,
+                      orderItems: itemsByOrder,
+                      kpis,
+                      filters: {
+                          status: statusFilter,
+                          method: methodFilter,
+                        search: searchTerm,
+                        userId: Number.isFinite(userFilter) ? userFilter : ''
+                    },
+                    statusOptions: ADMIN_STATUS_FLOW,
+                    messages: req.flash('success'),
+                    errors: req.flash('error')
+                });
             });
         });
     });
@@ -1243,6 +1392,10 @@ const updateAdminOrder = (req, res) => {
         req.flash('error', 'Please select a valid order status.');
         return res.redirect('/admin/deliveries');
     }
+    if (status === 'cancelled' || status === 'returned') {
+        req.flash('error', 'Cancelled/returned status can only be set by the refund process.');
+        return res.redirect('/admin/deliveries');
+    }
 
     const shippingProvider = req.body.shippingProvider ? String(req.body.shippingProvider).trim().slice(0, 120) : null;
     const trackingNumber = req.body.trackingNumber ? String(req.body.trackingNumber).trim() : null;
@@ -1262,13 +1415,8 @@ const updateAdminOrder = (req, res) => {
     }
 
     const adminNotes = req.body.adminNotes ? String(req.body.adminNotes).trim().slice(0, 1000) : null;
-    const deliveryMethod = req.body.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
+    const deliveryMethodInput = req.body.deliveryMethod ? String(req.body.deliveryMethod) : null;
     const deliveryAddress = sanitiseDeliveryAddress(req.body.deliveryAddress);
-
-    if (deliveryMethod === 'delivery' && !deliveryAddress) {
-        req.flash('error', 'Delivery address is required for delivery orders.');
-        return res.redirect('/admin/deliveries');
-    }
 
     Order.findById(orderId, (orderErr, orderRows) => {
         if (orderErr) {
@@ -1283,8 +1431,58 @@ const updateAdminOrder = (req, res) => {
         }
 
         const order = orderRows[0];
-        if (order.status === 'completed') {
-            req.flash('error', 'Completed orders are locked from further edits.');
+        const currentStatus = orderStatusService.mapLegacyStatus(order.status || 'processing');
+        const currentMethod = order.delivery_method
+            ? orderStatusService.resolveDeliveryMethod(order.delivery_method)
+            : orderStatusService.resolveDeliveryMethod(order.shipping_address ? 'delivery' : 'pickup');
+        const effectiveMethod = deliveryMethodInput
+            ? orderStatusService.resolveDeliveryMethod(deliveryMethodInput)
+            : currentMethod;
+
+        if (effectiveMethod === 'delivery' && !deliveryAddress) {
+            req.flash('error', 'Delivery address is required for delivery orders.');
+            return res.redirect('/admin/deliveries');
+        }
+
+        if (orderStatusService.isTerminalStatus(currentStatus)) {
+            req.flash('error', 'Completed/cancelled/returned orders are locked from further edits.');
+            return res.redirect('/admin/deliveries');
+        }
+
+        if (!orderStatusService.canTransition(currentStatus, status, effectiveMethod)) {
+            req.flash('error', 'Order status updates must follow the next stage in sequence.');
+            return res.redirect('/admin/deliveries');
+        }
+
+        if (['ready_for_pickup', 'shipped', 'delivered'].includes(status) && !estDeliveryDate) {
+            req.flash('error', 'Estimated delivery/pickup date is required for this status.');
+            return res.redirect('/admin/deliveries');
+        }
+
+        if (status === 'shipped') {
+            if (effectiveMethod !== 'delivery') {
+                req.flash('error', 'Pickup orders cannot be marked as shipped.');
+                return res.redirect('/admin/deliveries');
+            }
+            if (!shippingProvider || !trackingNumber) {
+                req.flash('error', 'Shipping provider and tracking number are required to mark as shipped.');
+                return res.redirect('/admin/deliveries');
+            }
+        }
+
+        if (status === 'delivered') {
+            if (effectiveMethod !== 'delivery') {
+                req.flash('error', 'Pickup orders cannot be marked as delivered.');
+                return res.redirect('/admin/deliveries');
+            }
+            if (!shippingProvider || !trackingNumber) {
+                req.flash('error', 'Shipping provider and tracking number are required to mark as delivered.');
+                return res.redirect('/admin/deliveries');
+            }
+        }
+
+        if (status === 'ready_for_pickup' && effectiveMethod !== 'pickup') {
+            req.flash('error', 'Delivery orders cannot be marked as ready for pickup.');
             return res.redirect('/admin/deliveries');
         }
 
@@ -1296,13 +1494,14 @@ const updateAdminOrder = (req, res) => {
             }
 
             const account = userRows && userRows[0] ? userRows[0] : null;
-            const deliveryFee = computeDeliveryFee(account, deliveryMethod);
-            const shippingAddress = deliveryMethod === 'delivery' ? deliveryAddress : null;
+            const deliveryFee = computeDeliveryFee(account, effectiveMethod);
+            const shippingAddress = effectiveMethod === 'delivery' ? deliveryAddress : null;
+            const completedAt = status === 'completed' && !order.completed_at ? new Date() : null;
 
             Order.updateDelivery(orderId, {
                 shipping_address: shippingAddress,
                 shipping_amount: deliveryFee,
-                delivery_method: deliveryMethod,
+                delivery_method: effectiveMethod,
                 delivery_address: shippingAddress,
                 delivery_fee: deliveryFee
             }, (deliveryErr) => {
@@ -1317,7 +1516,8 @@ const updateAdminOrder = (req, res) => {
                     shipping_provider: shippingProvider,
                     tracking_number: trackingNumber,
                     est_delivery_date: estDeliveryDate,
-                    admin_notes: adminNotes
+                    admin_notes: adminNotes,
+                    completed_at: completedAt
                 }, (updateErr) => {
                     if (updateErr) {
                         console.error('Error updating admin order info:', updateErr);
@@ -1385,14 +1585,28 @@ const capturePayPalOrder = async (req, res) => {
     const pending = req.session.pendingPayment;
 
     if (!orderId || !pending || pending.method !== 'paypal' || pending.paypalOrderId !== orderId) {
-        return res.status(400).json({ success: false, message: 'PayPal session expired. Please try again.' });
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.status(400).json({
+            success: false,
+            message: 'PayPal session expired. Please try again.',
+            redirect: '/orders/failed?reason=paypal_expired'
+        });
     }
 
     try {
         const capture = await paypalService.captureOrder(orderId);
         const captureStatus = capture.status || (capture.purchase_units && capture.purchase_units[0] && capture.purchase_units[0].payments && capture.purchase_units[0].payments.captures && capture.purchase_units[0].payments.captures[0] && capture.purchase_units[0].payments.captures[0].status);
         if (captureStatus !== 'COMPLETED') {
-            return res.status(400).json({ success: false, message: 'PayPal payment was not completed.' });
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.status(400).json({
+                success: false,
+                message: 'PayPal payment was not completed.',
+                redirect: '/orders/failed?reason=paypal_failed'
+            });
         }
 
         const payments = capture.purchase_units
@@ -1411,7 +1625,14 @@ const capturePayPalOrder = async (req, res) => {
                 : null);
 
         if (!captureId) {
-            return res.status(400).json({ success: false, message: 'PayPal capture ID missing.' });
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.status(400).json({
+                success: false,
+                message: 'PayPal capture ID missing.',
+                redirect: '/orders/failed?reason=paypal_error'
+            });
         }
 
         const captureAmount = capture.purchase_units
@@ -1424,7 +1645,14 @@ const capturePayPalOrder = async (req, res) => {
             : null;
 
         if (Number.isFinite(captureAmount) && captureAmount < pending.snapshot.total) {
-            return res.status(400).json({ success: false, message: 'Captured amount does not match order total.' });
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.status(400).json({
+                success: false,
+                message: 'Captured amount does not match order total.',
+                redirect: '/orders/failed?reason=paypal_error'
+            });
         }
 
         const finalized = await finalizePaidOrder(req, pending.snapshot, 'paypal', { paypalCaptureId: captureId });
@@ -1435,10 +1663,17 @@ const capturePayPalOrder = async (req, res) => {
             req.flash('success', loyaltyMessage);
         }
 
-        return res.json({ success: true, redirect: '/orders/history' });
+        return res.json({ success: true, redirect: `/orders/success?orderId=${finalized.orderId}` });
     } catch (error) {
         console.error('Error capturing PayPal order:', error);
-        return res.status(500).json({ success: false, message: 'Unable to capture PayPal payment.' });
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.status(500).json({
+            success: false,
+            message: 'Unable to capture PayPal payment.',
+            redirect: '/orders/failed?reason=paypal_error'
+        });
     }
 };
 
@@ -1492,8 +1727,10 @@ const stripeSuccess = async (req, res) => {
     const pending = req.session.pendingPayment;
 
     if (!sessionId || !pending || pending.method !== 'stripe' || pending.stripeSessionId !== sessionId) {
-        req.flash('error', 'Stripe session expired. Please try again.');
-        return res.redirect('/checkout');
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.redirect('/orders/failed?reason=stripe_expired');
     }
 
     try {
@@ -1502,25 +1739,152 @@ const stripeSuccess = async (req, res) => {
         const isPaid = paymentStatus === 'paid' || session.status === 'complete';
 
         if (!isPaid) {
-            req.flash('error', 'Stripe payment was not completed.');
-            return res.redirect('/checkout');
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.redirect('/orders/failed?reason=stripe_failed');
         }
 
-        const finalized = await finalizePaidOrder(req, pending.snapshot, 'stripe');
+        const finalized = await finalizePaidOrder(req, pending.snapshot, 'stripe', {
+            stripePaymentIntentId: session.payment_intent || null
+        });
         delete req.session.pendingPayment;
         const loyaltyMessage = buildLoyaltyFlashMessage(finalized.loyaltyAwardedPoints, finalized.loyaltyRedeemedPoints);
-        req.flash('success', loyaltyMessage ? `Payment completed. ${loyaltyMessage}` : 'Payment completed.');
-        return res.redirect('/orders/history');
+        if (loyaltyMessage) {
+            req.flash('success', loyaltyMessage);
+        }
+        return res.redirect(`/orders/success?orderId=${finalized.orderId}`);
     } catch (error) {
         console.error('Error verifying Stripe payment:', error);
-        req.flash('error', 'Stripe verification failed.');
-        return res.redirect('/checkout');
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.redirect('/orders/failed?reason=stripe_failed');
     }
 };
 
 const stripeCancel = (req, res) => {
-    req.flash('error', 'Stripe payment was cancelled. Please try again.');
-    return res.redirect('/checkout');
+    if (req.session && req.session.pendingPayment) {
+        delete req.session.pendingPayment;
+    }
+    return res.redirect('/orders/failed?reason=stripe_cancel');
+};
+
+const orderSuccess = (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+        req.flash('error', 'Only shoppers can view this page.');
+        return res.redirect('/login');
+    }
+
+    const sessionUser = req.session.user;
+    const orderId = Number.parseInt(req.query.orderId || (req.session.lastOrderSuccess && req.session.lastOrderSuccess.orderId), 10);
+    if (!Number.isFinite(orderId)) {
+        req.flash('error', 'Order not found.');
+        return res.redirect('/shopping');
+    }
+
+    Order.findById(orderId, (orderErr, orderRows) => {
+        if (orderErr) {
+            console.error('Error fetching order for success page:', orderErr);
+            req.flash('error', 'Unable to load order confirmation.');
+            return res.redirect('/shopping');
+        }
+
+        if (!orderRows || !orderRows.length) {
+            req.flash('error', 'Order not found.');
+            return res.redirect('/shopping');
+        }
+
+        const order = orderRows[0];
+        if (order.user_id !== sessionUser.id) {
+            req.flash('error', 'You are not authorised to view this order.');
+            return res.redirect('/shopping');
+        }
+
+        Order.findItemsByOrderIds([orderId], (itemsErr, itemRows) => {
+            if (itemsErr) {
+                console.error('Error fetching order items for success page:', itemsErr);
+                req.flash('error', 'Unable to load order confirmation.');
+                return res.redirect('/shopping');
+            }
+
+            const items = (itemRows || []).map(normaliseOrderItem);
+            const impactSummary = sustainabilityService.estimateImpact(items);
+            const deliveryFee = Number(order.shipping_amount || order.delivery_fee || 0);
+            const discountAmount = Number(order.discount_amount || 0);
+            const totals = {
+                subtotal: Number(order.subtotal || 0),
+                discount: discountAmount,
+                delivery: deliveryFee,
+                total: Number(order.total_amount || order.total || 0)
+            };
+
+            loyaltyService.getOrderPointsSummary({
+                orderIds: [orderId],
+                userId: sessionUser.id
+            })
+                .then((summary) => {
+                    const orderSummary = summary && summary[orderId] ? summary[orderId] : {};
+                    const earnedPoints = Number(orderSummary.earnedPoints || 0);
+                    const redeemedPoints = Number(orderSummary.redeemedPoints || 0);
+
+                    res.render('orderSuccess', {
+                        user: sessionUser,
+                        order,
+                        items,
+                        totals,
+                        impactSummary,
+                        earnedPoints,
+                        redeemedPoints,
+                        messages: req.flash('success'),
+                        errors: req.flash('error')
+                    });
+                })
+                .catch((loyaltyErr) => {
+                    console.error('Error loading EcoPoints summary for success page:', loyaltyErr);
+                    res.render('orderSuccess', {
+                        user: sessionUser,
+                        order,
+                        items,
+                        totals,
+                        impactSummary,
+                        earnedPoints: 0,
+                        redeemedPoints: 0,
+                        messages: req.flash('success'),
+                        errors: req.flash('error')
+                    });
+                });
+        });
+    });
+};
+
+const orderFailed = (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+        return res.redirect('/login');
+    }
+
+    if (req.session && req.session.pendingPayment) {
+        delete req.session.pendingPayment;
+    }
+
+    const reasonKey = String(req.query.reason || '').trim().toLowerCase();
+    const reasonMap = {
+        paypal_cancel: 'PayPal payment was cancelled.',
+        paypal_failed: 'PayPal payment was not completed.',
+        paypal_error: 'PayPal payment could not be confirmed.',
+        paypal_expired: 'PayPal session expired. Please try again.',
+        stripe_cancel: 'Stripe payment was cancelled.',
+        stripe_failed: 'Stripe payment was not completed.',
+        stripe_expired: 'Stripe session expired. Please try again.'
+    };
+    const message = reasonMap[reasonKey] || 'Payment was unsuccessful. Please try again.';
+
+    res.render('orderFailed', {
+        user: req.session.user,
+        message,
+        errors: req.flash('error'),
+        messages: req.flash('success')
+    });
 };
 
 /**
@@ -1578,26 +1942,43 @@ const invoice = (req, res) => {
                     .map(normaliseOrderItem);
                 const deliveryFee = Number(order.shipping_amount || 0);
                 const subtotal = Number(order.subtotal || 0);
+                const refundedAmount = Number(order.refunded_amount || 0);
+                const statusKey = String(order.status || '').toLowerCase();
+                const isRefunded = String(order.payment_status || '').toLowerCase() === 'refunded'
+                    || statusKey === 'cancelled'
+                    || statusKey === 'returned';
+                const refundDate = order.refunded_at || null;
+                const netPaid = Math.max(0, Number(order.total_amount || order.total || 0) - refundedAmount);
                 const renderInvoice = (loyaltySummary = {}) => {
                     const orderLoyalty = loyaltySummary[orderId] || {};
                     const redeemedPoints = Number(orderLoyalty.redeemedPoints || order.loyalty_points_redeemed || 0);
                     const earnedPoints = Number(orderLoyalty.earnedPoints || 0);
-                    const loyaltyDiscountAmount = Number(order.loyalty_discount_amount || (redeemedPoints / 100) || 0);
+                    const loyaltyDiscountAmount = Number(order.loyalty_discount_amount || (redeemedPoints / 20) || 0);
+                    const backLink = isAdmin ? '/admin/deliveries' : `/order/${orderId}`;
 
                     res.render('invoice', {
                         user: sessionUser,
                         order,
                         customer,
                         items,
+                        backLink,
                         loyalty: {
                             redeemedPoints,
                             earnedPoints,
                             loyaltyDiscountAmount
                         },
+                        refund: {
+                            refundedAmount,
+                            refundDate,
+                            isRefunded,
+                            isPartial: refundedAmount > 0 && !isRefunded
+                        },
                         totals: {
                             subtotal: subtotal < 0 ? 0 : Number(subtotal.toFixed(2)),
                             deliveryFee: deliveryFee > 0 ? Number(deliveryFee.toFixed(2)) : 0,
-                            total: Number(order.total_amount || order.total || 0).toFixed(2)
+                            total: Number(order.total_amount || order.total || 0).toFixed(2),
+                            refundedAmount: Number(refundedAmount.toFixed(2)),
+                            netPaid: Number(netPaid.toFixed(2))
                         }
                     });
                 };
@@ -1608,7 +1989,7 @@ const invoice = (req, res) => {
                 })
                     .then(renderInvoice)
                     .catch((loyaltyErr) => {
-                        console.error('Error loading loyalty summary for invoice:', loyaltyErr);
+                        console.error('Error loading EcoPoints summary for invoice:', loyaltyErr);
                         renderInvoice({});
                     });
             });
@@ -1628,5 +2009,7 @@ module.exports = {
     createStripeSession,
     stripeSuccess,
     stripeCancel,
+    orderSuccess,
+    orderFailed,
     invoice
 };

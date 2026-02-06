@@ -1,8 +1,22 @@
-const sizeChartService = require('../services/sizeChartService');
+//I declare that this code was written by me. 
+// I will not copy or allow others to copy my code. 
+// I understand that copying code is considered as plagiarism.
+
+// Student Name: Zoey Liaw En Yi
+// Student ID:24049473
+// Class: C372_002_E63C
+// Date created: 06/02/2026
+
+
+const sizeGuideService = require('../services/sizeGuideService');
 
 const DEFAULT_PROFILE = {
+  productType: 'shirt',
   chestCm: '',
-  fitPreference: 'regular'
+  heightCm: '',
+  fitType: 'regular',
+  waistCm: '',
+  hipCm: ''
 };
 
 function parseNumber(value) {
@@ -12,44 +26,56 @@ function parseNumber(value) {
 
 function normalizeInput(body) {
   const errors = [];
-  const chestCm = parseNumber(body.chestCm);
+  const productType = body && body.productType === 'pants' ? 'pants' : 'shirt';
+  const profile = { ...DEFAULT_PROFILE, productType };
 
-  if (!chestCm) {
-    errors.push('Chest circumference (cm) is required for a size recommendation.');
+  if (productType === 'pants') {
+    const waistCm = parseNumber(body.waistCm);
+    const hipCm = parseNumber(body.hipCm);
+    const heightCm = parseNumber(body.heightCm);
+
+    if (!waistCm) {
+      errors.push('Waist circumference (cm) is required for pants sizing.');
+    }
+
+    profile.waistCm = waistCm || '';
+    profile.hipCm = hipCm || '';
+    profile.heightCm = heightCm || '';
+  } else {
+    const chestCm = parseNumber(body.chestCm);
+    const heightCm = parseNumber(body.heightCm);
+    const waistCm = parseNumber(body.waistCm);
+
+    if (!chestCm) {
+      errors.push('Chest circumference (cm) is required for a size recommendation.');
+    }
+    if (!heightCm) {
+      errors.push('Height (cm) is required for shirt sizing.');
+    }
+
+    profile.chestCm = chestCm || '';
+    profile.heightCm = heightCm || '';
+    profile.waistCm = waistCm || '';
+    profile.fitType = sizeGuideService.normalizeFitType(body.fitType);
   }
-
-  const allowedFit = ['regular', 'slim', 'oversized'];
-  const fitPreference = allowedFit.includes(body.fitPreference) ? body.fitPreference : DEFAULT_PROFILE.fitPreference;
-
-  const profile = {
-    chestCm: chestCm || '',
-    fitPreference
-  };
 
   return { profile, errors };
 }
 
 function recommend(profile) {
-  const chest = Number(profile.chestCm);
-  const chart = sizeChartService.getSizeChart();
-  const baseIndex = sizeChartService.findSizeIndexByChest(chest);
-  const baseRow = chart[baseIndex];
+  if (profile.productType === 'pants') {
+    return sizeGuideService.recommendPantsSize({
+      waistCm: profile.waistCm,
+      hipCm: profile.hipCm,
+      heightCm: profile.heightCm
+    });
+  }
 
-  const adjustedIndex = sizeChartService.adjustSizeIndex(baseIndex, profile.fitPreference);
-  const recommendedRow = chart[adjustedIndex];
-
-  const explanation = `Based on chest ${chest} cm, you fit ${baseRow.size} (${baseRow.bodyChestMin}-${baseRow.bodyChestMax} cm).`;
-  const adjustmentNote = recommendedRow.size !== baseRow.size
-    ? `Adjusted to ${recommendedRow.size} for a ${profile.fitPreference} fit.`
-    : null;
-
-  return {
-    recommendedSize: recommendedRow.size,
-    baseSize: baseRow.size,
-    explanation,
-    adjustmentNote,
-    fitPreference: profile.fitPreference
-  };
+  return sizeGuideService.recommendShirtSize({
+    chestCm: profile.chestCm,
+    heightCm: profile.heightCm,
+    fitType: profile.fitType
+  });
 }
 
 module.exports = {
