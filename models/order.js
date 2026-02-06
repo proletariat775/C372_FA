@@ -18,6 +18,7 @@ const create = (userId, cartItems, options, callback) => {
         payment_method = 'cod',
         payment_status = 'pending',
         paypal_capture_id = null,
+        stripe_payment_intent_id = null,
         refunded_amount = 0.00,
         status = 'pending',
         discount_amount = 0.00,
@@ -67,6 +68,7 @@ const create = (userId, cartItems, options, callback) => {
                 payment_method,
                 payment_status,
                 paypal_capture_id,
+                stripe_payment_intent_id,
                 refunded_amount,
                 shipping_address,
                 billing_address,
@@ -78,7 +80,7 @@ const create = (userId, cartItems, options, callback) => {
                 delivery_slot_window,
                 order_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         connection.query(orderSql, [
@@ -95,6 +97,7 @@ const create = (userId, cartItems, options, callback) => {
             payment_method,
             payment_status,
             paypal_capture_id,
+            stripe_payment_intent_id,
             refunded_amount,
             shipping_address,
             billing_address,
@@ -215,6 +218,7 @@ const findAllWithUsers = (callback) => {
             o.loyalty_discount_amount,
             o.total_amount,
             o.payment_method,
+            o.payment_status,
             o.shipping_address,
             o.delivery_slot_date,
             o.delivery_slot_window,
@@ -301,6 +305,47 @@ const addRefundedAmount = (orderId, amount, callback) => {
     connection.query(sql, [safeAmount, orderId], callback);
 };
 
+const markRefunded = (orderId, callback) => {
+    const safeOrderId = Number(orderId);
+    if (!Number.isFinite(safeOrderId)) {
+        return callback(new Error('Invalid order id.'));
+    }
+    const sql = `
+        UPDATE orders
+        SET status = 'refunded',
+            payment_status = 'refunded'
+        WHERE id = ?
+    `;
+    connection.query(sql, [safeOrderId], callback);
+};
+
+const updateRefundTotals = (orderId, refundedAmount, markAsRefunded, callback) => {
+    const safeOrderId = Number(orderId);
+    const safeAmount = Number(refundedAmount);
+    if (!Number.isFinite(safeOrderId) || !Number.isFinite(safeAmount)) {
+        return callback(new Error('Invalid refund update.'));
+    }
+
+    if (markAsRefunded) {
+        const sql = `
+            UPDATE orders
+            SET refunded_amount = ?,
+                status = 'refunded',
+                payment_status = 'refunded'
+            WHERE id = ?
+        `;
+        return connection.query(sql, [safeAmount, safeOrderId], callback);
+    }
+
+    const sql = `
+        UPDATE orders
+        SET refunded_amount = ?,
+            payment_status = 'paid'
+        WHERE id = ?
+    `;
+    return connection.query(sql, [safeAmount, safeOrderId], callback);
+};
+
 /**
  * Retrieve global best-selling products ordered by total quantity sold.
  * @param {number} limit Number of products to fetch
@@ -373,6 +418,8 @@ module.exports = {
     getBestSellers,
     updateDelivery,
     addRefundedAmount,
+    markRefunded,
+    updateRefundTotals,
     updateAdminOrder: (orderId, updateData, callback) => {
         const {
             status = 'pending',
@@ -397,7 +444,7 @@ module.exports = {
         const sql = `
             SELECT COUNT(*) AS count
             FROM orders
-            WHERE status NOT IN ('delivered', 'completed', 'cancelled', 'returned')
+            WHERE status NOT IN ('delivered', 'completed', 'cancelled', 'returned', 'refunded')
         `;
         connection.query(sql, (err, rows) => {
             if (err) return callback(err);

@@ -3,6 +3,7 @@ const Product = require('../models/product');
 const User = require('../models/user');
 const Coupon = require('../models/coupon');
 const OrderReview = require('../models/orderReview');
+const refundRequestModel = require('../models/refundRequest');
 const couponService = require('../services/couponService');
 const bundleService = require('../services/bundleService');
 const sustainabilityService = require('../services/sustainabilityService');
@@ -11,7 +12,8 @@ const stripeService = require('../services/stripe');
 const loyaltyService = require('../services/loyaltyService');
 
 const DELIVERY_FEE = 1.5;
-const ADMIN_STATUS_FLOW = ['pending', 'packed', 'shipped', 'delivered', 'completed'];
+const REFUND_WINDOW_DAYS = 14;
+const ADMIN_STATUS_FLOW = ['pending', 'packed', 'shipped', 'delivered', 'completed', 'refunded'];
 const PAYMENT_METHODS = [
     { value: 'paypal', label: 'PayPal (Sandbox)' },
     { value: 'stripe', label: 'Stripe (Card)' }
@@ -513,7 +515,8 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
         delivery_slot_date: snapshot.deliverySlot ? snapshot.deliverySlot.date : null,
         delivery_slot_window: snapshot.deliverySlot ? snapshot.deliverySlot.window : null,
         order_notes: snapshot.orderNotes || null,
-        paypal_capture_id: paymentMeta.paypalCaptureId || null
+        paypal_capture_id: paymentMeta.paypalCaptureId || null,
+        stripe_payment_intent_id: paymentMeta.stripePaymentIntentId || null
     }, async (error, result) => {
         if (error) {
             return reject(error);
@@ -575,6 +578,11 @@ const finalizePaidOrder = (req, snapshot, paymentMethod, paymentMeta = {}) => ne
             earnedPoints: Number(loyaltyAwardResult.awardedPoints || 0),
             redeemedPoints: Number(loyaltyRedeemResult.redeemedPoints || loyaltyPointsRedeemed || 0),
             loyaltyDiscountAmount
+        };
+
+        req.session.lastOrderSuccess = {
+            orderId: result.orderId,
+            createdAt: Date.now()
         };
 
         req.session.cart = [];
@@ -942,9 +950,16 @@ const createOrderWithCoupon = ({
             delete req.session.bundle;
         }
 
+        req.session.lastOrderSuccess = {
+            orderId: result.orderId,
+            createdAt: Date.now()
+        };
+
         const loyaltyMessage = buildLoyaltyFlashMessage(0, redeemedPoints || Number(loyaltyPointsRedeemed || 0));
-        req.flash('success', `Thanks for your purchase! ${deliveryAddress ? 'We will deliver your order shortly.' : 'Pickup details will be shared soon.'}${loyaltyMessage ? ` ${loyaltyMessage}` : ''}`);
-        return res.redirect('/orders/history');
+        if (loyaltyMessage) {
+            req.flash('success', loyaltyMessage);
+        }
+        return res.redirect(`/orders/success?orderId=${result.orderId}`);
     });
 };
 
@@ -1018,6 +1033,30 @@ const history = (req, res) => {
                     });
                 }
 
+                const attachRefundStatus = (next) => {
+                    if (!orderIds.length) {
+                        return next();
+                    }
+                    refundRequestModel.getLatestByOrderIds(orderIds, isCustomer ? sessionUser.id : null, (refundErr, refundRows = []) => {
+                        if (refundErr) {
+                            console.error('Error loading refund status for order history:', refundErr);
+                        }
+                        const refundByOrder = (refundRows || []).reduce((acc, row) => {
+                            acc[row.orderId] = {
+                                status: row.status,
+                                requestId: row.id
+                            };
+                            return acc;
+                        }, {});
+                        orders.forEach((order) => {
+                            const refundInfo = refundByOrder[order.id] || {};
+                            order.refund_status = refundInfo.status || null;
+                            order.refund_request_id = refundInfo.requestId || null;
+                        });
+                        return next();
+                    });
+                };
+
                 const renderWithLoyalty = (loyaltySummary = {}) => {
                     orders.forEach((order) => {
                         const summary = loyaltySummary[order.id] || {};
@@ -1036,21 +1075,24 @@ const history = (req, res) => {
                             orders,
                             orderItems: itemsByOrder,
                             bestSellers: (bestRows || []).map(decorateProduct),
+                            refundWindowDays: REFUND_WINDOW_DAYS,
                             messages: req.flash('success'),
                             errors: req.flash('error')
                         });
                     });
                 };
 
-                loyaltyService.getOrderPointsSummary({
-                    orderIds,
-                    userId: isCustomer ? sessionUser.id : null
-                })
-                    .then(renderWithLoyalty)
-                    .catch((loyaltyErr) => {
-                        console.error('Error loading EcoPoints summary for order history:', loyaltyErr);
-                        renderWithLoyalty({});
-                    });
+                attachRefundStatus(() => {
+                    loyaltyService.getOrderPointsSummary({
+                        orderIds,
+                        userId: isCustomer ? sessionUser.id : null
+                    })
+                        .then(renderWithLoyalty)
+                        .catch((loyaltyErr) => {
+                            console.error('Error loading EcoPoints summary for order history:', loyaltyErr);
+                            renderWithLoyalty({});
+                        });
+                });
             };
 
             if (!isCustomer || itemIds.length === 0) {
@@ -1141,19 +1183,32 @@ const listAllDeliveries = (req, res) => {
                 itemsByOrder[safeItem.order_id].push(safeItem);
             });
 
-            res.render('adminDeliveries', {
-                user: req.session.user,
-                orders: filteredOrders,
-                orderItems: itemsByOrder,
-                filters: {
-                    status: statusFilter,
-                    method: methodFilter,
-                    search: searchTerm,
-                    userId: Number.isFinite(userFilter) ? userFilter : ''
-                },
-                statusOptions: ADMIN_STATUS_FLOW,
-                messages: req.flash('success'),
-                errors: req.flash('error')
+            refundRequestModel.getLatestByOrderIds(orderIds, null, (refundErr, refundRows = []) => {
+                if (refundErr) {
+                    console.error('Error loading refund status for admin deliveries:', refundErr);
+                }
+                const refundByOrder = (refundRows || []).reduce((acc, row) => {
+                    acc[row.orderId] = row.status;
+                    return acc;
+                }, {});
+                filteredOrders.forEach((order) => {
+                    order.refund_status = refundByOrder[order.id] || null;
+                });
+
+                res.render('adminDeliveries', {
+                    user: req.session.user,
+                    orders: filteredOrders,
+                    orderItems: itemsByOrder,
+                    filters: {
+                        status: statusFilter,
+                        method: methodFilter,
+                        search: searchTerm,
+                        userId: Number.isFinite(userFilter) ? userFilter : ''
+                    },
+                    statusOptions: ADMIN_STATUS_FLOW,
+                    messages: req.flash('success'),
+                    errors: req.flash('error')
+                });
             });
         });
     });
@@ -1385,14 +1440,28 @@ const capturePayPalOrder = async (req, res) => {
     const pending = req.session.pendingPayment;
 
     if (!orderId || !pending || pending.method !== 'paypal' || pending.paypalOrderId !== orderId) {
-        return res.status(400).json({ success: false, message: 'PayPal session expired. Please try again.' });
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.status(400).json({
+            success: false,
+            message: 'PayPal session expired. Please try again.',
+            redirect: '/orders/failed?reason=paypal_expired'
+        });
     }
 
     try {
         const capture = await paypalService.captureOrder(orderId);
         const captureStatus = capture.status || (capture.purchase_units && capture.purchase_units[0] && capture.purchase_units[0].payments && capture.purchase_units[0].payments.captures && capture.purchase_units[0].payments.captures[0] && capture.purchase_units[0].payments.captures[0].status);
         if (captureStatus !== 'COMPLETED') {
-            return res.status(400).json({ success: false, message: 'PayPal payment was not completed.' });
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.status(400).json({
+                success: false,
+                message: 'PayPal payment was not completed.',
+                redirect: '/orders/failed?reason=paypal_failed'
+            });
         }
 
         const payments = capture.purchase_units
@@ -1411,7 +1480,14 @@ const capturePayPalOrder = async (req, res) => {
                 : null);
 
         if (!captureId) {
-            return res.status(400).json({ success: false, message: 'PayPal capture ID missing.' });
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.status(400).json({
+                success: false,
+                message: 'PayPal capture ID missing.',
+                redirect: '/orders/failed?reason=paypal_error'
+            });
         }
 
         const captureAmount = capture.purchase_units
@@ -1424,7 +1500,14 @@ const capturePayPalOrder = async (req, res) => {
             : null;
 
         if (Number.isFinite(captureAmount) && captureAmount < pending.snapshot.total) {
-            return res.status(400).json({ success: false, message: 'Captured amount does not match order total.' });
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.status(400).json({
+                success: false,
+                message: 'Captured amount does not match order total.',
+                redirect: '/orders/failed?reason=paypal_error'
+            });
         }
 
         const finalized = await finalizePaidOrder(req, pending.snapshot, 'paypal', { paypalCaptureId: captureId });
@@ -1435,10 +1518,17 @@ const capturePayPalOrder = async (req, res) => {
             req.flash('success', loyaltyMessage);
         }
 
-        return res.json({ success: true, redirect: '/orders/history' });
+        return res.json({ success: true, redirect: `/orders/success?orderId=${finalized.orderId}` });
     } catch (error) {
         console.error('Error capturing PayPal order:', error);
-        return res.status(500).json({ success: false, message: 'Unable to capture PayPal payment.' });
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.status(500).json({
+            success: false,
+            message: 'Unable to capture PayPal payment.',
+            redirect: '/orders/failed?reason=paypal_error'
+        });
     }
 };
 
@@ -1492,8 +1582,10 @@ const stripeSuccess = async (req, res) => {
     const pending = req.session.pendingPayment;
 
     if (!sessionId || !pending || pending.method !== 'stripe' || pending.stripeSessionId !== sessionId) {
-        req.flash('error', 'Stripe session expired. Please try again.');
-        return res.redirect('/checkout');
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.redirect('/orders/failed?reason=stripe_expired');
     }
 
     try {
@@ -1502,25 +1594,152 @@ const stripeSuccess = async (req, res) => {
         const isPaid = paymentStatus === 'paid' || session.status === 'complete';
 
         if (!isPaid) {
-            req.flash('error', 'Stripe payment was not completed.');
-            return res.redirect('/checkout');
+            if (req.session && req.session.pendingPayment) {
+                delete req.session.pendingPayment;
+            }
+            return res.redirect('/orders/failed?reason=stripe_failed');
         }
 
-        const finalized = await finalizePaidOrder(req, pending.snapshot, 'stripe');
+        const finalized = await finalizePaidOrder(req, pending.snapshot, 'stripe', {
+            stripePaymentIntentId: session.payment_intent || null
+        });
         delete req.session.pendingPayment;
         const loyaltyMessage = buildLoyaltyFlashMessage(finalized.loyaltyAwardedPoints, finalized.loyaltyRedeemedPoints);
-        req.flash('success', loyaltyMessage ? `Payment completed. ${loyaltyMessage}` : 'Payment completed.');
-        return res.redirect('/orders/history');
+        if (loyaltyMessage) {
+            req.flash('success', loyaltyMessage);
+        }
+        return res.redirect(`/orders/success?orderId=${finalized.orderId}`);
     } catch (error) {
         console.error('Error verifying Stripe payment:', error);
-        req.flash('error', 'Stripe verification failed.');
-        return res.redirect('/checkout');
+        if (req.session && req.session.pendingPayment) {
+            delete req.session.pendingPayment;
+        }
+        return res.redirect('/orders/failed?reason=stripe_failed');
     }
 };
 
 const stripeCancel = (req, res) => {
-    req.flash('error', 'Stripe payment was cancelled. Please try again.');
-    return res.redirect('/checkout');
+    if (req.session && req.session.pendingPayment) {
+        delete req.session.pendingPayment;
+    }
+    return res.redirect('/orders/failed?reason=stripe_cancel');
+};
+
+const orderSuccess = (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+        req.flash('error', 'Only shoppers can view this page.');
+        return res.redirect('/login');
+    }
+
+    const sessionUser = req.session.user;
+    const orderId = Number.parseInt(req.query.orderId || (req.session.lastOrderSuccess && req.session.lastOrderSuccess.orderId), 10);
+    if (!Number.isFinite(orderId)) {
+        req.flash('error', 'Order not found.');
+        return res.redirect('/shopping');
+    }
+
+    Order.findById(orderId, (orderErr, orderRows) => {
+        if (orderErr) {
+            console.error('Error fetching order for success page:', orderErr);
+            req.flash('error', 'Unable to load order confirmation.');
+            return res.redirect('/shopping');
+        }
+
+        if (!orderRows || !orderRows.length) {
+            req.flash('error', 'Order not found.');
+            return res.redirect('/shopping');
+        }
+
+        const order = orderRows[0];
+        if (order.user_id !== sessionUser.id) {
+            req.flash('error', 'You are not authorised to view this order.');
+            return res.redirect('/shopping');
+        }
+
+        Order.findItemsByOrderIds([orderId], (itemsErr, itemRows) => {
+            if (itemsErr) {
+                console.error('Error fetching order items for success page:', itemsErr);
+                req.flash('error', 'Unable to load order confirmation.');
+                return res.redirect('/shopping');
+            }
+
+            const items = (itemRows || []).map(normaliseOrderItem);
+            const impactSummary = sustainabilityService.estimateImpact(items);
+            const deliveryFee = Number(order.shipping_amount || order.delivery_fee || 0);
+            const discountAmount = Number(order.discount_amount || 0);
+            const totals = {
+                subtotal: Number(order.subtotal || 0),
+                discount: discountAmount,
+                delivery: deliveryFee,
+                total: Number(order.total_amount || order.total || 0)
+            };
+
+            loyaltyService.getOrderPointsSummary({
+                orderIds: [orderId],
+                userId: sessionUser.id
+            })
+                .then((summary) => {
+                    const orderSummary = summary && summary[orderId] ? summary[orderId] : {};
+                    const earnedPoints = Number(orderSummary.earnedPoints || 0);
+                    const redeemedPoints = Number(orderSummary.redeemedPoints || 0);
+
+                    res.render('orderSuccess', {
+                        user: sessionUser,
+                        order,
+                        items,
+                        totals,
+                        impactSummary,
+                        earnedPoints,
+                        redeemedPoints,
+                        messages: req.flash('success'),
+                        errors: req.flash('error')
+                    });
+                })
+                .catch((loyaltyErr) => {
+                    console.error('Error loading EcoPoints summary for success page:', loyaltyErr);
+                    res.render('orderSuccess', {
+                        user: sessionUser,
+                        order,
+                        items,
+                        totals,
+                        impactSummary,
+                        earnedPoints: 0,
+                        redeemedPoints: 0,
+                        messages: req.flash('success'),
+                        errors: req.flash('error')
+                    });
+                });
+        });
+    });
+};
+
+const orderFailed = (req, res) => {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+        return res.redirect('/login');
+    }
+
+    if (req.session && req.session.pendingPayment) {
+        delete req.session.pendingPayment;
+    }
+
+    const reasonKey = String(req.query.reason || '').trim().toLowerCase();
+    const reasonMap = {
+        paypal_cancel: 'PayPal payment was cancelled.',
+        paypal_failed: 'PayPal payment was not completed.',
+        paypal_error: 'PayPal payment could not be confirmed.',
+        paypal_expired: 'PayPal session expired. Please try again.',
+        stripe_cancel: 'Stripe payment was cancelled.',
+        stripe_failed: 'Stripe payment was not completed.',
+        stripe_expired: 'Stripe session expired. Please try again.'
+    };
+    const message = reasonMap[reasonKey] || 'Payment was unsuccessful. Please try again.';
+
+    res.render('orderFailed', {
+        user: req.session.user,
+        message,
+        errors: req.flash('error'),
+        messages: req.flash('success')
+    });
 };
 
 /**
@@ -1628,5 +1847,7 @@ module.exports = {
     createStripeSession,
     stripeSuccess,
     stripeCancel,
+    orderSuccess,
+    orderFailed,
     invoice
 };

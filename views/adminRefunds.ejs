@@ -37,6 +37,7 @@
               <th>Order</th>
               <th>User</th>
               <th>Amount</th>
+              <th>Approved</th>
               <th>Status</th>
               <th>Submitted</th>
               <th></th>
@@ -52,7 +53,8 @@
                   <div class="text-muted small"><%= request.email %></div>
                 </td>
                 <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
-                <td><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></td>
+                <td><%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %></td>
+                <td><span class="badge bg-light text-dark border"><%= (request.status || 'UNKNOWN').toUpperCase() %></span></td>
                 <td><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></td>
                 <td>
                   <a href="/admin/refunds/<%= request.id %>" class="btn btn-sm btn-outline-primary">View</a>

@@ -6,6 +6,7 @@ const REDEMPTION_REASON = 'redemption';
 const ADMIN_ADJUSTMENT_REASON = 'admin adjustment';
 const REFUND_CLAWBACK_REASON_PREFIX = 'refund';
 const VOUCHER_REDEMPTION_REASON_PREFIX = 'redemption:voucher';
+const REFUND_REDEMPTION_RETURN_REASON = 'redemption:return';
 const LEGACY_PURCHASE_REASON = 'Order completed';
 const LEGACY_REDEMPTION_REASON = 'Redemption';
 const EARN_RATE_POINTS_PER_DOLLAR = 1;
@@ -611,6 +612,35 @@ const clawbackPointsForRefund = async ({
     };
 };
 
+const returnRedeemedPointsForOrder = async ({ userId, orderId, pointsToReturn, reference = '' }) => {
+    const safeUserId = Number.parseInt(userId, 10);
+    const safeOrderId = Number.parseInt(orderId, 10);
+    const safePoints = toWholePoints(pointsToReturn);
+    if (!Number.isFinite(safeUserId) || safeUserId <= 0 || !Number.isFinite(safeOrderId) || safeOrderId <= 0) {
+        return { returnedPoints: 0, skipped: true };
+    }
+    if (safePoints <= 0) {
+        return { returnedPoints: 0, skipped: true };
+    }
+
+    const reason = `${REFUND_REDEMPTION_RETURN_REASON}${reference ? ` (${reference})` : ''}`.slice(0, 120);
+    if (await hasOrderReasonTransaction(safeUserId, safeOrderId, reason)) {
+        return { returnedPoints: 0, skipped: true, alreadyProcessed: true };
+    }
+
+    const result = await applyPointsTransaction({
+        userId: safeUserId,
+        orderId: safeOrderId,
+        pointsChange: safePoints,
+        reason
+    });
+
+    return {
+        returnedPoints: safePoints,
+        balance: result.balance
+    };
+};
+
 const adjustPointsByAdmin = async ({ userId, pointsChange, adminUserId = null, note = '' }) => {
     const safeUserId = Number.parseInt(userId, 10);
     const safePointsChange = Number.parseInt(pointsChange, 10);
@@ -656,6 +686,7 @@ module.exports = {
     ADMIN_ADJUSTMENT_REASON,
     REFUND_CLAWBACK_REASON_PREFIX,
     VOUCHER_REDEMPTION_REASON_PREFIX,
+    REFUND_REDEMPTION_RETURN_REASON,
     isRedemptionEnabled,
     calculateEarnPoints,
     calculateRedemption,
@@ -667,5 +698,6 @@ module.exports = {
     getOrderPointsSummary,
     getTotalIssuedPoints,
     clawbackPointsForRefund,
+    returnRedeemedPointsForOrder,
     adjustPointsByAdmin
 };

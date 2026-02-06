@@ -3,6 +3,8 @@ const Order = require('../models/order');
 const OrderReview = require('../models/orderReview');
 const refundRequestModel = require('../models/refundRequest');
 
+const REFUND_WINDOW_DAYS = 14;
+
 const normaliseOrderItem = (item) => {
     if (!item) {
         return item;
@@ -157,6 +159,10 @@ const showUserDashboard = (req, res) => {
         return res.redirect('/login');
     }
 
+    const tabParam = req.query && req.query.tab ? String(req.query.tab).toLowerCase() : 'account';
+    const allowedTabs = new Set(['account', 'orders', 'returns', 'reviews']);
+    const activeTab = allowedTabs.has(tabParam) ? tabParam : 'account';
+
     User.findById(userId, (err, results) => {
         if (err) {
             console.error('Error fetching user dashboard:', err);
@@ -185,6 +191,18 @@ const showUserDashboard = (req, res) => {
                     requests = [];
                 }
 
+                const refundLatestByOrder = {};
+                (requests || []).forEach((request) => {
+                    if (request && request.orderId && !refundLatestByOrder[request.orderId]) {
+                        refundLatestByOrder[request.orderId] = request;
+                    }
+                });
+                (orders || []).forEach((order) => {
+                    const latest = refundLatestByOrder[order.id];
+                    order.refund_status = latest ? latest.status : null;
+                    order.refund_request_id = latest ? latest.id : null;
+                });
+
                 OrderReview.findByUserAndOrderItems(userId, Array.from(orderItemIds), (reviewErr, reviewRows = []) => {
                     if (reviewErr) {
                         console.error('Error loading user reviews:', reviewErr);
@@ -200,6 +218,8 @@ const showUserDashboard = (req, res) => {
                         orderItems,
                         refundRequests: requests,
                         userReviews,
+                        activeTab,
+                        refundWindowDays: REFUND_WINDOW_DAYS,
                         errors: req.flash('error'),
                         messages: req.flash('success')
                     });

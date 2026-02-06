@@ -101,6 +101,28 @@ a:hover {
   height: 1rem;
 }
 
+.navbar .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.navbar .dropdown-item .nav-icon {
+  display: inline-flex;
+  color: #6b7280;
+}
+
+.navbar .dropdown-item .nav-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.navbar .dropdown-item:hover .nav-icon,
+.navbar .dropdown-item:focus .nav-icon {
+  color: var(--brand-primary);
+}
+
 .navbar .nav-ecopoints {
   background: #f8fafc;
   border: 1px solid rgba(17, 24, 39, 0.08);
@@ -128,6 +150,337 @@ a:hover {
 
 .page-section {
   padding: 3rem 0;
+}
+
+.account-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 1.6rem;
+  padding: 2rem;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.15);
+}
+
+.account-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .account-wrapper {
+    padding: 1.5rem;
+  }
+
+  .account-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.account-sidebar__card,
+.account-card {
+  background: #f8fafc;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 1rem;
+  box-shadow: none;
+}
+
+.account-sidebar__card {
+  padding: 1.2rem;
+}
+
+.account-sidebar__title {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 0.85rem;
+}
+
+.account-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.account-nav-link {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  display: block;
+  text-decoration: none;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.85rem;
+  font-weight: 600;
+  color: #1f2937;
+  width: 100%;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.account-nav-link:hover,
+.account-nav-link:focus,
+.account-nav-link.active {
+  background: rgba(47, 107, 79, 0.12);
+  color: var(--brand-primary);
+  box-shadow: inset 0 0 0 1px rgba(47, 107, 79, 0.15);
+}
+
+.account-nav-link--external {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-decoration: none;
+}
+
+.account-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.account-crumbs {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.account-main__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .account-main__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.account-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.account-content .tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+.account-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+@media (max-width: 768px) {
+  .account-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.account-hero__title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+.account-hero {
+  background: linear-gradient(135deg, #f8fafc, #ffffff);
+}
+
+.account-profile {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: #f8fafc;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.account-profile__left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.account-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(47, 107, 79, 0.9), rgba(127, 159, 116, 0.9));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.account-profile__name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #111827;
+}
+
+.account-profile__actions {
+  display: flex;
+  align-items: center;
+}
+
+.account-metrics {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.account-metric {
+  background: #fff;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 0.9rem;
+  padding: 0.85rem 1rem;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.account-metric__label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+.account-metric__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.account-contact__row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.account-contact__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(47, 107, 79, 0.12);
+  color: var(--brand-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-contact__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.account-contact__info {
+  flex: 1;
+  min-width: 220px;
+}
+
+.account-contact__actions {
+  margin-left: auto;
+}
+
+.account-contact__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.35rem;
+}
+
+.account-contact__value {
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: #111827;
+}
+
+.account-contact__divider {
+  color: #cbd5f5;
+}
+
+.account-ecopoints__panel {
+  background: #ffffff;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 0.9rem;
+  padding: 1rem;
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.02);
+}
+
+.account-ecopoints__list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.account-ecopoints__list li {
+  position: relative;
+  padding-left: 1.1rem;
+  color: #4b5563;
+}
+
+.account-ecopoints__list li::before {
+  content: "-";
+  position: absolute;
+  left: 0;
+  color: var(--brand-primary);
+}
+
+.account-details .form-control,
+.account-details .form-select {
+  border-radius: 0.85rem;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: #ffffff;
+}
+
+.account-details .form-control:focus,
+.account-details .form-select:focus {
+  border-color: rgba(47, 107, 79, 0.35);
+  box-shadow: 0 0 0 0.2rem rgba(47, 107, 79, 0.15);
+}
+
+.account-details .form-label {
+  font-weight: 600;
+  color: #334155;
 }
 
 .hero-card {
@@ -250,6 +603,45 @@ a:hover {
   color: #b91c1c;
 }
 
+.badge-status--refunded {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.authenticity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(20, 83, 45, 0.12);
+  color: #14532d;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.2px;
+}
+
+.authenticity-badge svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.authenticity-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #14532d;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.authenticity-note svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .table-modern thead {
   border-bottom: 2px solid rgba(17, 24, 39, 0.08);
 }
@@ -260,6 +652,240 @@ a:hover {
 
 .table-modern tbody tr:hover {
   background-color: rgba(127, 159, 116, 0.12);
+}
+
+.inventory-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.inventory-stat {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 12px 28px rgba(19, 38, 57, 0.12);
+  padding: 1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.inventory-stat__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(47, 107, 79, 0.12);
+  color: var(--brand-primary);
+}
+
+.inventory-stat__icon--warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+
+.inventory-stat__icon--danger {
+  background: rgba(239, 68, 68, 0.16);
+  color: #b91c1c;
+}
+
+.inventory-stat__icon--success {
+  background: rgba(34, 197, 94, 0.18);
+  color: #15803d;
+}
+
+.inventory-stat__label {
+  font-size: 0.85rem;
+  color: var(--brand-muted);
+  font-weight: 600;
+}
+
+.inventory-stat__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+.stock-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.stock-meter {
+  margin-top: 0.35rem;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.stock-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(47, 107, 79, 0.85), rgba(127, 159, 116, 0.85));
+  border-radius: 999px;
+}
+
+.order-status-container {
+  max-width: 1040px;
+}
+
+.order-status-card {
+  background: #ffffff;
+  border-radius: 1.6rem;
+  padding: 2.5rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+
+.order-status-card--fail {
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.order-status__icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.order-status__icon--success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #15803d;
+}
+
+.order-status__icon--fail {
+  background: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+}
+
+.order-status__title {
+  font-weight: 700;
+}
+
+.order-status__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+
+.order-summary-card {
+  background: #f8fafc;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  padding: 1.5rem;
+}
+
+.order-summary-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.order-summary-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.order-summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.order-summary-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.order-summary-item__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.order-summary-item__img {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.85rem;
+  object-fit: cover;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.order-summary-item__img--placeholder {
+  background: rgba(148, 163, 184, 0.15);
+  color: #64748b;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.order-summary-item__name {
+  font-weight: 600;
+}
+
+.order-summary-item__price {
+  font-weight: 600;
+}
+
+.order-summary-card__totals {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+  display: grid;
+  gap: 0.4rem;
+}
+
+.order-ecopoints-card {
+  background: #ffffff;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  padding: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.order-ecopoints-card__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #15803d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-ecopoints-card__value {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+@media (max-width: 992px) {
+  .order-status__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-card {
@@ -454,6 +1080,37 @@ a:hover {
   border-radius: 1rem;
   padding: 1.2rem;
   border: 1px solid rgba(15, 118, 110, 0.15);
+}
+
+.impact-summary__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.impact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.impact-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 118, 110, 0.18);
+  color: #0f766e;
+  flex: 0 0 auto;
+}
+
+.impact-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .footer {

@@ -14,6 +14,66 @@
           </div>
         </div>
 
+        <% const safeProducts = Array.isArray(products) ? products : []; %>
+        <% const totalProducts = safeProducts.length; %>
+        <% const lowStockCount = safeProducts.filter(p => Number(p.quantity || 0) > 0 && Number(p.quantity || 0) < 10).length; %>
+        <% const outOfStockCount = safeProducts.filter(p => Number(p.quantity || 0) === 0).length; %>
+        <% const discountedCount = safeProducts.filter(p => p.hasDiscount).length; %>
+        <% const maxStock = safeProducts.reduce((max, p) => Math.max(max, Number(p.quantity || 0)), 0) || 1; %>
+
+        <div class="inventory-stats">
+          <div class="inventory-stat">
+            <span class="inventory-stat__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 7h16" />
+                <path d="M4 12h16" />
+                <path d="M4 17h16" />
+              </svg>
+            </span>
+            <div>
+              <div class="inventory-stat__label">Total products</div>
+              <div class="inventory-stat__value"><%= totalProducts %></div>
+            </div>
+          </div>
+          <div class="inventory-stat">
+            <span class="inventory-stat__icon inventory-stat__icon--warning" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8v5" />
+                <path d="M12 17h.01" />
+                <path d="M10.3 3.6L3 17h18L13.7 3.6a2 2 0 0 0-3.4 0z" />
+              </svg>
+            </span>
+            <div>
+              <div class="inventory-stat__label">Low stock</div>
+              <div class="inventory-stat__value"><%= lowStockCount %></div>
+            </div>
+          </div>
+          <div class="inventory-stat">
+            <span class="inventory-stat__icon inventory-stat__icon--danger" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M8 8l8 8M16 8l-8 8" />
+              </svg>
+            </span>
+            <div>
+              <div class="inventory-stat__label">Out of stock</div>
+              <div class="inventory-stat__value"><%= outOfStockCount %></div>
+            </div>
+          </div>
+          <div class="inventory-stat">
+            <span class="inventory-stat__icon inventory-stat__icon--success" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 7l-8 10-4-4" />
+                <path d="M4 7h4" />
+              </svg>
+            </span>
+            <div>
+              <div class="inventory-stat__label">Discounted items</div>
+              <div class="inventory-stat__value"><%= discountedCount %></div>
+            </div>
+          </div>
+        </div>
+
         <div class="card shadow-sm mb-4">
           <div class="card-body">
             <form action="/inventory" method="GET" class="row g-3 align-items-end">
@@ -138,8 +198,9 @@
                                       <% const qty=Number(product.quantity || 0); %>
                                         <% const statusLabel=qty===0 ? 'Out of stock' : (qty < 10 ? 'Low stock'
                                           : 'In stock' ); %>
-                                          <% const statusClass=qty===0 ? 'bg-danger' : (qty < 10
-                                            ? 'bg-warning text-dark' : 'bg-success' ); %>
+                                        <% const statusClass=qty===0 ? 'bg-danger' : (qty < 10
+                                          ? 'bg-warning text-dark' : 'bg-success' ); %>
+                                        <% const stockPercent = Math.min(100, Math.round((qty / maxStock) * 100)); %>
                                             <tr>
                                               <td>
                                                 <% if (product.image) { %>
@@ -174,9 +235,15 @@
                                                     $<%= Number(product.price).toFixed(2) %>
                                                       <% } %>
                                               </td>
-                                              <td><span class="fw-semibold">
-                                                  <%= qty %>
-                                                </span></td>
+                                              <td>
+                                                <div class="stock-value">
+                                                  <span class="fw-semibold"><%= qty %></span>
+                                                  <span class="text-muted small">units</span>
+                                                </div>
+                                                <div class="stock-meter" aria-hidden="true">
+                                                  <span style="width: <%= stockPercent %>%;"></span>
+                                                </div>
+                                              </td>
                                               <td><span class="badge <%= statusClass %>">
                                                   <%= statusLabel %>
                                                 </span></td>

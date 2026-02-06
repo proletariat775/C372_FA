@@ -8,13 +8,14 @@
         <p class="mb-1 text-muted">Request #<%= request.id %></p>
         <h2 class="mb-0">Refund request details</h2>
       </div>
-      <a href="/refunds" class="btn btn-outline-secondary">Back to requests</a>
+      <a href="/user?tab=returns" class="btn btn-outline-secondary">Back to requests</a>
     </div>
 
     <% const paymentLabel = (method) => {
       const value = (method || '').toString().toLowerCase();
       if (value === 'paypal') return 'PayPal';
-      if (value === 'card') return 'Card';
+      if (value === 'stripe') return 'Stripe';
+      if (value === 'netsqr') return 'NETS QR';
       return method ? method.toUpperCase() : 'Unknown';
     }; %>
 
@@ -30,8 +31,10 @@
           <div class="col-md-6">
             <div class="small text-muted">Requested amount</div>
             <div class="fw-semibold">$<%= Number(request.requestedAmount || 0).toFixed(2) %></div>
+            <div class="small text-muted mt-2">Approved amount</div>
+            <div><%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %></div>
             <div class="small text-muted mt-2">Status</div>
-            <div><span class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span></div>
+            <div><span class="badge bg-light text-dark border"><%= (request.status || 'unknown').toUpperCase() %></span></div>
           </div>
           <% if (request.reason) { %>
             <div class="col-12">
@@ -62,7 +65,7 @@
                   <th>Item</th>
                   <th class="text-center">Qty</th>
                   <th class="text-end">Unit price</th>
-                  <th class="text-end">Subtotal</th>
+                  <th class="text-end">Line refund</th>
                 </tr>
               </thead>
               <tbody>
@@ -71,7 +74,7 @@
                     <td><%= item.productName || ('Product #' + item.productId) %></td>
                     <td class="text-center"><%= item.quantity %></td>
                     <td class="text-end">$<%= Number(item.unitPrice).toFixed(2) %></td>
-                    <td class="text-end">$<%= (Number(item.unitPrice) * Number(item.quantity)).toFixed(2) %></td>
+                    <td class="text-end">$<%= Number(item.lineRefundAmount || (Number(item.unitPrice) * Number(item.quantity))).toFixed(2) %></td>
                   </tr>
                 <% }); %>
               </tbody>

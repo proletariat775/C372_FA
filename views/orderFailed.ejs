@@ -1,0 +1,40 @@
+<%- include('partials/header', { title: 'Payment Failed | Shirt Shop' }) %>
+<%- include('partials/navbar', { user: typeof user !=='undefined' ? user : null }) %>
+
+<main class="page-section">
+  <div class="container order-status-container">
+    <% if (messages && messages.length) { %>
+      <% messages.forEach(function(message) { %>
+        <div class="alert alert-success">
+          <%= message %>
+        </div>
+      <% }); %>
+    <% } %>
+
+    <% if (errors && errors.length) { %>
+      <% errors.forEach(function(error) { %>
+        <div class="alert alert-danger">
+          <%= error %>
+        </div>
+      <% }); %>
+    <% } %>
+
+    <div class="order-status-card order-status-card--fail">
+      <div class="order-status__icon order-status__icon--fail" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M6 6l12 12M18 6l-12 12" />
+        </svg>
+      </div>
+      <h2 class="order-status__title">Payment Unsuccessful</h2>
+      <p class="text-muted mb-4"><%= message %></p>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="/checkout" class="btn btn-primary">Try checkout again</a>
+        <a href="/cart" class="btn btn-outline-secondary">Back to cart</a>
+        <a href="/shopping" class="btn btn-outline-secondary">Continue shopping</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('partials/footer') %>

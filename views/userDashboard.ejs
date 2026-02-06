@@ -3,14 +3,6 @@
 
         <main class="page-section">
             <div class="container">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-                    <div>
-                        <p class="mb-1 text-muted">Account</p>
-                        <h2 class="mb-0">User dashboard</h2>
-                    </div>
-                    <a href="/user/coupons" class="btn btn-outline-secondary">View available coupons</a>
-                </div>
-
                 <% if (messages && messages.length) { %>
                     <% messages.forEach(function(message) { %>
                         <div class="alert alert-success">
@@ -27,43 +19,56 @@
                                         <% }); %>
                                             <% } %>
 
-                                                <ul class="nav nav-tabs" id="userTabs" role="tablist">
-                                                    <li class="nav-item" role="presentation">
-                                                        <button class="nav-link active" id="tab-user-info"
-                                                            data-bs-toggle="tab" data-bs-target="#panel-user-info"
-                                                            type="button" role="tab" aria-controls="panel-user-info"
-                                                            aria-selected="true">User Info</button>
-                                                    </li>
-                                                    <li class="nav-item" role="presentation">
-                                                        <button class="nav-link" id="tab-purchase-history"
-                                                            data-bs-toggle="tab"
-                                                            data-bs-target="#panel-purchase-history" type="button"
-                                                            role="tab" aria-controls="panel-purchase-history"
-                                                            aria-selected="false">Purchase History</button>
-                                                    </li>
-                                                    <li class="nav-item" role="presentation">
-                                                        <button class="nav-link" id="tab-refunds"
-                                                            data-bs-toggle="tab" data-bs-target="#panel-refunds"
-                                                            type="button" role="tab" aria-controls="panel-refunds"
-                                                            aria-selected="false">Refunds</button>
-                                                    </li>
-                                                    <li class="nav-item" role="presentation">
-                                                        <button class="nav-link" id="tab-reviews"
-                                                            data-bs-toggle="tab" data-bs-target="#panel-reviews"
-                                                            type="button" role="tab" aria-controls="panel-reviews"
-                                                            aria-selected="false">My Reviews</button>
-                                                    </li>
-                                                </ul>
+                                                <div class="account-wrapper">
+                                                    <div class="account-shell">
+                                                        <% const selectedTab = (typeof activeTab !== 'undefined' && activeTab)
+                                                            ? String(activeTab)
+                                                            : 'account';
+                                                           const isTab = (name) => selectedTab === name;
+                                                        %>
 
-                                                <div class="tab-content border border-top-0 rounded-bottom p-4 bg-white"
-                                                    id="userTabsContent">
-                                                    <div class="tab-pane fade show active" id="panel-user-info"
-                                                        role="tabpanel" aria-labelledby="tab-user-info">
-                                                        <h4 class="mb-3">User Info</h4>
+                                                        <aside class="account-sidebar">
+                                                        <div class="account-sidebar__card">
+                                                            <div class="account-sidebar__title">Account</div>
+                                                            <div class="account-nav" id="userTabs" role="tablist" aria-label="Account navigation">
+                                                                <a class="account-nav-link <%= isTab('account') ? 'active' : '' %>" id="tab-user-info"
+                                                                    href="/user?tab=account"
+                                                                    role="tab" aria-controls="panel-user-info"
+                                                                    aria-selected="<%= isTab('account') ? 'true' : 'false' %>">Account</a>
+                                                                <a class="account-nav-link <%= isTab('orders') ? 'active' : '' %>" id="tab-purchase-history"
+                                                                    href="/user?tab=orders"
+                                                                    role="tab" aria-controls="panel-purchase-history"
+                                                                    aria-selected="<%= isTab('orders') ? 'true' : 'false' %>">Orders</a>
+                                                                <a class="account-nav-link <%= isTab('returns') ? 'active' : '' %>" id="tab-refunds"
+                                                                    href="/user?tab=returns"
+                                                                    role="tab" aria-controls="panel-refunds"
+                                                                    aria-selected="<%= isTab('returns') ? 'true' : 'false' %>">Refunds</a>
+                                                                <a class="account-nav-link <%= isTab('reviews') ? 'active' : '' %>" id="tab-reviews"
+                                                                    href="/user?tab=reviews"
+                                                                    role="tab" aria-controls="panel-reviews"
+                                                                    aria-selected="<%= isTab('reviews') ? 'true' : 'false' %>">Reviews</a>
+                                                            </div>
+                                                        </div>
+                                                    </aside>
 
+                                                        <section class="account-main">
+                                                        <div class="account-crumbs">Account / My Account</div>
+                                                        <div class="account-main__header">
+                                                            <div>
+                                                                <h2 class="mb-1">My Account</h2>
+                                                                <p class="text-muted mb-0">Manage your profile, orders, and rewards.</p>
+                                                            </div>
+                                                            <a href="/user/coupons" class="btn btn-outline-secondary btn-sm">View available coupons</a>
+                                                        </div>
+
+                                                        <div class="tab-content account-content" id="userTabsContent">
+                                                    <div class="tab-pane fade <%= isTab('account') ? 'show active' : '' %>" id="panel-user-info"
+                                                        role="tabpanel" aria-labelledby="tab-user-info"
+                                                        style="<%= isTab('account') ? '' : 'display:none;' %>">
                                                         <% const displayName = (profile.first_name || profile.last_name)
                                                             ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
                                                             : (profile.username || 'Member');
+                                                           const greetingName = profile.first_name || profile.username || 'there';
                                                            const initials = displayName
                                                             .split(' ')
                                                             .filter(Boolean)
@@ -77,89 +82,91 @@
                                                            const ecoBalance = Number(profile.loyalty_points || (user && user.loyalty_points) || 0);
                                                         %>
 
-                                                        <div class="card border-0 shadow-sm mb-4">
-                                                            <div class="card-body">
-                                                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                                                                    <div class="d-flex align-items-center gap-3">
-                                                                        <div class="rounded-circle bg-dark-subtle text-dark d-flex align-items-center justify-content-center"
-                                                                            style="width:64px;height:64px;font-weight:700;font-size:1.1rem;">
-                                                                            <%= initials %>
-                                                                        </div>
-                                                                        <div>
-                                                                            <h5 class="mb-1"><%= displayName %></h5>
-                                                                            <div class="text-muted"><%= profile.email || '' %></div>
-                                                                            <% if (memberSince) { %>
-                                                                                <small class="text-muted">Member since <%= memberSince %></small>
-                                                                            <% } %>
-                                                                        </div>
+                                                        <div class="account-card account-hero">
+                                                            <div class="account-hero__title">Hi, <%= greetingName %></div>
+                                                            <div class="account-profile">
+                                                                <div class="account-profile__left">
+                                                                    <div class="account-avatar"><%= initials %></div>
+                                                                    <div class="account-profile__meta">
+                                                                        <div class="account-profile__name"><%= displayName %></div>
+                                                                        <div class="text-muted"><%= profile.email || '' %></div>
+                                                                        <% if (memberSince) { %>
+                                                                            <div class="small text-muted">Member since <%= memberSince %></div>
+                                                                        <% } %>
                                                                     </div>
-                                                                    <div class="text-md-end">
-                                                                        <div class="text-muted small">Primary contact</div>
-                                                                        <div class="fw-semibold"><%= profile.phone || 'No phone saved' %></div>
-                                                                        <div class="text-muted small"><%= profile.address || 'No address on file' %></div>
-                                                                    </div>
+                                                                </div>
+                                                                <div class="account-profile__actions">
+                                                                    <a href="#account-details" class="btn btn-outline-secondary btn-sm">Edit profile</a>
+                                                                </div>
+                                                            </div>
+                                                            <div class="account-metrics">
+                                                                <div class="account-metric">
+                                                                    <div class="account-metric__label">Orders</div>
+                                                                    <div class="account-metric__value"><%= orderCount %></div>
+                                                                </div>
+                                                                <div class="account-metric">
+                                                                    <div class="account-metric__label">Refund requests</div>
+                                                                    <div class="account-metric__value"><%= refundCount %></div>
+                                                                </div>
+                                                                <div class="account-metric">
+                                                                    <div class="account-metric__label">Reviews</div>
+                                                                    <div class="account-metric__value"><%= reviewCount %></div>
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <div class="row g-3 mb-4">
-                                                            <div class="col-6 col-lg-3">
-                                                                <div class="card border-0 shadow-sm h-100">
-                                                                    <div class="card-body">
-                                                                        <div class="text-muted small">Orders</div>
-                                                                        <div class="fs-4 fw-semibold"><%= orderCount %></div>
+                                                        <div class="account-card account-contact">
+                                                            <div class="account-contact__row">
+                                                                <div class="account-contact__icon">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                                                        <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.7.3 1.4.5 2.1a2 2 0 0 1-.5 2.1L8 9a16 16 0 0 0 7 7l1.1-1.1a2 2 0 0 1 2.1-.5c.7.2 1.4.4 2.1.5a2 2 0 0 1 1.7 2z" />
+                                                                    </svg>
+                                                                </div>
+                                                                <div class="account-contact__info">
+                                                                    <div class="account-contact__label">Primary contact</div>
+                                                                    <div class="account-contact__value">
+                                                                        <span><%= profile.phone || 'No phone saved' %></span>
+                                                                        <span class="account-contact__divider">•</span>
+                                                                        <span><%= profile.address || 'No address on file' %></span>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                            <div class="col-6 col-lg-3">
-                                                                <div class="card border-0 shadow-sm h-100">
-                                                                    <div class="card-body">
-                                                                        <div class="text-muted small">Refund requests</div>
-                                                                        <div class="fs-4 fw-semibold"><%= refundCount %></div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-6 col-lg-3">
-                                                                <div class="card border-0 shadow-sm h-100">
-                                                                    <div class="card-body">
-                                                                        <div class="text-muted small">Reviews</div>
-                                                                        <div class="fs-4 fw-semibold"><%= reviewCount %></div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-6 col-lg-3">
-                                                                <div class="card border-0 shadow-sm h-100">
-                                                                    <div class="card-body">
-                                                                        <div class="text-muted small">EcoPoints</div>
-                                                                        <div class="fs-4 fw-semibold text-success"><%= ecoBalance %></div>
-                                                                    </div>
+                                                                <div class="account-contact__actions">
+                                                                    <a href="#account-details" class="btn btn-outline-secondary btn-sm">Edit address</a>
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <div class="card border-0 shadow-sm mb-4">
-                                                            <div class="card-body">
-                                                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
-                                                                    <div>
-                                                                        <h5 class="mb-1">EcoPoints balance</h5>
-                                                                        <p class="text-muted mb-0">Track and redeem your loyalty points.</p>
-                                                                    </div>
-                                                                    <span class="badge bg-success-subtle text-success fs-6">
-                                                                        <%= ecoBalance %> EcoPoints
-                                                                    </span>
+                                                        <div class="account-card account-ecopoints">
+                                                            <div class="account-card__header">
+                                                                <div>
+                                                                    <h5 class="mb-1">EcoPoints</h5>
+                                                                    <p class="text-muted mb-0">Track and redeem your loyalty points.</p>
                                                                 </div>
-                                                                <div class="mt-3">
+                                                                <span class="account-ecopoints__badge">
+                                                                    <span class="badge bg-success-subtle text-success fs-6"><%= ecoBalance %> EcoPoints</span>
+                                                                </span>
+                                                            </div>
+                                                            <div class="account-ecopoints__grid">
+                                                                <div class="account-ecopoints__panel">
                                                                     <h6 class="text-uppercase text-muted small mb-2">How to earn EcoPoints</h6>
-                                                                    <ul class="mb-0 text-muted">
+                                                                    <ul class="account-ecopoints__list">
                                                                         <li>Earn 1 EcoPoint for every $1 spent on paid orders.</li>
                                                                         <li>Get a bonus +50 EcoPoints for every completed order.</li>
                                                                         <li>Earn +10 EcoPoints for each product review (1 reward per item).</li>
                                                                     </ul>
-                                                                    <small class="text-muted d-block mt-2">Redeem 100 EcoPoints for $5 off at checkout or on the coupons page.</small>
                                                                 </div>
                                                             </div>
+                                                            <small class="text-muted d-block mt-2">Redeem 100 EcoPoints for $5 off at checkout.</small>
                                                         </div>
-                                                        <form action="/user/update" method="POST" class="row g-3">
+
+                                                        <div class="account-card account-details" id="account-details">
+                                                            <div class="account-card__header">
+                                                                <div>
+                                                                    <h5 class="mb-1">Account Details</h5>
+                                                                    <p class="text-muted mb-0">Update your profile information below.</p>
+                                                                </div>
+                                                            </div>
+                                                            <form action="/user/update" method="POST" class="row g-3 account-form">
                                                             <div class="col-md-6">
                                                                 <label for="username"
                                                                     class="form-label">Username</label>
@@ -229,261 +236,318 @@
                                                                     changes</button>
                                                             </div>
                                                         </form>
+                                                        </div>
                                                     </div>
 
-                                                    <div class="tab-pane fade" id="panel-purchase-history"
-                                                        role="tabpanel" aria-labelledby="tab-purchase-history">
-                                                        <h4 class="mb-3">Purchase History</h4>
-                                                        <p class="text-muted">Review your past orders, delivery status,
-                                                            and invoices.</p>
-
-                                                        <% if (!orders || !orders.length) { %>
-                                                            <div class="alert alert-info mb-0">No orders yet.</div>
-                                                            <% } else { %>
-                                                                <div class="accordion" id="user-orders">
-                                                                    <% orders.forEach(function(order, index) { %>
-                                                                        <div class="accordion-item">
-                                                                            <h2 class="accordion-header"
-                                                                                id="user-order-heading-<%= order.id %>">
-                                                                                <button
-                                                                                    class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
-                                                                                    type="button"
-                                                                                    data-bs-toggle="collapse"
-                                                                                    data-bs-target="#user-order-<%= order.id %>"
-                                                                                    aria-expanded="<%= index === 0 ? 'true' : 'false' %>"
-                                                                                    aria-controls="user-order-<%= order.id %>">
-                                                                                    <div
-                                                                                        class="w-100 d-flex flex-column flex-md-row justify-content-between gap-2">
-                                                                                        <div>
-                                                                                            <span
-                                                                                                class="fw-semibold">Order
-                                                                                                #<%= order.id %></span>
-                                                                                            <span
-                                                                                                class="text-muted small ms-2">
-                                                                                                <%= new
-                                                                                                    Date(order.created_at).toLocaleString()
-                                                                                                    %>
-                                                                                            </span>
-                                                                                        </div>
-                                                                                        <div
-                                                                                            class="d-flex flex-wrap gap-2">
-                                                                                            <span
-                                                                                                class="badge bg-primary-subtle text-primary text-uppercase">Status:
-                                                                                                <%= order.status %>
-                                                                                            </span>
-                                                                                            <span
-                                                                                                class="badge bg-dark-subtle text-dark">Total:
-                                                                                                $<%= Number(order.total).toFixed(2)
-                                                                                                    %></span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </button>
-                                                                            </h2>
-                                                                            <div id="user-order-<%= order.id %>"
-                                                                                class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
-                                                                                aria-labelledby="user-order-heading-<%= order.id %>"
-                                                                                data-bs-parent="#user-orders">
-                                                                                <div class="accordion-body">
-                                                                                    <% const items=orderItems[order.id]
-                                                                                        || []; %>
-                                                                                        <% if (items.length) { %>
-                                                                                            <div
-                                                                                                class="table-responsive">
-                                                                                                <table
-                                                                                                    class="table align-middle mb-0">
-                                                                                                    <thead>
-                                                                                                        <tr>
-                                                                                                            <th>Product
-                                                                                                            </th>
-                                                                                                            <th
-                                                                                                                class="text-center">
-                                                                                                                Qty</th>
-                                                                                                            <th
-                                                                                                                class="text-end">
-                                                                                                                Price
-                                                                                                            </th>
-                                                                                                        </tr>
-                                                                                                    </thead>
-                                                                                                    <tbody>
-                                                                                                        <% items.forEach(function(item)
-                                                                                                            { %>
-                                                                                                            <tr>
-                                                                                                                <td>
-                                                                                                                    <%= item.productName
-                                                                                                                        %>
-                                                                                                                </td>
-                                                                                                                <td
-                                                                                                                    class="text-center">
-                                                                                                                    <%= item.quantity
-                                                                                                                        %>
-                                                                                                                </td>
-                                                                                                                <td
-                                                                                                                    class="text-end">
-                                                                                                                    $<%= Number(item.price).toFixed(2)
-                                                                                                                        %>
-                                                                                                                </td>
-                                                                                                            </tr>
-                                                                                                            <% }); %>
-                                                                                                    </tbody>
-                                                                                                </table>
-                                                                                            </div>
-                                                                                            <% } else { %>
-                                                                                                <p
-                                                                                                    class="text-muted mb-0">
-                                                                                                    No items recorded
-                                                                                                    for this order.</p>
-                                                                                                <% } %>
-
-                                                                                                    <div
-                                                                                                        class="d-flex flex-wrap gap-2 mt-3">
-                                                                                                        <a href="/order/<%= order.id %>"
-                                                                                                            class="btn btn-outline-secondary btn-sm">View
-                                                                                                            details</a>
-                                                                                                        <a href="/orders/<%= order.id %>/invoice"
-                                                                                                            class="btn btn-outline-secondary btn-sm"
-                                                                                                            target="_blank"
-                                                                                                            rel="noopener">Invoice</a>
-                                                                                                        <a href="/order/<%= order.id %>/track"
-                                                                                                            class="btn btn-outline-primary btn-sm">Track</a>
-                                                                                                        <% if (user && user.role === 'customer') { %>
-                                                                                                            <a href="/refunds/request/<%= order.id %>"
-                                                                                                                class="btn btn-outline-warning btn-sm">Request
-                                                                                                                refund</a>
-                                                                                                            <button type="button"
-                                                                                                                class="btn btn-outline-secondary btn-sm"
-                                                                                                                data-bs-toggle="tab"
-                                                                                                                data-bs-target="#panel-refunds">View
-                                                                                                                refund requests</button>
-                                                                                                            <% } %>
-                                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <% }); %>
+                                                    <div class="tab-pane fade <%= isTab('orders') ? 'show active' : '' %>" id="panel-purchase-history"
+                                                        role="tabpanel" aria-labelledby="tab-purchase-history"
+                                                        style="<%= isTab('orders') ? '' : 'display:none;' %>">
+                                                        <div class="account-card">
+                                                            <div class="account-card__header">
+                                                                <div>
+                                                                    <h4 class="mb-1">Purchase History</h4>
+                                                                    <p class="text-muted mb-0">Review your past orders, delivery status, and invoices.</p>
                                                                 </div>
-                                                                <% } %>
-                                                    </div>
-
-                                                    <div class="tab-pane fade" id="panel-refunds" role="tabpanel"
-                                                        aria-labelledby="tab-refunds">
-                                                        <h4 class="mb-3">Refund requests</h4>
-                                                        <p class="text-muted">Track refund requests and view details.
-                                                            Start a refund from the Purchase History tab.</p>
-
-                                                        <% const paymentLabel = (method) => {
-                                                            const value = (method || '').toString().toLowerCase();
-                                                            if (value === 'paypal') return 'PayPal';
-                                                            if (value === 'card') return 'Card';
-                                                            return method ? method.toUpperCase() : 'Unknown';
-                                                        }; %>
-
-                                                        <% if (!refundRequests || refundRequests.length === 0) { %>
-                                                            <div class="alert alert-info mb-0">No refund requests yet.
                                                             </div>
-                                                            <% } else { %>
-                                                                <div class="table-responsive">
-                                                                    <table class="table align-middle mb-0">
-                                                                        <thead>
-                                                                            <tr>
-                                                                                <th>Request ID</th>
-                                                                                <th>Order</th>
-                                                                                <th>Payment</th>
-                                                                                <th>Requested Amount</th>
-                                                                                <th>Status</th>
-                                                                                <th>Submitted</th>
-                                                                                <th></th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody>
-                                                                            <% refundRequests.forEach(function(request) { %>
-                                                                                <tr>
-                                                                                    <td class="fw-semibold">#<%= request.id %></td>
-                                                                                    <td>Order #<%= request.orderId %></td>
-                                                                                    <td>
-                                                                                        <span
-                                                                                            class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span>
-                                                                                    </td>
-                                                                                    <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
-                                                                                    <td>
-                                                                                        <span
-                                                                                            class="badge bg-light text-dark border"><%= request.status || 'UNKNOWN' %></span>
-                                                                                    </td>
-                                                                                    <td><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></td>
-                                                                                    <td>
-                                                                                        <a href="/refunds/<%= request.id %>"
-                                                                                            class="btn btn-sm btn-outline-primary">View</a>
-                                                                                    </td>
-                                                                                </tr>
-                                                                                <% }); %>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
-                                                                <% } %>
-                                                    </div>
 
-                                                    <div class="tab-pane fade" id="panel-reviews" role="tabpanel"
-                                                        aria-labelledby="tab-reviews">
-                                                        <h4 class="mb-3">My Reviews</h4>
-                                                        <p class="text-muted">See all the feedback you've shared so
-                                                            far.</p>
-
-                                                        <% if (!userReviews || userReviews.length === 0) { %>
-                                                            <div class="alert alert-info mb-0">You have not submitted
-                                                                any reviews yet.</div>
-                                                            <% } else { %>
-                                                                <div class="review-list">
-                                                                    <% userReviews.forEach(function(review) { %>
-                                                                        <div class="review-item">
-                                                                            <div
-                                                                                class="d-flex flex-column flex-md-row justify-content-between gap-2">
-                                                                                <div>
-                                                                                    <strong>
-                                                                                        <% if (review.productId) { %>
-                                                                                            <a href="/product/<%= review.productId %>"
-                                                                                                class="text-decoration-none text-dark"><%= review.productName %></a>
-                                                                                            <% } else { %>
-                                                                                                <%= review.productName %>
-                                                                                                    <% } %>
-                                                                                    </strong>
-                                                                                    <div class="small text-muted">
-                                                                                        <% if (review.orderId) { %>
-                                                                                            Order #<%= review.orderId %> -
-                                                                                            <% } %>
-                                                                                                <%= review.createdAt ? new Date(review.createdAt).toLocaleString() : '-' %>
-                                                                                    </div>
-                                                                                    <% if (review.size || review.color) { %>
-                                                                                        <div class="small text-muted">
-                                                                                            Variant: <%= review.size || 'Standard' %>
-                                                                                            <%= review.color ? ('/ ' + review.color) : '' %>
+                                                            <% if (!orders || !orders.length) { %>
+                                                                <div class="alert alert-info mb-0">No orders yet.</div>
+                                                                <% } else { %>
+                                                                    <div class="accordion" id="user-orders">
+                                                                        <% orders.forEach(function(order, index) { %>
+                                                                            <div class="accordion-item">
+                                                                                <h2 class="accordion-header"
+                                                                                    id="user-order-heading-<%= order.id %>">
+                                                                                    <button
+                                                                                        class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
+                                                                                        type="button"
+                                                                                        data-bs-toggle="collapse"
+                                                                                        data-bs-target="#user-order-<%= order.id %>"
+                                                                                        aria-expanded="<%= index === 0 ? 'true' : 'false' %>"
+                                                                                        aria-controls="user-order-<%= order.id %>">
+                                                                                        <div
+                                                                                            class="w-100 d-flex flex-column flex-md-row justify-content-between gap-2">
+                                                                                            <div>
+                                                                                                <span
+                                                                                                    class="fw-semibold">Order
+                                                                                                    #<%= order.id %></span>
+                                                                                                <span
+                                                                                                    class="text-muted small ms-2">
+                                                                                                    <%= new
+                                                                                                        Date(order.created_at).toLocaleString()
+                                                                                                        %>
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <div
+                                                                                                class="d-flex flex-wrap gap-2">
+                                                                                                <span
+                                                                                                    class="badge bg-primary-subtle text-primary text-uppercase">Status:
+                                                                                                    <%= order.status %>
+                                                                                                </span>
+                                                                                                <% const paymentStatusRaw = order.payment_status ? String(order.payment_status).toLowerCase() : 'pending'; %>
+                                                                                                <% const paymentLabel = paymentStatusRaw ? paymentStatusRaw.charAt(0).toUpperCase() + paymentStatusRaw.slice(1) : 'Pending'; %>
+                                                                                                <% const paymentClasses = { paid: 'bg-success-subtle text-success', pending: 'bg-warning-subtle text-warning', failed: 'bg-danger-subtle text-danger', refunded: 'bg-info-subtle text-info' }; %>
+                                                                                                <span class="badge <%= paymentClasses[paymentStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Payment: <%= paymentLabel %></span>
+                                                                                                <% const refundStatusRaw = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
+                                                                                                <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
+                                                                                                <% const refundClasses = { pending: 'bg-warning-subtle text-warning', approved: 'bg-info-subtle text-info', completed: 'bg-success-subtle text-success', rejected: 'bg-danger-subtle text-danger', failed: 'bg-danger-subtle text-danger' }; %>
+                                                                                                <% if (refundStatusRaw) { %>
+                                                                                                    <span class="badge <%= refundClasses[refundStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Refund: <%= refundLabel %></span>
+                                                                                                <% } %>
+                                                                                                <span
+                                                                                                    class="badge bg-dark-subtle text-dark">Total:
+                                                                                                    $<%= Number(order.total).toFixed(2)
+                                                                                                        %></span>
+                                                                                            </div>
                                                                                         </div>
-                                                                                        <% } %>
-                                                                                </div>
-                                                                                <div class="review-stars"
-                                                                                    aria-label="Rating">
-                                                                                    <% for (let i=1; i<=5; i++) { %>
-                                                                                        <span
-                                                                                            class="star <%= i <= Number(review.rating || 0) ? 'filled' : '' %>">&#9733;</span>
-                                                                                        <% } %>
+                                                                                    </button>
+                                                                                </h2>
+                                                                                <div id="user-order-<%= order.id %>"
+                                                                                    class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
+                                                                                    aria-labelledby="user-order-heading-<%= order.id %>"
+                                                                                    data-bs-parent="#user-orders">
+                                                                                    <div class="accordion-body">
+                                                                                        <% const items=orderItems[order.id]
+                                                                                            || []; %>
+                                                                                            <% if (items.length) { %>
+                                                                                                <div
+                                                                                                    class="table-responsive">
+                                                                                                    <table
+                                                                                                        class="table align-middle mb-0">
+                                                                                                        <thead>
+                                                                                                            <tr>
+                                                                                                                <th>Product
+                                                                                                                </th>
+                                                                                                                <th
+                                                                                                                    class="text-center">
+                                                                                                                    Qty</th>
+                                                                                                                <th
+                                                                                                                    class="text-end">
+                                                                                                                    Price
+                                                                                                                </th>
+                                                                                                            </tr>
+                                                                                                        </thead>
+                                                                                                        <tbody>
+                                                                                                            <% items.forEach(function(item)
+                                                                                                                { %>
+                                                                                                                <tr>
+                                                                                                                    <td>
+                                                                                                                        <%= item.productName
+                                                                                                                            %>
+                                                                                                                    </td>
+                                                                                                                    <td
+                                                                                                                        class="text-center">
+                                                                                                                        <%= item.quantity
+                                                                                                                            %>
+                                                                                                                    </td>
+                                                                                                                    <td
+                                                                                                                        class="text-end">
+                                                                                                                        $<%= Number(item.price).toFixed(2)
+                                                                                                                            %>
+                                                                                                                    </td>
+                                                                                                                </tr>
+                                                                                                                <% }); %>
+                                                                                                        </tbody>
+                                                                                                    </table>
+                                                                                                </div>
+                                                                                                <% } else { %>
+                                                                                                    <p
+                                                                                                        class="text-muted mb-0">
+                                                                                                        No items recorded
+                                                                                                        for this order.</p>
+                                                                                                    <% } %>
+
+                                                                                                        <div
+                                                                                                            class="d-flex flex-wrap gap-2 mt-3">
+                                                                                                            <a href="/order/<%= order.id %>"
+                                                                                                                class="btn btn-outline-secondary btn-sm">View
+                                                                                                                details</a>
+                                                                                                            <a href="/orders/<%= order.id %>/invoice"
+                                                                                                                class="btn btn-outline-secondary btn-sm"
+                                                                                                                target="_blank"
+                                                                                                                rel="noopener">Invoice</a>
+                                                                                                            <a href="/order/<%= order.id %>/track"
+                                                                                                                class="btn btn-outline-primary btn-sm">Track</a>
+                                                                                                            <% const orderStatusKey = String(order.status || '').toLowerCase(); %>
+                                                                                                            <% const paymentStatusKey = String(order.payment_status || '').toLowerCase(); %>
+                                                                                                            <% const createdAt = order.created_at ? new Date(order.created_at) : null; %>
+                                                                                                            <% const withinWindow = createdAt && !Number.isNaN(createdAt.getTime()) ? (Date.now() - createdAt.getTime()) <= ((refundWindowDays || 14) * 24 * 60 * 60 * 1000) : true; %>
+                                                                                                            <% const statusEligible = ['delivered', 'completed'].includes(orderStatusKey); %>
+                                                                                                            <% const refundEligible = paymentStatusKey === 'paid' && statusEligible && withinWindow; %>
+                                                                                                            <% const refundStatusKey = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
+                                                                                                            <% const hasOpenRefund = ['pending', 'approved', 'processing'].includes(refundStatusKey); %>
+                                                                                                            <% const hasRefundRequest = Boolean(order.refund_request_id); %>
+                                                                                                            <% const isFullyRefunded = orderStatusKey === 'refunded' || paymentStatusKey === 'refunded'; %>
+                                                                                                            <% if (user && user.role === 'customer') { %>
+                                                                                                                <% if (refundEligible && !hasOpenRefund && !isFullyRefunded) { %>
+                                                                                                                    <a href="/refunds/request/<%= order.id %>"
+                                                                                                                        class="btn btn-outline-warning btn-sm">Request
+                                                                                                                        refund</a>
+                                                                                                                <% } %>
+                                                                                                                <% if (hasRefundRequest) { %>
+                                                                                                                    <a href="/refunds/<%= order.refund_request_id %>"
+                                                                                                                        class="btn btn-outline-secondary btn-sm">View
+                                                                                                                        refund request</a>
+                                                                                                                <% } else { %>
+                                                                                                                    <a href="/user?tab=returns"
+                                                                                                                        class="btn btn-outline-secondary btn-sm">View
+                                                                                                                        refund requests</a>
+                                                                                                                <% } %>
+                                                                                                                <% } %>
+                                                                                                        </div>
+                                                                                                        <% if (!refundEligible && !isFullyRefunded) { %>
+                                                                                                            <div class="small text-muted mt-2">Refunds are available within <%= refundWindowDays || 14 %> days for paid, delivered orders.</div>
+                                                                                                        <% } %>
+                                                                                    </div>
                                                                                 </div>
                                                                             </div>
-                                                                            <p class="small text-muted mt-2 mb-0">
-                                                                                <%= review.comment || 'No comments provided.' %>
-                                                                            </p>
-                                                                            <% if (review.orderId) { %>
-                                                                                <div class="mt-2">
-                                                                                    <a href="/order/<%= review.orderId %>/review"
-                                                                                        class="btn btn-sm btn-outline-secondary">Edit
-                                                                                        review</a>
-                                                                                </div>
-                                                                                <% } %>
-                                                                        </div>
-                                                                        <% }); %>
-                                                                </div>
-                                                                <% } %>
+                                                                            <% }); %>
+                                                                    </div>
+                                                                    <% } %>
+                                                        </div>
                                                     </div>
 
-                                                </div>
+                                                    <div class="tab-pane fade <%= isTab('returns') ? 'show active' : '' %>" id="panel-refunds" role="tabpanel"
+                                                        aria-labelledby="tab-refunds"
+                                                        style="<%= isTab('returns') ? '' : 'display:none;' %>">
+                                                        <div class="account-card">
+                                                            <div class="account-card__header">
+                                                                <div>
+                                                                    <h4 class="mb-1">Refund requests</h4>
+                                                                    <p class="text-muted mb-0">Track refund requests and view details. Start a refund from the Purchase History tab.</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <% const paymentLabel = (method) => {
+                                                                const value = (method || '').toString().toLowerCase();
+                                                                if (value === 'paypal') return 'PayPal';
+                                                                if (value === 'stripe') return 'Stripe';
+                                                                if (value === 'netsqr') return 'NETS QR';
+                                                                return method ? method.toUpperCase() : 'Unknown';
+                                                            }; %>
+
+                                                            <% if (!refundRequests || refundRequests.length === 0) { %>
+                                                                <div class="alert alert-info mb-0">No refund requests yet.</div>
+                                                                <% } else { %>
+                                                                    <div class="table-responsive">
+                                                                        <table class="table align-middle mb-0">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Request ID</th>
+                                                                                    <th>Order</th>
+                                                                                    <th>Payment</th>
+                                                                                    <th>Requested Amount</th>
+                                                                                    <th>Approved Amount</th>
+                                                                                    <th>Status</th>
+                                                                                    <th>Submitted</th>
+                                                                                    <th></th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <% refundRequests.forEach(function(request) { %>
+                                                                                    <tr>
+                                                                                        <td class="fw-semibold">#<%= request.id %></td>
+                                                                                        <td>Order #<%= request.orderId %></td>
+                                                                                        <td>
+                                                                                            <span
+                                                                                                class="badge bg-light text-dark border"><%= paymentLabel(request.paymentMethod) %></span>
+                                                                                        </td>
+                                                                                        <td>$<%= Number(request.requestedAmount || 0).toFixed(2) %></td>
+                                                                                        <td>
+                                                                                            <%= request.approvedAmount ? '$' + Number(request.approvedAmount || 0).toFixed(2) : '-' %>
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <span
+                                                                                                class="badge bg-light text-dark border"><%= (request.status || 'UNKNOWN').toUpperCase() %></span>
+                                                                                            <% const statusKey = (request.status || '').toLowerCase(); %>
+                                                                                            <% if ((statusKey === 'rejected' || statusKey === 'failed') && request.adminNote) { %>
+                                                                                                <div class="small text-muted mt-1"><%= request.adminNote %></div>
+                                                                                            <% } %>
+                                                                                        </td>
+                                                                                        <td><%= request.createdAt ? new Date(request.createdAt).toLocaleString() : '-' %></td>
+                                                                                        <td>
+                                                                                            <a href="/refunds/<%= request.id %>"
+                                                                                                class="btn btn-sm btn-outline-primary">View</a>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                    <% }); %>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                    <% } %>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="tab-pane fade <%= isTab('reviews') ? 'show active' : '' %>" id="panel-reviews" role="tabpanel"
+                                                        aria-labelledby="tab-reviews"
+                                                        style="<%= isTab('reviews') ? '' : 'display:none;' %>">
+                                                        <div class="account-card">
+                                                            <div class="account-card__header">
+                                                                <div>
+                                                                    <h4 class="mb-1">My Reviews</h4>
+                                                                    <p class="text-muted mb-0">See all the feedback you've shared so far.</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <% if (!userReviews || userReviews.length === 0) { %>
+                                                                <div class="alert alert-info mb-0">You have not submitted any reviews yet.</div>
+                                                                <% } else { %>
+                                                                    <div class="review-list">
+                                                                        <% userReviews.forEach(function(review) { %>
+                                                                            <div class="review-item">
+                                                                                <div
+                                                                                    class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                                                                                    <div>
+                                                                                        <strong>
+                                                                                            <% if (review.productId) { %>
+                                                                                                <a href="/product/<%= review.productId %>"
+                                                                                                    class="text-decoration-none text-dark"><%= review.productName %></a>
+                                                                                                <% } else { %>
+                                                                                                    <%= review.productName %>
+                                                                                                        <% } %>
+                                                                                        </strong>
+                                                                                        <div class="small text-muted">
+                                                                                            <% if (review.orderId) { %>
+                                                                                                Order #<%= review.orderId %> -
+                                                                                                <% } %>
+                                                                                                    <%= review.createdAt ? new Date(review.createdAt).toLocaleString() : '-' %>
+                                                                                        </div>
+                                                                                        <% if (review.size || review.color) { %>
+                                                                                            <div class="small text-muted">
+                                                                                                Variant: <%= review.size || 'Standard' %>
+                                                                                                <%= review.color ? ('/ ' + review.color) : '' %>
+                                                                                            </div>
+                                                                                            <% } %>
+                                                                                    </div>
+                                                                                    <div class="review-stars"
+                                                                                        aria-label="Rating">
+                                                                                        <% for (let i=1; i<=5; i++) { %>
+                                                                                            <span
+                                                                                                class="star <%= i <= Number(review.rating || 0) ? 'filled' : '' %>">&#9733;</span>
+                                                                                            <% } %>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <p class="small text-muted mt-2 mb-0">
+                                                                                    <%= review.comment || 'No comments provided.' %>
+                                                                                </p>
+                                                                                <% if (review.orderId) { %>
+                                                                                    <div class="mt-2">
+                                                                                        <a href="/order/<%= review.orderId %>/review"
+                                                                                            class="btn btn-sm btn-outline-secondary">Edit
+                                                                                            review</a>
+                                                                                    </div>
+                                                                                    <% } %>
+                                                                            </div>
+                                                                            <% }); %>
+                                                                    </div>
+                                                                    <% } %>
+                                                        </div>
+                                                    </div>
+                                                </section>
+                                            </div>
+                                        </div>
             </div>
         </main>
 
         <%- include('partials/footer') %>
+

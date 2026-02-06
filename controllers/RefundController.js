@@ -1,7 +1,11 @@
+const db = require('../db');
 const Order = require('../models/order');
 const refundRequestModel = require('../models/refundRequest');
 const refundRequestItemModel = require('../models/refundRequestItem');
 const refundModel = require('../models/refund');
+
+const REFUND_WINDOW_DAYS = 14;
+const ELIGIBLE_ORDER_STATUSES = new Set(['delivered', 'completed']);
 
 const renderView = (res, name, data = {}) => res.render(name, { ...data, user: res.locals.user || res.req.session.user });
 
@@ -18,40 +22,62 @@ const buildItemMap = (items = []) => {
     }, {});
 };
 
-const parseSelectedItems = (rawItems = {}, orderItems = []) => {
-    const itemMap = buildItemMap(orderItems);
-    const selections = [];
+const buildRefundEligibility = (order) => {
+    const paymentStatus = String(order.payment_status || '').toLowerCase();
+    const orderStatus = String(order.status || '').toLowerCase();
+    const paid = paymentStatus === 'paid';
+    const statusEligible = ELIGIBLE_ORDER_STATUSES.has(orderStatus);
+    let withinWindow = true;
+    let daysSince = null;
 
-    Object.keys(rawItems || {}).forEach((key) => {
-        const orderItemId = Number(key);
-        const requestedQty = Number(rawItems[key]);
-        const item = itemMap[orderItemId];
-        if (!item || !Number.isFinite(requestedQty) || requestedQty <= 0) {
-            return;
-        }
+    const createdAt = order && order.created_at ? new Date(order.created_at) : null;
+    if (createdAt && !Number.isNaN(createdAt.getTime())) {
+        const diffMs = Date.now() - createdAt.getTime();
+        daysSince = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        withinWindow = diffMs <= (REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    }
 
-        const maxQty = Number(item.quantity) || 0;
-        const finalQty = Math.min(requestedQty, maxQty);
-        if (finalQty <= 0) {
-            return;
-        }
-
-        selections.push({
-            orderItemId,
-            productId: item.product_id,
-            variantId: item.product_variant_id,
-            quantity: finalQty,
-            unitPrice: Number(item.price) || 0
-        });
-    });
-
-    return selections;
+    const eligible = paid && statusEligible && withinWindow;
+    return {
+        eligible,
+        paid,
+        statusEligible,
+        withinWindow,
+        daysSince
+    };
 };
 
-const sumSelectionAmount = (selections = []) => {
-    return selections.reduce((sum, item) => {
-        return sum + (Number(item.unitPrice) * Number(item.quantity));
-    }, 0);
+// Prorate order-level discounts across items so refunds return only the amount actually paid.
+const buildRefundPricing = (order, orderItems = []) => {
+    const discountAmount = Math.max(0, Number(order.discount_amount || 0));
+    const deliveryFee = Math.max(0, Number(order.shipping_amount || order.delivery_fee || 0));
+    const lineTotals = orderItems.map((item) => {
+        const qty = Number(item.quantity || 0);
+        const unit = Number(item.price || item.unit_price || 0);
+        return Math.max(0, unit * qty);
+    });
+    const subtotal = lineTotals.reduce((sum, value) => sum + value, 0);
+    const discountPool = subtotal > 0 ? Math.min(discountAmount, subtotal) : 0;
+
+    const pricingByItem = {};
+    orderItems.forEach((item, index) => {
+        const lineTotal = lineTotals[index] || 0;
+        const qty = Number(item.quantity || 0) || 0;
+        const share = subtotal > 0 ? (lineTotal / subtotal) : 0;
+        const lineDiscount = Number((discountPool * share).toFixed(2));
+        const netLineTotal = Math.max(0, lineTotal - lineDiscount);
+        const netUnitPrice = qty > 0 ? Number((netLineTotal / qty).toFixed(2)) : 0;
+        pricingByItem[item.id] = {
+            netUnitPrice,
+            lineDiscount
+        };
+    });
+
+    return {
+        pricingByItem,
+        discountAmount: discountPool,
+        deliveryFee
+    };
 };
 
 const extractItemsPayload = (body = {}) => {
@@ -107,7 +133,7 @@ module.exports = {
                 return res.redirect('/orders/history');
             }
 
-            refundRequestModel.getPendingByOrder(orderId, userId, (pendingErr, pending) => {
+            refundRequestModel.getOpenByOrder(orderId, userId, (pendingErr, pending) => {
                 if (pendingErr) {
                     console.error('Error checking pending refunds:', pendingErr);
                     req.flash('error', 'Unable to load refund request.');
@@ -120,9 +146,11 @@ module.exports = {
                 }
 
                 const remaining = getRemainingAmount(order);
+                const eligibility = buildRefundEligibility(order);
+
                 if (remaining <= 0) {
-                    req.flash('error', 'No refundable balance remaining.');
-                    return res.redirect('/orders/history');
+                    eligibility.eligible = false;
+                    eligibility.reason = 'No refundable balance remaining.';
                 }
 
                 Order.findItemsByOrderIds([orderId], (itemsErr, orderItems = []) => {
@@ -132,12 +160,38 @@ module.exports = {
                         return res.redirect('/orders/history');
                     }
 
-                    return renderView(res, 'refundRequest', {
-                        order,
-                        remaining,
-                        orderItems,
-                        messages: req.flash('success'),
-                        errors: req.flash('error')
+                    refundRequestItemModel.getRefundedQuantitiesByOrder(orderId, (qtyErr, qtyRows = []) => {
+                        if (qtyErr) {
+                            console.error('Error loading refunded quantities:', qtyErr);
+                        }
+
+                        const refundedQtyByItem = (qtyRows || []).reduce((acc, row) => {
+                            acc[row.orderItemId] = Number(row.refundedQty || 0);
+                            return acc;
+                        }, {});
+
+                        const pricing = buildRefundPricing(order, orderItems);
+                        const enhancedItems = (orderItems || []).map((item) => {
+                            const purchasedQty = Number(item.quantity || 0);
+                            const refundedQty = Number(refundedQtyByItem[item.id] || 0);
+                            const refundableQty = Math.max(0, purchasedQty - refundedQty);
+                            const priceMeta = pricing.pricingByItem[item.id] || {};
+                            return {
+                                ...item,
+                                refundableQty,
+                                refundableUnitPrice: Number(priceMeta.netUnitPrice || 0)
+                            };
+                        });
+
+                        return renderView(res, 'refundRequest', {
+                            order,
+                            remaining,
+                            eligibility,
+                            refundWindowDays: REFUND_WINDOW_DAYS,
+                            orderItems: enhancedItems,
+                            messages: req.flash('success'),
+                            errors: req.flash('error')
+                        });
                     });
                 });
             });
@@ -147,13 +201,16 @@ module.exports = {
     submitRequest(req, res) {
         const userId = req.session.user.id;
         const orderId = Number(req.params.orderId);
-        const requestedAmount = Number(req.body.amount);
-        const reason = req.body.reason;
+        const reason = req.body.reason ? String(req.body.reason).trim() : '';
         const selectedItemsRaw = extractItemsPayload(req.body || {});
 
         if (!Number.isFinite(orderId)) {
             req.flash('error', 'Invalid order selected.');
             return res.redirect('/orders/history');
+        }
+        if (!reason) {
+            req.flash('error', 'Please provide a reason for your refund request.');
+            return res.redirect(`/refunds/request/${orderId}`);
         }
 
         Order.findByIdForUser(orderId, userId, (err, order) => {
@@ -168,6 +225,15 @@ module.exports = {
             }
 
             const remaining = getRemainingAmount(order);
+            const eligibility = buildRefundEligibility(order);
+            if (!eligibility.eligible) {
+                req.flash('error', 'This order is not eligible for a refund.');
+                return res.redirect('/orders/history');
+            }
+            if (remaining <= 0) {
+                req.flash('error', 'No refundable balance remaining.');
+                return res.redirect('/orders/history');
+            }
 
             Order.findItemsByOrderIds([orderId], (itemsErr, orderItems = []) => {
                 if (itemsErr) {
@@ -176,66 +242,152 @@ module.exports = {
                     return res.redirect(`/refunds/request/${orderId}`);
                 }
 
-                const selections = parseSelectedItems(selectedItemsRaw, orderItems);
-                if (!selections.length) {
-                    req.flash('error', 'Select at least one item to refund.');
-                    return res.redirect(`/refunds/request/${orderId}`);
-                }
-
-                const deliveryFee = Number(order.delivery_fee || 0);
-                const maxSelectableAmount = Number((sumSelectionAmount(selections) + deliveryFee).toFixed(2));
-                if (maxSelectableAmount <= 0) {
-                    req.flash('error', 'Invalid refund selection.');
-                    return res.redirect(`/refunds/request/${orderId}`);
-                }
-
-                if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
-                    req.flash('error', 'Refund amount must be greater than 0.');
-                    return res.redirect(`/refunds/request/${orderId}`);
-                }
-                if (requestedAmount > remaining) {
-                    req.flash('error', 'Refund amount exceeds remaining balance.');
-                    return res.redirect(`/refunds/request/${orderId}`);
-                }
-                if (requestedAmount > maxSelectableAmount) {
-                    req.flash('error', 'Refund amount exceeds selected items total.');
-                    return res.redirect(`/refunds/request/${orderId}`);
-                }
-
-                refundRequestModel.getPendingByOrder(orderId, userId, (pendingErr, pending) => {
-                    if (pendingErr) {
-                        console.error('Error checking pending refunds:', pendingErr);
+                refundRequestItemModel.getRefundedQuantitiesByOrder(orderId, (qtyErr, qtyRows = []) => {
+                    if (qtyErr) {
+                        console.error('Error loading refunded quantities:', qtyErr);
                         req.flash('error', 'Unable to submit refund request.');
                         return res.redirect(`/refunds/request/${orderId}`);
                     }
 
-                    if (pending) {
-                        req.flash('error', 'You already have a pending refund request for this order.');
-                        return res.redirect('/refunds');
-                    }
-
-                    refundRequestModel.create(orderId, userId, requestedAmount, reason, (createErr, result) => {
-                        if (createErr) {
-                            console.error('Error creating refund request:', createErr);
+                    refundRequestModel.getOpenByOrder(orderId, userId, (pendingErr, pending) => {
+                        if (pendingErr) {
+                            console.error('Error checking pending refunds:', pendingErr);
                             req.flash('error', 'Unable to submit refund request.');
                             return res.redirect(`/refunds/request/${orderId}`);
                         }
 
-                        const requestId = result && result.insertId;
-                        if (!requestId) {
-                            req.flash('error', 'Unable to submit refund request.');
-                            return res.redirect(`/refunds/request/${orderId}`);
+                        if (pending) {
+                            req.flash('error', 'You already have a pending refund request for this order.');
+                            return res.redirect('/refunds');
                         }
 
-                        refundRequestItemModel.createMany(requestId, selections, (itemErr) => {
-                            if (itemErr) {
-                                console.error('Error saving refund items:', itemErr);
-                                req.flash('error', 'Refund submitted, but failed to save item details.');
-                                return res.redirect('/refunds');
+                        const refundedQtyByItem = (qtyRows || []).reduce((acc, row) => {
+                            acc[row.orderItemId] = Number(row.refundedQty || 0);
+                            return acc;
+                        }, {});
+
+                        const pricing = buildRefundPricing(order, orderItems);
+                        const itemMap = buildItemMap(orderItems);
+                        const selections = [];
+                        const selectedQtyByItem = {};
+
+                        Object.keys(selectedItemsRaw || {}).forEach((key) => {
+                            const orderItemId = Number(key);
+                            const requestedQty = Number(selectedItemsRaw[key]);
+                            const item = itemMap[orderItemId];
+                            if (!item || !Number.isFinite(requestedQty) || requestedQty <= 0) {
+                                return;
                             }
 
-                            req.flash('success', 'Refund request submitted.');
-                            return res.redirect('/refunds');
+                            const purchasedQty = Number(item.quantity || 0);
+                            const refundedQty = Number(refundedQtyByItem[orderItemId] || 0);
+                            const remainingQty = Math.max(0, purchasedQty - refundedQty);
+                            if (remainingQty <= 0) {
+                                return;
+                            }
+
+                            const finalQty = Math.min(requestedQty, remainingQty);
+                            if (finalQty <= 0) {
+                                return;
+                            }
+
+                            const priceMeta = pricing.pricingByItem[orderItemId] || {};
+                            const netUnitPrice = Number(priceMeta.netUnitPrice || 0);
+                            const lineRefund = Number((netUnitPrice * finalQty).toFixed(2));
+
+                            selections.push({
+                                orderItemId,
+                                productId: item.product_id,
+                                variantId: item.product_variant_id,
+                                quantity: finalQty,
+                                unitPrice: netUnitPrice,
+                                lineRefundAmount: lineRefund
+                            });
+                            selectedQtyByItem[orderItemId] = finalQty;
+                        });
+
+                        if (!selections.length) {
+                            req.flash('error', 'Select at least one item to refund.');
+                            return res.redirect(`/refunds/request/${orderId}`);
+                        }
+
+                        const allRemainingSelected = (orderItems || []).every((item) => {
+                            const purchasedQty = Number(item.quantity || 0);
+                            const refundedQty = Number(refundedQtyByItem[item.id] || 0);
+                            const remainingQty = Math.max(0, purchasedQty - refundedQty);
+                            if (remainingQty <= 0) {
+                                return true;
+                            }
+                            return Number(selectedQtyByItem[item.id] || 0) === remainingQty;
+                        });
+
+                        let requestedAmount = selections.reduce((sum, item) => sum + Number(item.lineRefundAmount || 0), 0);
+                        // Delivery fee is refunded only when all remaining items are being returned.
+                        if (allRemainingSelected) {
+                            const deliveryFee = Number(order.shipping_amount || order.delivery_fee || 0);
+                            if (Number.isFinite(deliveryFee) && deliveryFee > 0) {
+                                requestedAmount += deliveryFee;
+                            }
+                        }
+
+                        requestedAmount = Number(requestedAmount.toFixed(2));
+                        if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+                            req.flash('error', 'Invalid refund selection.');
+                            return res.redirect(`/refunds/request/${orderId}`);
+                        }
+
+                        if (requestedAmount > remaining + 0.01) {
+                            req.flash('error', 'Refund amount exceeds remaining balance.');
+                            return res.redirect(`/refunds/request/${orderId}`);
+                        }
+
+                        db.beginTransaction((txErr) => {
+                            if (txErr) {
+                                console.error('Error starting refund transaction:', txErr);
+                                req.flash('error', 'Unable to submit refund request.');
+                                return res.redirect(`/refunds/request/${orderId}`);
+                            }
+
+                            refundRequestModel.create(orderId, userId, requestedAmount, order.payment_method, reason, (createErr, result) => {
+                                if (createErr) {
+                                    console.error('Error creating refund request:', createErr);
+                                    return db.rollback(() => {
+                                        req.flash('error', 'Unable to submit refund request.');
+                                        return res.redirect(`/refunds/request/${orderId}`);
+                                    });
+                                }
+
+                                const requestId = result && result.insertId;
+                                if (!requestId) {
+                                    return db.rollback(() => {
+                                        req.flash('error', 'Unable to submit refund request.');
+                                        return res.redirect(`/refunds/request/${orderId}`);
+                                    });
+                                }
+
+                                refundRequestItemModel.createMany(requestId, selections, (itemErr) => {
+                                    if (itemErr) {
+                                        console.error('Error saving refund items:', itemErr);
+                                        return db.rollback(() => {
+                                            req.flash('error', 'Refund submitted, but failed to save item details.');
+                                            return res.redirect('/refunds');
+                                        });
+                                    }
+
+                                    db.commit((commitErr) => {
+                                        if (commitErr) {
+                                            console.error('Error committing refund request:', commitErr);
+                                            return db.rollback(() => {
+                                                req.flash('error', 'Unable to submit refund request.');
+                                                return res.redirect(`/refunds/request/${orderId}`);
+                                            });
+                                        }
+
+                                        req.flash('success', 'Refund request submitted.');
+                                        return res.redirect('/refunds');
+                                    });
+                                });
+                            });
                         });
                     });
                 });
@@ -268,9 +420,9 @@ module.exports = {
                 }
 
                 const latestRefund = refunds && refunds.length ? refunds[0] : null;
-                const requestStatus = String(request.status || '').toUpperCase();
-                const refundStatus = latestRefund ? String(latestRefund.status || '').toUpperCase() : '';
-                const shouldMarkCompleted = latestRefund && refundStatus === 'COMPLETED' && requestStatus !== 'COMPLETED';
+                const requestStatus = String(request.status || '').toLowerCase();
+                const refundStatus = latestRefund ? String(latestRefund.status || '').toLowerCase() : '';
+                const shouldMarkCompleted = latestRefund && refundStatus === 'completed' && requestStatus !== 'completed';
 
                 const renderDetails = () => refundRequestItemModel.getByRequestId(requestId, (itemsErr, items = []) => {
                     if (itemsErr) {
@@ -292,11 +444,11 @@ module.exports = {
                     return renderDetails();
                 }
 
-                refundRequestModel.updateStatus(requestId, 'COMPLETED', null, (statusErr) => {
+                refundRequestModel.updateRequest(requestId, 'completed', null, request.approvedAmount || null, (statusErr) => {
                     if (statusErr) {
                         console.error('Error reconciling refund status:', statusErr);
                     } else {
-                        request.status = 'COMPLETED';
+                        request.status = 'completed';
                         request.adminNote = null;
                     }
                     return renderDetails();

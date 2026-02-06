@@ -1,6 +1,16 @@
 <footer class="footer mt-5">
     <div class="container">
-        <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
+        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+            <small>&copy; <%= new Date().getFullYear() %> Shirt Shop</small>
+            <span class="authenticity-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />
+                    <path d="M9 12l2 2 4-4" />
+                </svg>
+                100% Authenticity Guaranteed
+            </span>
+        </div>
     </div>
 </footer>
 <% if (typeof user !== 'undefined' && user && user.role === 'customer' && typeof showCouponPopup !== 'undefined' && showCouponPopup) { %>

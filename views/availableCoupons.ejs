@@ -29,24 +29,6 @@
         <% const ecoDays = Number(typeof ecoVoucherDays !== 'undefined' ? ecoVoucherDays : 30); %>
         <% const ecoBalance = Number(typeof loyaltyBalance !== 'undefined' ? loyaltyBalance : 0); %>
 
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-            <div>
-              <h4 class="mb-1">Redeem EcoPoints voucher</h4>
-              <p class="text-muted mb-1">Exchange <strong><%= ecoCost %> EcoPoints</strong> for a <strong><%= formatMoney(ecoValue) %></strong> voucher code.</p>
-              <small class="text-muted">Balance: <strong><%= ecoBalance %> EcoPoints</strong>. Voucher expires in <%= ecoDays %> days and can be used once.</small>
-            </div>
-            <form action="/user/ecopoints/redeem" method="POST">
-              <button type="submit" class="btn btn-success" <%= ecoBalance < ecoCost ? 'disabled' : '' %>>
-                Redeem <%= ecoCost %> pts
-              </button>
-            </form>
-          </div>
-          <div class="card-footer small text-muted">
-            Your voucher code will appear below in the Available Coupons list and can be used at checkout like any other coupon.
-          </div>
-        </div>
-
         <% if (!coupons || !coupons.length) { %>
           <div class="empty-state">
             <h3>No active coupons right now</h3>
@@ -110,6 +92,7 @@
             <% }); %>
           </div>
         <% } %>
+
       </div>
     </section>
 

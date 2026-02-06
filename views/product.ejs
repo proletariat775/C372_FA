@@ -435,6 +435,14 @@
               <% } %>
         </div>
         <div class="gst-note">GST included</div>
+        <div class="authenticity-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          100% Authenticity Guaranteed
+        </div>
 
         <% if (product.offerMessage) { %>
           <div class="promo-box">
@@ -690,7 +698,7 @@
                                 <%= item.productName || item.name %>
                               </a>
                             </h5>
-                            <p class="text-muted mb-3">Fresh picks in inclusive sizes.</p>
+                            <p class="text-muted mb-3">New arrivals in inclusive sizes.</p>
                             <div class="mt-auto">
                               <span class="fw-semibold">$<%= Number(item.effectivePrice || item.price || 0).toFixed(2)
                                   %></span>

@@ -181,6 +181,7 @@ const details = (req, res) => {
             }
 
             const eligibility = computeReturnEligibility(order);
+            const backLink = req.get('referer') || getRedirectPath(sessionUser);
             res.render('orderDetails', {
                 user: sessionUser,
                 order,
@@ -190,6 +191,7 @@ const details = (req, res) => {
                 returnEligibility: eligibility,
                 returnRequest: returnData,
                 returnTimeline: buildReturnTimeline(returnData),
+                backLink,
                 messages: req.flash('success'),
                 errors: req.flash('error')
             });

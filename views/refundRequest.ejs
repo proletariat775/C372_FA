@@ -26,10 +26,11 @@
     <% const paymentLabel = (method) => {
       const value = (method || '').toString().toLowerCase();
       if (value === 'paypal') return 'PayPal';
-      if (value === 'card') return 'Card';
+      if (value === 'stripe') return 'Stripe';
+      if (value === 'netsqr') return 'NETS QR';
       return method ? method.toUpperCase() : 'Unknown';
     }; %>
-    <% const deliveryFee = Number(order.delivery_fee || 0); %>
+    <% const deliveryFee = Number(order.shipping_amount || order.delivery_fee || 0); %>
 
     <div class="row g-4">
       <div class="col-lg-6">
@@ -41,6 +42,18 @@
               Refund eligibility: The maximum refundable amount is shown below. Refunds are usually approved for damaged
               or incorrect items. Please provide a clear reason.
             </div>
+            <% if (eligibility && !eligibility.eligible) { %>
+              <div class="alert alert-warning">
+                This order is not eligible for a refund.
+                <% if (!eligibility.paid) { %>
+                  Payment has not been completed.
+                <% } else if (!eligibility.statusEligible) { %>
+                  Only delivered or completed orders can be refunded.
+                <% } else if (!eligibility.withinWindow) { %>
+                  Refunds must be requested within <%= refundWindowDays %> days.
+                <% } %>
+              </div>
+            <% } %>
             <form action="/refunds/request/<%= order.id %>" method="POST">
               <div class="mb-3">
                 <label class="form-label">Select items to refund</label>
@@ -53,6 +66,7 @@
                         <tr>
                           <th>Item</th>
                           <th class="text-center">Qty bought</th>
+                          <th class="text-center">Refundable</th>
                           <th class="text-end">Unit price</th>
                           <th class="text-end">Refund qty</th>
                         </tr>
@@ -62,17 +76,19 @@
                           <tr>
                             <td><%= item.productName %></td>
                             <td class="text-center"><%= item.quantity %></td>
-                            <td class="text-end">$<%= Number(item.price).toFixed(2) %></td>
+                            <td class="text-center"><%= item.refundableQty %></td>
+                            <td class="text-end">$<%= Number(item.refundableUnitPrice || item.price).toFixed(2) %></td>
                             <td class="text-end">
                               <input
                                 type="number"
                                 class="form-control form-control-sm refund-item-input"
                                 name="items[<%= item.id %>]"
                                 min="0"
-                                max="<%= item.quantity %>"
+                                max="<%= item.refundableQty %>"
                                 step="1"
                                 value="0"
-                                data-unit-price="<%= Number(item.price).toFixed(2) %>">
+                                data-unit-price="<%= Number(item.refundableUnitPrice || item.price).toFixed(2) %>"
+                                <%= item.refundableQty === 0 ? 'disabled' : '' %>>
                             </td>
                           </tr>
                         <% }); %>
@@ -82,21 +98,11 @@
                 <% } %>
               </div>
               <div class="mb-3">
-                <label for="refund-amount" class="form-label">Requested amount (USD)</label>
-                <input
-                  type="number"
-                  id="refund-amount"
-                  name="amount"
-                  class="form-control"
-                  min="0.01"
-                  max="<%= remaining.toFixed(2) %>"
-                  step="0.01"
-                  required
-                  inputmode="decimal"
-                  data-delivery-fee="<%= deliveryFee.toFixed(2) %>">
-                <small class="text-muted">Maximum refundable: $<%= remaining.toFixed(2) %></small>
+                <label class="form-label">Estimated refund</label>
+                <div class="form-control-plaintext fw-semibold" id="refund-estimate">$0.00</div>
+                <small class="text-muted">Final refund amount is calculated on the server after discount proration.</small>
                 <% if (deliveryFee > 0) { %>
-                  <div class="small text-muted">Includes delivery fee of $<%= deliveryFee.toFixed(2) %>.</div>
+                  <div class="small text-muted">Delivery fee is refunded only for full-order refunds.</div>
                 <% } %>
               </div>
               <div class="mb-3">
@@ -108,7 +114,7 @@
                   class="form-control"
                   placeholder="Explain the reason for your refund request."></textarea>
               </div>
-              <button type="submit" class="btn btn-primary">Submit request</button>
+              <button type="submit" class="btn btn-primary" <%= eligibility && !eligibility.eligible ? 'disabled' : '' %>>Submit request</button>
             </form>
           </div>
         </div>
@@ -120,7 +126,7 @@
             <h5 class="card-title">Order summary</h5>
             <ul class="list-unstyled mb-0">
               <li class="d-flex justify-content-between">
-                <span>Total</span>
+                <span>Total paid</span>
                 <span>$<%= Number(order.total_amount || order.total || 0).toFixed(2) %></span>
               </li>
               <% if (deliveryFee > 0) { %>
@@ -151,49 +157,30 @@
 
 <script>
   (function () {
-    var amountInput = document.getElementById('refund-amount');
+    var estimateEl = document.getElementById('refund-estimate');
     var itemInputs = Array.prototype.slice.call(document.querySelectorAll('.refund-item-input'));
-    if (!amountInput) return;
+    if (!estimateEl) return;
 
-    var maxValue = parseFloat(amountInput.getAttribute('max') || '0');
-
-    var computeSelectionMax = function () {
-      if (!itemInputs.length) return { max: maxValue, hasSelection: false };
+    var updateEstimate = function () {
+      if (!itemInputs.length) {
+        estimateEl.textContent = '$0.00';
+        return;
+      }
       var sum = 0;
-      var hasSelection = false;
       itemInputs.forEach(function (input) {
         var qty = parseFloat(input.value || '0');
         var price = parseFloat(input.dataset.unitPrice || '0');
         if (Number.isFinite(qty) && Number.isFinite(price)) {
           sum += qty * price;
-          if (qty > 0) {
-            hasSelection = true;
-          }
         }
       });
-      var deliveryFee = parseFloat(amountInput.dataset.deliveryFee || '0');
-      if (Number.isFinite(deliveryFee) && deliveryFee > 0) {
-        sum += deliveryFee;
-      }
-      if (!hasSelection) {
-        return { max: maxValue, hasSelection: false };
-      }
-      return { max: Math.min(sum, maxValue), hasSelection: true };
+      estimateEl.textContent = '$' + sum.toFixed(2);
     };
 
-    var clampAmount = function () {
-      var current = parseFloat(amountInput.value);
-      var selection = computeSelectionMax();
-      if (!Number.isFinite(current)) return;
-      if (selection.hasSelection && current > selection.max) {
-        amountInput.value = selection.max.toFixed(2);
-      }
-    };
-
-    amountInput.addEventListener('input', clampAmount);
     itemInputs.forEach(function (input) {
-      input.addEventListener('input', clampAmount);
+      input.addEventListener('input', updateEstimate);
     });
+    updateEstimate();
   })();
 </script>
 
