@@ -79,7 +79,7 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
         .map(normalizeBundleDefinition)
         .filter(Boolean);
 
-    if (!Array.isArray(cartItems) || cartItems.length === 0 || bundles.length === 0) {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) {
         return {
             totalBundleSets: 0,
             discountPercent: 0,
@@ -105,8 +105,8 @@ const calculateBundleDiscount = (cartItems, bundleDefinitions) => {
         valueByProduct[productId] = (valueByProduct[productId] || 0) + (price * quantity);
 
         if (!metaByProduct[productId]) {
-            const brandLabel = normalizeLabel(item.brand);
-            const categoryLabel = normalizeLabel(item.category);
+            const brandLabel = normalizeLabel(item.brand || item.brand_name || item.brandName);
+            const categoryLabel = normalizeLabel(item.category || item.category_name || item.categoryName);
             metaByProduct[productId] = {
                 brandLabel,
                 categoryLabel,

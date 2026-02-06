@@ -443,9 +443,10 @@ const ProductController = {
                     }
 
                     const productList = (products || []).map(enhanceProductRecord);
+                    const visibleProducts = productList.filter((product) => Number(product.quantity || 0) > 0);
                     const categories = (categoryRows || []).map((row) => row.name || row.category).filter(Boolean);
                     const brands = (brandRows || []).map((row) => row.name).filter(Boolean);
-                    const bundles = buildStyleBundles(productList);
+                    const bundles = buildStyleBundles(visibleProducts);
 
                     Order.getBestSellers(3, (bestErr, bestSellers) => {
                         if (bestErr) {
@@ -454,7 +455,7 @@ const ProductController = {
 
                         res.render('shopping', {
                             user: req.session.user,
-                            products: productList,
+                            products: visibleProducts,
                             categories,
                             brands,
                             activeCategory,
@@ -462,7 +463,9 @@ const ProductController = {
                             activeSort,
                             searchQuery,
                             bundles,
-                            bestSellers: (bestSellers && bestSellers.length) ? bestSellers.map(enhanceProductRecord) : [],
+                            bestSellers: (bestSellers && bestSellers.length)
+                                ? bestSellers.map(enhanceProductRecord).filter((product) => Number(product.quantity || 0) > 0)
+                                : [],
                             messages: req.flash('success'),
                             errors: req.flash('error')
                         });
@@ -749,6 +752,11 @@ const ProductController = {
             if (error) throw error;
             if (results.length > 0) {
                 const product = enhanceProductRecord(results[0]);
+                const isAdmin = req.session.user && req.session.user.role === 'admin';
+                if (!isAdmin && Number(product.quantity || 0) <= 0) {
+                    req.flash('error', 'This item is out of stock.');
+                    return res.redirect('/shopping');
+                }
                 fetchProductImages(productId, (imageErr, productImages) => {
                     if (imageErr) {
                         console.error('Error fetching product images:', imageErr);
@@ -758,6 +766,9 @@ const ProductController = {
                         if (variantErr) {
                             console.error('Error fetching product variants:', variantErr);
                         }
+                        const visibleVariants = isAdmin
+                            ? (productVariants || [])
+                            : (productVariants || []).filter((variant) => Number(variant.quantity || 0) > 0);
 
                         ProductDetails.findByProductId(productId, (detailError, detailResults) => {
                             if (detailError) {
@@ -811,6 +822,9 @@ const ProductController = {
                                                 if (relatedError) {
                                                     console.error('Error fetching related products:', relatedError);
                                                 }
+                                                const visibleRelated = isAdmin
+                                                    ? (relatedProducts || [])
+                                                    : (relatedProducts || []).filter((item) => Number(item.quantity || 0) > 0);
 
                                                 const { metaTitle, extraHead } = buildProductMeta(product);
 
@@ -818,12 +832,12 @@ const ProductController = {
                                                     product,
                                                     productDetails,
                                                     productImages: productImages || [],
-                                                    productVariants: productVariants || [],
+                                                    productVariants: visibleVariants,
                                                     user: req.session.user,
                                                     metaTitle,
                                                     extraHead,
                                                     reviews,
-                                                    relatedProducts: relatedProducts || [],
+                                                    relatedProducts: visibleRelated,
                                                     averageRating,
                                                     reviewSummary: summary,
                                                     userReview,
