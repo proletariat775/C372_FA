@@ -41,6 +41,7 @@
                                       <th scope="col">Email</th>
                                       <th scope="col">Phone</th>
                                       <th scope="col">Address</th>
+                                      <th scope="col">Status</th>
                                       <th scope="col" class="text-end">Actions</th>
                                     </tr>
                                   </thead>
@@ -65,7 +66,16 @@
                                         <td>
                                           <%= managedUser.address || 'Not provided' %>
                                         </td>
+                                        <td>
+                                          <% if (managedUser.activate===0) { %>
+                                            <span class="badge bg-secondary">Inactive</span>
+                                            <% } else { %>
+                                              <span class="badge bg-success">Active</span>
+                                              <% } %>
+                                        </td>
                                         <td class="text-end">
+                                          <a href="/admin/users/<%= managedUser.id %>/edit"
+                                            class="btn btn-sm btn-outline-primary">Manage</a>
                                           <a href="/admin/deliveries?userId=<%= managedUser.id %>"
                                             class="btn btn-sm btn-outline-secondary">View orders</a>
                                         </td>

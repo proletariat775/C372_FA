@@ -127,8 +127,21 @@ const login = (req, res) => {
         }
 
         if (results.length === 0) {
-            req.flash('error', 'Invalid email or password.');
-            return res.redirect('/login');
+            return User.findByEmail(email, (lookupErr, lookupResults) => {
+                if (lookupErr) {
+                    console.error('Error checking account status:', lookupErr);
+                    req.flash('error', 'Invalid email or password.');
+                    return res.redirect('/login');
+                }
+
+                if (lookupResults && lookupResults[0] && lookupResults[0].activate === 0) {
+                    req.flash('error', 'This account is deactivated. Please contact support.');
+                    return res.redirect('/login');
+                }
+
+                req.flash('error', 'Invalid email or password.');
+                return res.redirect('/login');
+            });
         }
 
         const user = results[0];
@@ -419,8 +432,82 @@ const updateUserRole = (req, res) => {
         return res.redirect('/admin/users');
     }
 
-    req.flash('error', 'Editing customer accounts is disabled in this admin view.');
-    return res.redirect('/admin/users');
+    User.findById(userId, (findErr, results) => {
+        if (findErr) {
+            console.error('Error fetching user:', findErr);
+            req.flash('error', 'Unable to update user.');
+            return res.redirect('/admin/users');
+        }
+
+        if (!results || results.length === 0) {
+            req.flash('error', 'User not found.');
+            return res.redirect('/admin/users');
+        }
+
+        if (results[0].role !== 'customer') {
+            req.flash('error', 'Admin accounts are not managed in this view.');
+            return res.redirect('/admin/users');
+        }
+
+        const allowedRoles = ['customer', 'admin'];
+        const safeRole = allowedRoles.includes(req.body.role) ? req.body.role : 'customer';
+        const activateValue = req.body.activate === '0' ? 0 : 1;
+        const password = req.body.password ? String(req.body.password).trim() : '';
+        const safeUsername = req.body.username ? String(req.body.username).trim() : '';
+        const safeEmail = req.body.email ? String(req.body.email).trim() : '';
+        const safePhone = req.body.phone ? String(req.body.phone).trim() : '';
+        const safeFirstName = req.body.first_name ? String(req.body.first_name).trim() : '';
+        const safeLastName = req.body.last_name ? String(req.body.last_name).trim() : '';
+        const safeAddress = req.body.address ? String(req.body.address).trim() : '';
+        const safeCity = req.body.city ? String(req.body.city).trim() : '';
+        const safeState = req.body.state ? String(req.body.state).trim() : '';
+        const safeZip = req.body.zip_code ? String(req.body.zip_code).trim() : '';
+        const safeCountry = req.body.country ? String(req.body.country).trim() : '';
+
+        if (!safeUsername) {
+            req.flash('error', 'Username is required.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        }
+
+        if (!safeEmail) {
+            req.flash('error', 'Email is required.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        }
+
+        if (password && password.length < 6) {
+            req.flash('error', 'Password must be at least 6 characters.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        }
+
+        return User.updateAdmin(userId, {
+            username: safeUsername,
+            email: safeEmail,
+            first_name: safeFirstName || null,
+            last_name: safeLastName || null,
+            address: safeAddress || null,
+            city: safeCity || null,
+            state: safeState || null,
+            zip_code: safeZip || null,
+            country: safeCountry || null,
+            phone: safePhone || null,
+            role: safeRole,
+            activate: activateValue,
+            password
+        }, (updateErr) => {
+            if (updateErr) {
+                console.error('Error updating user:', updateErr);
+                if (updateErr.code === 'ER_DUP_ENTRY') {
+                    req.flash('error', 'Email already exists.');
+                } else {
+                    req.flash('error', 'Unable to update user.');
+                }
+                return res.redirect(`/admin/users/${userId}/edit`);
+            }
+
+            req.flash('success', 'Customer account updated.');
+            return res.redirect(`/admin/users/${userId}/edit`);
+        });
+    });
 };
 
 const deleteUser = (req, res) => {

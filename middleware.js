@@ -1,5 +1,11 @@
 const checkAuthenticated = (req, res, next) => {
     if (req.session.user) {
+        if (req.session.user.activate === 0) {
+            return req.session.destroy(() => {
+                req.flash('error', 'Your account is deactivated.');
+                res.redirect('/login');
+            });
+        }
         return next();
     }
     req.flash('error', 'Please log in to view this resource');

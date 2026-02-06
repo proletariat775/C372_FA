@@ -18,13 +18,14 @@ const create = (userData, callback) => {
         zip_code = null,
         country = null,
         phone = null,
-        role = 'customer'
+        role = 'customer',
+        activate = 1
     } = userData;
 
-    const sql = `INSERT INTO users (username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role)
-                 VALUES (?, ?, SHA1(?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `INSERT INTO users (username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role, activate)
+                 VALUES (?, ?, SHA1(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    const values = [username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role];
+    const values = [username, email, password, first_name, last_name, address, city, state, zip_code, country, phone, role, activate];
     console.log('User.create SQL:', sql.replace(/\s+/g, ' ').trim());
     console.log('User.create values:', values);
 
@@ -37,7 +38,7 @@ const create = (userData, callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findByEmail = (email, callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, phone, role, loyalty_points, created_at, updated_at
+    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, phone, role, activate, loyalty_points, created_at, updated_at
                  FROM users WHERE email = ?`;
     db.query(sql, [email], callback);
 };
@@ -49,8 +50,8 @@ const findByEmail = (email, callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findByEmailAndPassword = (email, password, callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, phone, role, loyalty_points, created_at, updated_at
-                 FROM users WHERE email = ? AND password = SHA1(?)`;
+    const sql = `SELECT id, username, email, first_name, last_name, address, city, state, zip_code, country, phone, role, activate, loyalty_points, created_at, updated_at
+                 FROM users WHERE email = ? AND password = SHA1(?) AND activate = 1`;
     db.query(sql, [email, password], callback);
 };
 
@@ -59,7 +60,7 @@ const findByEmailAndPassword = (email, password, callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findAll = (callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, role, phone, address, city, state, zip_code, country, loyalty_points, created_at, updated_at FROM users`;
+    const sql = `SELECT id, username, email, first_name, last_name, role, activate, phone, address, city, state, zip_code, country, loyalty_points, created_at, updated_at FROM users`;
     db.query(sql, callback);
 };
 
@@ -69,7 +70,7 @@ const findAll = (callback) => {
  * @param {Function} callback - Node-style callback (err, results).
  */
 const findById = (id, callback) => {
-    const sql = `SELECT id, username, email, first_name, last_name, role, phone, address, city, state, zip_code, country, loyalty_points, created_at, updated_at FROM users WHERE id = ?`;
+    const sql = `SELECT id, username, email, first_name, last_name, role, activate, phone, address, city, state, zip_code, country, loyalty_points, created_at, updated_at FROM users WHERE id = ?`;
     db.query(sql, [id], callback);
 };
 
@@ -124,6 +125,69 @@ const update = (id, data, callback) => {
     db.query(sql, [username, email, first_name, last_name, address, city, state, zip_code, country, phone, role, id], callback);
 };
 
+/**
+ * Update a customer's admin-managed fields.
+ * @param {number} id - User id.
+ * @param {Object} data - Fields to update.
+ * @param {Function} callback - Node-style callback (err, results).
+ */
+const updateAdmin = (id, data, callback) => {
+    const {
+        username,
+        email,
+        first_name = null,
+        last_name = null,
+        address = null,
+        city = null,
+        state = null,
+        zip_code = null,
+        country = null,
+        phone = null,
+        role = 'customer',
+        activate = 1,
+        password = ''
+    } = data;
+
+    const fields = [
+        'username = ?',
+        'email = ?',
+        'first_name = ?',
+        'last_name = ?',
+        'address = ?',
+        'city = ?',
+        'state = ?',
+        'zip_code = ?',
+        'country = ?',
+        'phone = ?',
+        'role = ?',
+        'activate = ?',
+        'updated_at = NOW()'
+    ];
+    const values = [
+        username,
+        email,
+        first_name,
+        last_name,
+        address,
+        city,
+        state,
+        zip_code,
+        country,
+        phone,
+        role,
+        activate
+    ];
+
+    if (password) {
+        fields.unshift('password = SHA1(?)');
+        values.unshift(password);
+    }
+
+    const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
+    values.push(id);
+    db.query(sql, values, callback);
+};
+
 module.exports = {
     create,
     findByEmail,
@@ -132,5 +196,6 @@ module.exports = {
     findById,
     remove,
     updateRole,
-    update
+    update,
+    updateAdmin
 };
