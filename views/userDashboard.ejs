@@ -292,9 +292,11 @@
                                                                             <% const productNames=items.map(item => item.productName).join(' '); %>
                                                                             <% const orderStatusKey = String(order.status || 'processing').toLowerCase(); %>
                                                                             <% const paymentStatusRaw = order.payment_status ? String(order.payment_status).toLowerCase() : 'pending'; %>
-                                                                            <% const paymentLabel = paymentStatusRaw ? paymentStatusRaw.charAt(0).toUpperCase() + paymentStatusRaw.slice(1) : 'Pending'; %>
-                                                                            <% const paymentClasses = { paid: 'bg-success-subtle text-success', pending: 'bg-warning-subtle text-warning', failed: 'bg-danger-subtle text-danger', refunded: 'bg-info-subtle text-info' }; %>
                                                                             <% const refundStatusRaw = order.refund_status ? String(order.refund_status).toLowerCase() : ''; %>
+                                                                            <% const isRefundedOrder = ['cancelled','returned'].includes(orderStatusKey) || paymentStatusRaw === 'refunded' || refundStatusRaw === 'completed'; %>
+                                                                            <% const displayPaymentStatus = isRefundedOrder ? 'refunded' : paymentStatusRaw; %>
+                                                                            <% const paymentLabel = displayPaymentStatus ? displayPaymentStatus.charAt(0).toUpperCase() + displayPaymentStatus.slice(1) : 'Pending'; %>
+                                                                            <% const paymentClasses = { paid: 'bg-success-subtle text-success', pending: 'bg-warning-subtle text-warning', failed: 'bg-danger-subtle text-danger', refunded: 'bg-info-subtle text-info' }; %>
                                                                             <% const refundLabel = refundStatusRaw ? refundStatusRaw.charAt(0).toUpperCase() + refundStatusRaw.slice(1) : ''; %>
                                                                             <% const refundClasses = { pending: 'bg-warning-subtle text-warning', approved: 'bg-info-subtle text-info', completed: 'bg-success-subtle text-success', rejected: 'bg-danger-subtle text-danger', failed: 'bg-danger-subtle text-danger' }; %>
                                                                             <% const statusLabels = { processing: 'Processing', packing: 'Packing', ready_for_pickup: 'Ready for pickup', shipped: 'Shipped', delivered: 'Delivered', completed: 'Completed', cancelled: 'Cancelled', returned: 'Returned' }; %>
@@ -310,16 +312,16 @@
                                                                             <% const isFullyRefunded = ['cancelled','returned'].includes(orderStatusKey) || paymentStatusRaw === 'refunded'; %>
                                                                             <% const displayOrderNumber = order.order_number || order.id; %>
 
-                                                                            <div class="order-card" data-status="<%= filterStatus %>" data-payment="<%= paymentStatusRaw %>" data-order-id="<%= displayOrderNumber %>" data-products="<%= productNames %>">
-                                                                                <div class="order-card__header">
+                                                                            <div class="order-card <%= isRefundedOrder ? 'order-card--refunded' : '' %>" data-status="<%= filterStatus %>" data-payment="<%= displayPaymentStatus %>" data-order-id="<%= displayOrderNumber %>" data-products="<%= productNames %>">
+                                                                                    <div class="order-card__header">
                                                                                     <div class="order-card__meta">
                                                                                         <div class="order-card__title">Order #<%= displayOrderNumber %></div>
                                                                                         <div class="order-card__date"><%= createdAt ? createdAt.toLocaleString() : '-' %></div>
                                                                                     </div>
                                                                                     <div class="order-card__badges">
-                                                                                        <% const statusLabel = statusLabels[orderStatusKey] || orderStatusKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); %>
+                                                                                        <% const statusLabel = isRefundedOrder ? 'Refunded' : (statusLabels[orderStatusKey] || orderStatusKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())); %>
                                                                                         <span class="badge bg-primary-subtle text-primary text-uppercase">Status: <%= statusLabel %></span>
-                                                                                        <span class="badge <%= paymentClasses[paymentStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Payment: <%= paymentLabel %></span>
+                                                                                        <span class="badge <%= paymentClasses[displayPaymentStatus] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Payment: <%= paymentLabel %></span>
                                                                                         <% if (refundStatusRaw) { %>
                                                                                             <span class="badge <%= refundClasses[refundStatusRaw] || 'bg-secondary-subtle text-secondary' %> text-uppercase">Refund: <%= refundLabel %></span>
                                                                                         <% } %>
@@ -381,29 +383,39 @@
 
                                                                                     <% if (order.delivery_method === 'delivery') { %>
                                                                                         <% const trackingLink = order.tracking_number ? ('https://track.aftership.com/' + order.tracking_number) : null; %>
-                                                                                        <div class="order-delivery-note">
-                                                                                            <div class="small text-muted">Delivery to <strong><%= order.delivery_address || 'Address pending' %></strong></div>
-                                                                                            <div class="small text-muted">Carrier: <%= order.shipping_provider || 'Assigning soon' %></div>
-                                                                                            <div class="small text-muted">Tracking: <%= order.tracking_number || 'Pending' %>
-                                                                                                <% if (trackingLink) { %>
-                                                                                                    <a href="<%= trackingLink %>" target="_blank" rel="noopener" class="ms-1">Track</a>
+                                                                                        <% const showDeliveryNote = order.shipping_provider || order.tracking_number || ['processing','packing'].includes(orderStatusKey); %>
+                                                                                        <% if (showDeliveryNote) { %>
+                                                                                            <div class="order-delivery-note">
+                                                                                                <div class="small text-muted">Delivery to <strong><%= order.delivery_address || 'Address pending' %></strong></div>
+                                                                                                <% if (order.shipping_provider || ['processing','packing'].includes(orderStatusKey)) { %>
+                                                                                                    <div class="small text-muted">Carrier: <%= order.shipping_provider || 'Assigning soon' %></div>
+                                                                                                <% } %>
+                                                                                                <% if (order.tracking_number || ['processing','packing'].includes(orderStatusKey)) { %>
+                                                                                                    <div class="small text-muted">Tracking: <%= order.tracking_number || 'Pending' %>
+                                                                                                        <% if (trackingLink) { %>
+                                                                                                            <a href="<%= trackingLink %>" target="_blank" rel="noopener" class="ms-1">Track</a>
+                                                                                                        <% } %>
+                                                                                                    </div>
                                                                                                 <% } %>
                                                                                             </div>
-                                                                                        </div>
+                                                                                        <% } %>
                                                                                     <% } else { %>
-                                                                                        <div class="order-delivery-note">
-                                                                                            <% if (order.status === 'ready_for_pickup') { %>
+                                                                                        <% if (order.status === 'ready_for_pickup') { %>
+                                                                                              <div class="order-delivery-note">
                                                                                                   <div class="small text-muted">Ready for pickup. Show Order #<%= displayOrderNumber %> at the counter.</div>
-                                                                                            <% } else { %>
-                                                                                                <div class="small text-muted">Pickup order. We will notify you once it is ready.</div>
-                                                                                            <% } %>
-                                                                                        </div>
+                                                                                              </div>
+                                                                                        <% } else if (['processing','packing'].includes(orderStatusKey)) { %>
+                                                                                              <div class="order-delivery-note">
+                                                                                                  <div class="small text-muted">Pickup order. We will notify you once it is ready.</div>
+                                                                                              </div>
+                                                                                        <% } %>
                                                                                     <% } %>
 
                                                                                      <div class="order-actions mt-3">
                                                                                          <a href="/order/<%= order.id %>" class="btn btn-outline-secondary btn-sm">View order</a>
-                                                                                         <% const invoiceLabel = (['cancelled','returned'].includes(order.status) || paymentStatusRaw === 'refunded') ? 'Invoice (refunded)' : 'Invoice'; %>
-                                                                                         <a href="/orders/<%= order.id %>/invoice" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"><%= invoiceLabel %></a>
+                                                                                         <% if (!isRefundedOrder) { %>
+                                                                                           <a href="/orders/<%= order.id %>/invoice" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Invoice</a>
+                                                                                         <% } %>
                                                                                          <% const canTrack = order.delivery_method === 'delivery' || order.tracking_number || order.shipping_provider; %>
                                                                                          <% if (canTrack) { %>
                                                                                              <a href="/order/<%= order.id %>/track" class="btn btn-outline-primary btn-sm">Track</a>

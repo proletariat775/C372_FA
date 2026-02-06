@@ -34,6 +34,7 @@ function normalizeInput(body) {
   } else {
     const chestCm = parseNumber(body.chestCm);
     const heightCm = parseNumber(body.heightCm);
+    const waistCm = parseNumber(body.waistCm);
 
     if (!chestCm) {
       errors.push('Chest circumference (cm) is required for a size recommendation.');
@@ -44,6 +45,7 @@ function normalizeInput(body) {
 
     profile.chestCm = chestCm || '';
     profile.heightCm = heightCm || '';
+    profile.waistCm = waistCm || '';
     profile.fitType = sizeGuideService.normalizeFitType(body.fitType);
   }
 

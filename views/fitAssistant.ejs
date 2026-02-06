@@ -2,7 +2,7 @@
 <%- include('partials/header', { title: title, headContent }) %>
 <%- include('partials/navbar', { user: user }) %>
 
-<section class="page-section fit-hero">
+<section class="page-section fit-hero fit-assistant-hero">
   <div class="container">
     <div class="hero-card fit-hero-card">
       <div class="row g-4 align-items-center">
@@ -35,7 +35,7 @@
   </div>
 </section>
 
-<main class="page-section pt-0">
+<main class="page-section pt-0 fit-assistant-page">
   <div class="container">
     <% if (errors && errors.length) { %>
       <div class="alert alert-danger">
@@ -77,6 +77,13 @@
                     value="<%= profile.chestCm || '' %>" data-fit="shirt" data-required="true"
                     <%= activeType === 'pants' ? 'disabled' : 'required' %>>
                   <small class="text-muted">Measure around the fullest part of your chest.</small>
+                </div>
+                <div class="col-12">
+                  <label for="waistCmShirt" class="form-label">Waist circumference (cm)</label>
+                  <input type="number" class="form-control" id="waistCmShirt" name="waistCm" step="0.1" min="1"
+                    value="<%= profile.waistCm || '' %>" data-fit="shirt"
+                    <%= activeType === 'pants' ? 'disabled' : '' %>>
+                  <small class="text-muted">Optional for a closer fit check.</small>
                 </div>
                 <div class="col-12">
                   <label for="heightCmShirt" class="form-label">Height (cm)</label>
@@ -172,6 +179,10 @@
                     <p class="mb-0 fw-semibold"><%= profile.chestCm %></p>
                   </div>
                   <div>
+                    <span class="text-uppercase small text-muted">Waist (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= profile.waistCm || 'Optional' %></p>
+                  </div>
+                  <div>
                     <span class="text-uppercase small text-muted">Height (cm)</span>
                     <p class="mb-0 fw-semibold"><%= profile.heightCm %></p>
                   </div>
@@ -208,7 +219,37 @@
       <div class="col-12 col-lg-7">
         <div class="card fit-card">
           <div class="card-body">
-            <% if (activeType === 'pants') { %>
+            <div id="shirt-size-guide" class="<%= activeType === 'pants' ? 'd-none' : '' %>">
+              <h4 class="mb-1">Shirt size chart (body + garment)</h4>
+              <p class="text-muted small mb-3"><%= fitNotes[profile.fitType] %></p>
+              <div class="table-responsive">
+                <table class="table table-modern fit-table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col">Size</th>
+                      <th scope="col">Body chest</th>
+                      <th scope="col">Waist</th>
+                      <th scope="col">Chest width</th>
+                      <th scope="col">Shoulder</th>
+                      <th scope="col">Length</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% (sizeCharts.shirt || []).forEach(function(row) { %>
+                      <tr>
+                        <td class="fw-semibold"><%= row.size %></td>
+                        <td><%= row.bodyChestMin %>-<%= row.bodyChestMax %> cm (<%= cmToIn(row.bodyChestMin) %>-<%= cmToIn(row.bodyChestMax) %> in)</td>
+                        <td><%= row.waistMin %>-<%= row.waistMax %> cm (<%= cmToIn(row.waistMin) %>-<%= cmToIn(row.waistMax) %> in)</td>
+                        <td><%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)</td>
+                        <td><%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)</td>
+                        <td><%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)</td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div id="pants-size-guide" class="<%= activeType === 'pants' ? '' : 'd-none' %>">
               <h4 class="mb-3">Pants size chart (waist + hip)</h4>
               <div class="table-responsive">
                 <table class="table table-modern fit-table align-middle mb-0">
@@ -232,34 +273,7 @@
                   </tbody>
                 </table>
               </div>
-            <% } else { %>
-              <h4 class="mb-1">Shirt size chart (body + garment)</h4>
-              <p class="text-muted small mb-3"><%= fitNotes[profile.fitType] %></p>
-              <div class="table-responsive">
-                <table class="table table-modern fit-table align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th scope="col">Size</th>
-                      <th scope="col">Body chest</th>
-                      <th scope="col">Chest width</th>
-                      <th scope="col">Shoulder</th>
-                      <th scope="col">Length</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% (sizeCharts.shirt || []).forEach(function(row) { %>
-                      <tr>
-                        <td class="fw-semibold"><%= row.size %></td>
-                        <td><%= row.bodyChestMin %>-<%= row.bodyChestMax %> cm (<%= cmToIn(row.bodyChestMin) %>-<%= cmToIn(row.bodyChestMax) %> in)</td>
-                        <td><%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)</td>
-                        <td><%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)</td>
-                        <td><%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)</td>
-                      </tr>
-                    <% }); %>
-                  </tbody>
-                </table>
-              </div>
-            <% } %>
+            </div>
             <p class="text-muted small mt-2 mb-0"><%= sizeDisclaimer %></p>
           </div>
         </div>
@@ -274,10 +288,6 @@
               <li>Sizing varies by brand and cut. Compare with a piece you own.</li>
               <li>Returns are available for eligible orders.</li>
             </ul>
-            <div class="fit-callout">
-              <strong>Need extra help?</strong>
-              <p class="mb-0">Contact support through your order history for tailored fit guidance.</p>
-            </div>
           </div>
         </div>
       </div>
@@ -290,6 +300,8 @@
     var typeInputs = document.querySelectorAll('input[name="productType"]');
     var shirtSection = document.getElementById('fit-form-shirt');
     var pantsSection = document.getElementById('fit-form-pants');
+    var shirtGuide = document.getElementById('shirt-size-guide');
+    var pantsGuide = document.getElementById('pants-size-guide');
 
     var toggleSection = function (section, enabled) {
       if (!section) return;
@@ -312,6 +324,12 @@
       var isShirt = value !== 'pants';
       toggleSection(shirtSection, isShirt);
       toggleSection(pantsSection, !isShirt);
+      if (shirtGuide) {
+        shirtGuide.classList.toggle('d-none', !isShirt);
+      }
+      if (pantsGuide) {
+        pantsGuide.classList.toggle('d-none', isShirt);
+      }
     };
 
     typeInputs.forEach(function (input) {

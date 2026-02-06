@@ -3,6 +3,8 @@ const SHIRT_SIZE_CHART = [
     size: '2XS',
     bodyChestMin: 74,
     bodyChestMax: 80,
+    waistMin: 62,
+    waistMax: 66,
     garmentChestWidth: 44,
     garmentShoulder: 38,
     garmentLength: 62
@@ -11,6 +13,8 @@ const SHIRT_SIZE_CHART = [
     size: 'XS',
     bodyChestMin: 80,
     bodyChestMax: 86,
+    waistMin: 66,
+    waistMax: 70,
     garmentChestWidth: 47,
     garmentShoulder: 40,
     garmentLength: 65
@@ -19,6 +23,8 @@ const SHIRT_SIZE_CHART = [
     size: 'S',
     bodyChestMin: 86,
     bodyChestMax: 94,
+    waistMin: 70,
+    waistMax: 76,
     garmentChestWidth: 50,
     garmentShoulder: 42,
     garmentLength: 68
@@ -27,6 +33,8 @@ const SHIRT_SIZE_CHART = [
     size: 'M',
     bodyChestMin: 94,
     bodyChestMax: 102,
+    waistMin: 76,
+    waistMax: 82,
     garmentChestWidth: 53,
     garmentShoulder: 44,
     garmentLength: 71
@@ -35,6 +43,8 @@ const SHIRT_SIZE_CHART = [
     size: 'L',
     bodyChestMin: 102,
     bodyChestMax: 110,
+    waistMin: 82,
+    waistMax: 88,
     garmentChestWidth: 56,
     garmentShoulder: 46,
     garmentLength: 74
@@ -43,6 +53,8 @@ const SHIRT_SIZE_CHART = [
     size: 'XL',
     bodyChestMin: 110,
     bodyChestMax: 118,
+    waistMin: 88,
+    waistMax: 96,
     garmentChestWidth: 59,
     garmentShoulder: 48,
     garmentLength: 77
@@ -51,6 +63,8 @@ const SHIRT_SIZE_CHART = [
     size: '2XL',
     bodyChestMin: 118,
     bodyChestMax: 126,
+    waistMin: 96,
+    waistMax: 104,
     garmentChestWidth: 62,
     garmentShoulder: 50,
     garmentLength: 80
@@ -199,6 +213,7 @@ const getPantsSizeChart = () => cloneChart(PANTS_SIZE_CHART);
 
 const recommendShirtSize = (inputs = {}) => {
   const chest = Number(inputs.chestCm);
+  const waist = Number(inputs.waistCm);
   const height = Number(inputs.heightCm);
   const fitType = normalizeFitType(inputs.fitType);
 
@@ -230,6 +245,7 @@ const recommendShirtSize = (inputs = {}) => {
   const fitLabel = getShirtFitLabel(fitType);
   const explanationParts = [
     `Based on chest ${chest} cm`,
+    Number.isFinite(waist) && waist > 0 ? `waist ${waist} cm` : null,
     Number.isFinite(height) && height > 0 ? `height ${height} cm` : null,
     `${fitLabel} fit`
   ].filter(Boolean);
