@@ -1,15 +1,22 @@
 const fitAssistant = require('../models/fitAssistant');
-const sizeChartService = require('../services/sizeChartService');
+const sizeGuideService = require('../services/sizeGuideService');
 
 function buildViewModel(req, overrides = {}) {
+  const profile = overrides.profile || req.session.fitProfile || { ...fitAssistant.DEFAULT_PROFILE };
+  const fitType = sizeGuideService.normalizeFitType(profile.fitType);
+
   return {
     title: 'Shirt Shop | Fit Assistant',
     user: req.session.user,
-    profile: overrides.profile || req.session.fitProfile || { ...fitAssistant.DEFAULT_PROFILE },
+    profile: { ...profile, fitType },
     result: overrides.result || null,
-    sizeChart: sizeChartService.getSizeChart(),
-    cmToIn: sizeChartService.cmToIn,
-    sizeDisclaimer: sizeChartService.SIZE_DISCLAIMER,
+    sizeCharts: {
+      shirt: sizeGuideService.getShirtSizeChart(fitType),
+      pants: sizeGuideService.getPantsSizeChart()
+    },
+    fitNotes: sizeGuideService.SHIRT_FIT_NOTES,
+    cmToIn: sizeGuideService.cmToIn,
+    sizeDisclaimer: sizeGuideService.SIZE_DISCLAIMER,
     errors: overrides.errors || []
   };
 }

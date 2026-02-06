@@ -128,6 +128,7 @@ const Product = {
             description = null,
             category = null,
             brand = null,
+            product_type = 'shirt',
             imageFront = null,
             imageBack = null,
             image = null,
@@ -169,11 +170,11 @@ const Product = {
                 const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
                 const sku = 'SKU-' + Math.random().toString(36).slice(2, 9).toUpperCase();
                 const insertSql = `
-                    INSERT INTO products (name, slug, description, sku, brand_id, category_id, gender, price, compare_price, cost_price, discount_percent, is_featured, is_active, total_quantity)
-                    VALUES (?, ?, ?, ?, ?, ?, 'unisex', ?, NULL, NULL, ?, 0, 1, ?)
+                    INSERT INTO products (name, slug, description, sku, brand_id, category_id, gender, product_type, price, compare_price, cost_price, discount_percent, is_featured, is_active, total_quantity)
+                    VALUES (?, ?, ?, ?, ?, ?, 'unisex', ?, ?, NULL, NULL, ?, 0, 1, ?)
                 `;
 
-                connection.query(insertSql, [name, slug, description, sku, brandId, categoryId, price, discount_percent, total_quantity], (err, result) => {
+                connection.query(insertSql, [name, slug, description, sku, brandId, categoryId, product_type, price, discount_percent, total_quantity], (err, result) => {
                     if (err) return callback(err);
                     const productId = result.insertId;
 
@@ -254,6 +255,7 @@ const Product = {
             description = null,
             category = null,
             brand = null,
+            product_type = 'shirt',
             imageFront = null,
             imageBack = null,
             image = null,
@@ -291,10 +293,10 @@ const Product = {
                 if (brandErr) return callback(brandErr);
 
                 const updateSql = `
-                    UPDATE products SET name = ?, description = ?, price = ?, discount_percent = ?, brand_id = ?, category_id = ?, total_quantity = ? WHERE id = ?
+                    UPDATE products SET name = ?, description = ?, price = ?, discount_percent = ?, brand_id = ?, category_id = ?, product_type = ?, total_quantity = ? WHERE id = ?
                 `;
 
-                connection.query(updateSql, [name, description, price, discount_percent, brandId, categoryId, total_quantity, productId], (err) => {
+                connection.query(updateSql, [name, description, price, discount_percent, brandId, categoryId, product_type, total_quantity, productId], (err) => {
                     if (err) return callback(err);
 
                     const tasks = [];

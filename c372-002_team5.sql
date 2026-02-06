@@ -97,6 +97,7 @@ CREATE TABLE products (
   brand_id INT NULL,
   category_id INT NULL,
   gender ENUM('men','women','unisex','kids') NOT NULL DEFAULT 'unisex',
+  product_type ENUM('shirt','pants') NOT NULL DEFAULT 'shirt',
   price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   compare_price DECIMAL(10,2) NULL,
   cost_price DECIMAL(10,2) NULL,

@@ -1,217 +1,328 @@
 <% const headContent='<link rel="stylesheet" href="/css/fit-assistant.css">' ; %>
-  <%- include('partials/header', { title: title, headContent }) %>
-    <%- include('partials/navbar', { user: user }) %>
-      <section class="page-section fit-hero">
-        <div class="container">
-          <div class="hero-card fit-hero-card">
-            <div class="row g-4 align-items-center">
-              <div class="col-12 col-lg-7">
-                <div class="hero-body">
-                  <span class="badge rounded-pill bg-dark-subtle text-dark">Inclusive sizing</span>
-                  <h1 class="mt-3">Find your perfect fit</h1>
-                  <p class="lead text-muted mb-4">
-                    Use your chest measurement to get a unisex tee size recommendation. Choose a fit preference for a
-                    closer
-                    or roomier cut.
-                  </p>
-                  <div class="d-flex flex-wrap gap-2">
-                    <span class="fit-pill">2XS - 2XL coverage</span>
-                    <span class="fit-pill">Benchmark size chart</span>
-                    <span class="fit-pill">CM with inches</span>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-lg-5">
-                <div class="fit-hero-panel">
-                  <h5 class="mb-3">Why it matters</h5>
-                  <p class="text-muted mb-0">
-                    Real measurements reduce sizing mistakes, improve confidence, and make post-purchase exchanges
-                    smoother.
-                    You're always in control of what you share.
-                  </p>
-                </div>
-              </div>
+<%- include('partials/header', { title: title, headContent }) %>
+<%- include('partials/navbar', { user: user }) %>
+
+<section class="page-section fit-hero">
+  <div class="container">
+    <div class="hero-card fit-hero-card">
+      <div class="row g-4 align-items-center">
+        <div class="col-12 col-lg-7">
+          <div class="hero-body">
+            <span class="badge rounded-pill bg-dark-subtle text-dark">Inclusive sizing</span>
+            <h1 class="mt-3">Find your perfect fit</h1>
+            <p class="lead text-muted mb-4">
+              Get quick size guidance for shirts and pants using simple measurements. Choose a fit style
+              for tees or use waist measurements for trousers.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <span class="fit-pill">Shirt + pants support</span>
+              <span class="fit-pill">Benchmark size charts</span>
+              <span class="fit-pill">CM with inches</span>
             </div>
           </div>
         </div>
-      </section>
-
-      <main class="page-section pt-0">
-        <div class="container">
-          <% if (errors && errors.length) { %>
-            <div class="alert alert-danger">
-              <strong>We need a bit more detail.</strong>
-              <ul class="mb-0">
-                <% errors.forEach(function(error) { %>
-                  <li>
-                    <%= error %>
-                  </li>
-                  <% }); %>
-              </ul>
-            </div>
-            <% } %>
-
-              <div class="row g-4">
-                <div class="col-12 col-lg-6">
-                  <div class="card fit-card">
-                    <div class="card-body">
-                      <h3 class="mb-3">Fit details</h3>
-                      <p class="text-muted">Enter your chest circumference to get the most accurate size match.</p>
-                      <form action="/fit-assistant" method="POST" class="row g-3">
-                        <div class="col-12">
-                          <label for="chestCm" class="form-label">Chest circumference (cm)</label>
-                          <input type="number" class="form-control" id="chestCm" name="chestCm" step="0.1" min="1"
-                            value="<%= profile.chestCm || '' %>" required>
-                          <small class="text-muted">Measure around the fullest part of your chest.</small>
-                        </div>
-                        <div class="col-12">
-                          <label for="fitPreference" class="form-label">Fit preference</label>
-                          <select class="form-select" id="fitPreference" name="fitPreference">
-                            <option value="regular" <%=profile.fitPreference==='regular' ? 'selected' : '' %>>Regular
-                            </option>
-                            <option value="slim" <%=profile.fitPreference==='slim' ? 'selected' : '' %>>Slim</option>
-                            <option value="oversized" <%=profile.fitPreference==='oversized' ? 'selected' : '' %>
-                              >Oversized</option>
-                          </select>
-                        </div>
-                        <div class="col-12 d-grid mt-2">
-                          <button type="submit" class="btn btn-primary btn-lg">Get my recommendation</button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-12 col-lg-6">
-                  <% if (result) { %>
-                    <div class="card fit-card fit-result">
-                      <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start">
-                          <div>
-                            <span class="text-uppercase small text-muted">Recommended size</span>
-                            <h2 class="display-6 fw-semibold mb-2">
-                              <%= result.recommendedSize %>
-                            </h2>
-                            <p class="text-muted mb-2">
-                              <%= result.explanation %>
-                            </p>
-                            <% if (result.adjustmentNote) { %>
-                              <p class="text-muted mb-2">
-                                <%= result.adjustmentNote %>
-                              </p>
-                              <% } %>
-                          </div>
-                          <span class="badge bg-success-subtle text-success">
-                            Fit: <%= result.fitPreference.charAt(0).toUpperCase() + result.fitPreference.slice(1) %>
-                          </span>
-                        </div>
-
-                        <div class="fit-summary-grid mt-3">
-                          <div>
-                            <span class="text-uppercase small text-muted">Chest (cm)</span>
-                            <p class="mb-0 fw-semibold">
-                              <%= profile.chestCm %>
-                            </p>
-                          </div>
-                          <div>
-                            <span class="text-uppercase small text-muted">Base size</span>
-                            <p class="mb-0 fw-semibold">
-                              <%= result.baseSize %>
-                            </p>
-                          </div>
-                          <div>
-                            <span class="text-uppercase small text-muted">Preference</span>
-                            <p class="mb-0 fw-semibold">
-                              <%= result.fitPreference %>
-                            </p>
-                          </div>
-                        </div>
-                        <p class="text-muted small mt-3 mb-0">
-                          Recommendation uses general sizing benchmarks; brand cuts may differ.
-                        </p>
-                      </div>
-                    </div>
-                    <% } else { %>
-                      <div class="card fit-card fit-placeholder">
-                        <div class="card-body">
-                          <h3 class="mb-3">How it works</h3>
-                          <ol class="fit-steps">
-                            <li>Enter your chest circumference for the most accurate sizing.</li>
-                            <li>Choose your preferred fit (slim, regular, or oversized).</li>
-                            <li>We recommend a size and show the full size chart.</li>
-                          </ol>
-                          <p class="text-muted mb-0">You can update this anytime before checkout.</p>
-                        </div>
-                      </div>
-                      <% } %>
-                </div>
-              </div>
-
-              <div class="row g-4 mt-1">
-                <div class="col-12 col-lg-7">
-                  <div class="card fit-card">
-                    <div class="card-body">
-                      <h4 class="mb-3">Unisex size chart (body + garment)</h4>
-                      <div class="table-responsive">
-                        <table class="table table-modern fit-table align-middle mb-0">
-                          <thead>
-                            <tr>
-                              <th scope="col">Size</th>
-                              <th scope="col">Body chest</th>
-                              <th scope="col">Chest width</th>
-                              <th scope="col">Shoulder</th>
-                              <th scope="col">Length</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <% (sizeChart || []).forEach(function(row) { %>
-                              <tr>
-                                <td class="fw-semibold">
-                                  <%= row.size %>
-                                </td>
-                                <td>
-                                  <%= row.bodyChestMin %>-<%= row.bodyChestMax %> cm (<%= cmToIn(row.bodyChestMin) %>-
-                                        <%= cmToIn(row.bodyChestMax) %> in)
-                                </td>
-                                <td>
-                                  <%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)
-                                </td>
-                                <td>
-                                  <%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)
-                                </td>
-                                <td>
-                                  <%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)
-                                </td>
-                              </tr>
-                              <% }); %>
-                          </tbody>
-                        </table>
-                      </div>
-                      <p class="text-muted small mt-2 mb-0">
-                        <%= sizeDisclaimer %>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-12 col-lg-5">
-                  <div class="card fit-card fit-trust">
-                    <div class="card-body">
-                      <h4 class="mb-3">Confidence & care</h4>
-                      <ul class="fit-list">
-                        <li>Recommendation uses general sizing benchmarks.</li>
-                        <li>Brand cuts may differ. Compare with a tee you own.</li>
-                        <li>Returns are available for eligible orders.</li>
-                      </ul>
-                      <div class="fit-callout">
-                        <strong>Need extra help?</strong>
-                        <p class="mb-0">Contact support through your order history for tailored fit guidance.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <div class="col-12 col-lg-5">
+          <div class="fit-hero-panel">
+            <h5 class="mb-3">Why it matters</h5>
+            <p class="text-muted mb-0">
+              Real measurements reduce sizing mistakes, improve confidence, and make post-purchase exchanges
+              smoother. You're always in control of what you share.
+            </p>
+          </div>
         </div>
-      </main>
+      </div>
+    </div>
+  </div>
+</section>
 
-      <%- include('partials/footer') %>
+<main class="page-section pt-0">
+  <div class="container">
+    <% if (errors && errors.length) { %>
+      <div class="alert alert-danger">
+        <strong>We need a bit more detail.</strong>
+        <ul class="mb-0">
+          <% errors.forEach(function(error) { %>
+            <li><%= error %></li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
+    <% const activeType = (profile && profile.productType === 'pants') ? 'pants' : 'shirt'; %>
+
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="card fit-card">
+          <div class="card-body">
+            <h3 class="mb-3">Fit details</h3>
+            <p class="text-muted">Choose what you're shopping for and enter a few measurements.</p>
+            <form action="/fit-assistant" method="POST" class="row g-3">
+              <div class="col-12">
+                <label class="form-label">What are you shopping for?</label>
+                <div class="btn-group fit-type-toggle" role="group" aria-label="Product type">
+                  <input type="radio" class="btn-check" name="productType" id="fit-type-shirt" value="shirt"
+                    <%= activeType === 'shirt' ? 'checked' : '' %>>
+                  <label class="btn btn-outline-dark" for="fit-type-shirt">Shirt</label>
+
+                  <input type="radio" class="btn-check" name="productType" id="fit-type-pants" value="pants"
+                    <%= activeType === 'pants' ? 'checked' : '' %>>
+                  <label class="btn btn-outline-dark" for="fit-type-pants">Pants</label>
+                </div>
+              </div>
+
+              <div id="fit-form-shirt" class="fit-form-section <%= activeType === 'pants' ? 'd-none' : '' %>">
+                <div class="col-12">
+                  <label for="chestCm" class="form-label">Chest circumference (cm)</label>
+                  <input type="number" class="form-control" id="chestCm" name="chestCm" step="0.1" min="1"
+                    value="<%= profile.chestCm || '' %>" data-fit="shirt" data-required="true"
+                    <%= activeType === 'pants' ? 'disabled' : 'required' %>>
+                  <small class="text-muted">Measure around the fullest part of your chest.</small>
+                </div>
+                <div class="col-12">
+                  <label for="heightCmShirt" class="form-label">Height (cm)</label>
+                  <input type="number" class="form-control" id="heightCmShirt" name="heightCm" step="0.1" min="1"
+                    value="<%= profile.heightCm || '' %>" data-fit="shirt" data-required="true"
+                    <%= activeType === 'pants' ? 'disabled' : 'required' %>>
+                </div>
+                <div class="col-12">
+                  <label for="fitType" class="form-label">Fit type</label>
+                  <select class="form-select" id="fitType" name="fitType" data-fit="shirt"
+                    <%= activeType === 'pants' ? 'disabled' : '' %>>
+                    <option value="regular" <%= profile.fitType === 'regular' ? 'selected' : '' %>>Regular</option>
+                    <option value="slimming" <%= profile.fitType === 'slimming' ? 'selected' : '' %>>Slimming</option>
+                    <option value="relaxed" <%= profile.fitType === 'relaxed' ? 'selected' : '' %>>Relaxed</option>
+                    <option value="dry-fit" <%= profile.fitType === 'dry-fit' ? 'selected' : '' %>>Dry-fit</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="fit-form-pants" class="fit-form-section <%= activeType === 'pants' ? '' : 'd-none' %>">
+                <div class="col-12">
+                  <label for="waistCm" class="form-label">Waist circumference (cm)</label>
+                  <input type="number" class="form-control" id="waistCm" name="waistCm" step="0.1" min="1"
+                    value="<%= profile.waistCm || '' %>" data-fit="pants" data-required="true"
+                    <%= activeType === 'pants' ? 'required' : 'disabled' %>>
+                  <small class="text-muted">Measure around your natural waistline.</small>
+                </div>
+                <div class="col-12">
+                  <label for="hipCm" class="form-label">Hip circumference (cm)</label>
+                  <input type="number" class="form-control" id="hipCm" name="hipCm" step="0.1" min="1"
+                    value="<%= profile.hipCm || '' %>" data-fit="pants"
+                    <%= activeType === 'pants' ? '' : 'disabled' %>>
+                  <small class="text-muted">Optional but recommended for the best fit.</small>
+                </div>
+                <div class="col-12">
+                  <label for="heightCmPants" class="form-label">Height (cm)</label>
+                  <input type="number" class="form-control" id="heightCmPants" name="heightCm" step="0.1" min="1"
+                    value="<%= profile.heightCm || '' %>" data-fit="pants"
+                    <%= activeType === 'pants' ? '' : 'disabled' %>>
+                  <small class="text-muted">Optional for inseam guidance.</small>
+                </div>
+              </div>
+
+              <div class="col-12 d-grid mt-2">
+                <button type="submit" class="btn btn-primary btn-lg">Get my recommendation</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <% if (result) { %>
+          <div class="card fit-card fit-result">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="text-uppercase small text-muted">Recommended size</span>
+                  <h2 class="display-6 fw-semibold mb-2"><%= result.recommendedSize %></h2>
+                  <p class="text-muted mb-2"><%= result.explanation %></p>
+                  <% if (result.adjustmentNote) { %>
+                    <p class="text-muted mb-2"><%= result.adjustmentNote %></p>
+                  <% } %>
+                </div>
+                <% if (result.productType === 'shirt') { %>
+                  <span class="badge bg-success-subtle text-success">Fit: <%= result.fitLabel %></span>
+                <% } else { %>
+                  <span class="badge bg-info-subtle text-info">Pants sizing</span>
+                <% } %>
+              </div>
+
+              <div class="fit-summary-grid mt-3">
+                <% if (result.productType === 'pants') { %>
+                  <div>
+                    <span class="text-uppercase small text-muted">Waist (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= profile.waistCm %></p>
+                  </div>
+                  <div>
+                    <span class="text-uppercase small text-muted">Hip (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= profile.hipCm || 'Optional' %></p>
+                  </div>
+                  <div>
+                    <span class="text-uppercase small text-muted">Inseam (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= result.inseam %></p>
+                  </div>
+                  <div>
+                    <span class="text-uppercase small text-muted">Height (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= profile.heightCm || 'Optional' %></p>
+                  </div>
+                <% } else { %>
+                  <div>
+                    <span class="text-uppercase small text-muted">Chest (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= profile.chestCm %></p>
+                  </div>
+                  <div>
+                    <span class="text-uppercase small text-muted">Height (cm)</span>
+                    <p class="mb-0 fw-semibold"><%= profile.heightCm %></p>
+                  </div>
+                  <div>
+                    <span class="text-uppercase small text-muted">Base size</span>
+                    <p class="mb-0 fw-semibold"><%= result.baseSize %></p>
+                  </div>
+                  <div>
+                    <span class="text-uppercase small text-muted">Fit</span>
+                    <p class="mb-0 fw-semibold"><%= result.fitLabel %></p>
+                  </div>
+                <% } %>
+              </div>
+              <p class="text-muted small mt-3 mb-0"><%= sizeDisclaimer %></p>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="card fit-card fit-placeholder">
+            <div class="card-body">
+              <h3 class="mb-3">How it works</h3>
+              <ol class="fit-steps">
+                <li>Select shirts or pants to tailor the fit guide.</li>
+                <li>Enter your key measurements and preferred fit (for shirts).</li>
+                <li>We recommend a size and show the full size chart.</li>
+              </ol>
+              <p class="text-muted mb-0">You can update this anytime before checkout.</p>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+      <div class="col-12 col-lg-7">
+        <div class="card fit-card">
+          <div class="card-body">
+            <% if (activeType === 'pants') { %>
+              <h4 class="mb-3">Pants size chart (waist + hip)</h4>
+              <div class="table-responsive">
+                <table class="table table-modern fit-table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col">Size</th>
+                      <th scope="col">Waist</th>
+                      <th scope="col">Hip</th>
+                      <th scope="col">Inseam</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% (sizeCharts.pants || []).forEach(function(row) { %>
+                      <tr>
+                        <td class="fw-semibold"><%= row.size %></td>
+                        <td><%= row.waistMin %>-<%= row.waistMax %> cm (<%= cmToIn(row.waistMin) %>-<%= cmToIn(row.waistMax) %> in)</td>
+                        <td><%= row.hipMin %>-<%= row.hipMax %> cm (<%= cmToIn(row.hipMin) %>-<%= cmToIn(row.hipMax) %> in)</td>
+                        <td><%= row.inseam %> cm (<%= cmToIn(row.inseam) %> in)</td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            <% } else { %>
+              <h4 class="mb-1">Shirt size chart (body + garment)</h4>
+              <p class="text-muted small mb-3"><%= fitNotes[profile.fitType] %></p>
+              <div class="table-responsive">
+                <table class="table table-modern fit-table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col">Size</th>
+                      <th scope="col">Body chest</th>
+                      <th scope="col">Chest width</th>
+                      <th scope="col">Shoulder</th>
+                      <th scope="col">Length</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% (sizeCharts.shirt || []).forEach(function(row) { %>
+                      <tr>
+                        <td class="fw-semibold"><%= row.size %></td>
+                        <td><%= row.bodyChestMin %>-<%= row.bodyChestMax %> cm (<%= cmToIn(row.bodyChestMin) %>-<%= cmToIn(row.bodyChestMax) %> in)</td>
+                        <td><%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)</td>
+                        <td><%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)</td>
+                        <td><%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)</td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+            <p class="text-muted small mt-2 mb-0"><%= sizeDisclaimer %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-5">
+        <div class="card fit-card fit-trust">
+          <div class="card-body">
+            <h4 class="mb-3">Confidence & care</h4>
+            <ul class="fit-list">
+              <li>Recommendation uses general sizing benchmarks.</li>
+              <li>Sizing varies by brand and cut. Compare with a piece you own.</li>
+              <li>Returns are available for eligible orders.</li>
+            </ul>
+            <div class="fit-callout">
+              <strong>Need extra help?</strong>
+              <p class="mb-0">Contact support through your order history for tailored fit guidance.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var typeInputs = document.querySelectorAll('input[name="productType"]');
+    var shirtSection = document.getElementById('fit-form-shirt');
+    var pantsSection = document.getElementById('fit-form-pants');
+
+    var toggleSection = function (section, enabled) {
+      if (!section) return;
+      section.classList.toggle('d-none', !enabled);
+      var inputs = section.querySelectorAll('input, select, textarea');
+      inputs.forEach(function (input) {
+        if (enabled) {
+          input.disabled = false;
+          if (input.dataset.required === 'true') {
+            input.setAttribute('required', 'required');
+          }
+        } else {
+          input.disabled = true;
+          input.removeAttribute('required');
+        }
+      });
+    };
+
+    var setType = function (value) {
+      var isShirt = value !== 'pants';
+      toggleSection(shirtSection, isShirt);
+      toggleSection(pantsSection, !isShirt);
+    };
+
+    typeInputs.forEach(function (input) {
+      input.addEventListener('change', function (event) {
+        setType(event.target.value);
+      });
+    });
+
+    var selected = document.querySelector('input[name="productType"]:checked');
+    setType(selected ? selected.value : 'shirt');
+  });
+</script>
+
+<%- include('partials/footer') %>

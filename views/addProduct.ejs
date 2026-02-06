@@ -1,10 +1,10 @@
-<%- include('partials/header', { title: 'Add Shirt | Shirt Shop' }) %>
+<%- include('partials/header', { title: 'Add Product | Shirt Shop' }) %>
   <%- include('partials/adminNavbar', { user: typeof user !=='undefined' ? user : null }) %>
 
     <section class="page-section">
       <div class="container">
         <div class="form-card">
-          <h2 class="text-center">Add new shirt</h2>
+          <h2 class="text-center">Add new product</h2>
           <p class="text-center text-muted mb-4">Add styles, sizes, and colours to keep your collection on-trend.</p>
 
           <% if (messages && messages.length) { %>
@@ -97,6 +97,15 @@
                             </div>
 
                             <div class="mb-3">
+                              <label for="productType" class="form-label">Product type</label>
+                              <select class="form-select" id="productType" name="productType" required>
+                                <option value="shirt" selected>Shirt</option>
+                                <option value="pants">Pants</option>
+                              </select>
+                              <small class="text-muted">Used for size guides and Fit Assistant recommendations.</small>
+                            </div>
+
+                            <div class="mb-3">
                               <label for="offer" class="form-label">Promotional offer</label>
                               <textarea class="form-control" id="offer" name="offer" rows="2"
                                 placeholder="E.g. Free delivery with every purchase"></textarea>
@@ -105,13 +114,13 @@
                             </div>
 
                             <div class="mb-3">
-                              <label for="description" class="form-label">Shirt description</label>
+                              <label for="description" class="form-label">Product description</label>
                               <textarea class="form-control" id="description" name="description" rows="3"
-                                placeholder="Describe the fit, feel, and style of this shirt."></textarea>
+                                placeholder="Describe the fit, feel, and style of this product."></textarea>
                             </div>
 
                             <div class="row g-3">
-                              <div class="col-12 col-md-6">
+                              <div class="col-12 col-md-6" id="fit-type-wrap">
                                 <div class="mb-3">
                                   <label for="fitType" class="form-label">Fit type</label>
                                   <select class="form-select" id="fitType" name="fitType">
@@ -179,6 +188,9 @@
         var brand = document.getElementById('brand');
         var brandWrap = document.getElementById('new-brand-wrap');
         var brandInput = document.getElementById('newBrand');
+        var productType = document.getElementById('productType');
+        var fitTypeWrap = document.getElementById('fit-type-wrap');
+        var fitTypeSelect = document.getElementById('fitType');
         var totalQty = document.getElementById('quantity');
         var sizeGrid = document.getElementById('size-input-grid');
         var sizeInputs = [];
@@ -214,6 +226,22 @@
         if (brand) {
           brand.addEventListener('change', toggleCustomBrand);
           toggleCustomBrand();
+        }
+
+        var toggleFitType = function () {
+          if (!productType || !fitTypeWrap) {
+            return;
+          }
+          var isShirt = productType.value !== 'pants';
+          fitTypeWrap.classList.toggle('d-none', !isShirt);
+          if (!isShirt && fitTypeSelect) {
+            fitTypeSelect.value = '';
+          }
+        };
+
+        if (productType) {
+          productType.addEventListener('change', toggleFitType);
+          toggleFitType();
         }
 
         var buildSizeKey = function (sizeLabel) {

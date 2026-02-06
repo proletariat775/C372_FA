@@ -176,6 +176,26 @@
     box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
   }
 
+  .product-page .size-guide-tabs {
+    gap: 0.5rem;
+  }
+
+  .product-page .size-guide-tabs .nav-link {
+    border-radius: 999px;
+    border: 1px solid var(--pdp-line);
+    color: var(--pdp-ink);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .product-page .size-guide-tabs .nav-link.active {
+    background: #111111;
+    color: #ffffff;
+    border-color: #111111;
+  }
+
   .product-page .table-modern {
     border-collapse: separate;
     border-spacing: 0 0.6rem;
@@ -453,13 +473,6 @@
           </div>
           <% } %>
 
-            <div class="product-option">
-              <span class="option-label">Color</span>
-              <p class="mb-0">
-                <%= detail.color ? detail.color : 'Not specified' %>
-              </p>
-            </div>
-
             <% if (user && user.role==='customer' ) { %>
               <% if (product.quantity <=0) { %>
                 <div class="alert alert-warning mt-3">Out of stock - we will restock soon.</div>
@@ -544,45 +557,99 @@
       </div>
 
       <div class="size-guide" id="size-guide">
+        <% const resolvedType=(typeof productType !== 'undefined' && productType === 'pants') ? 'pants' : 'shirt'; %>
+        <% const baseChart=resolvedType === 'pants' ? (pantsSizeChart || []) : (shirtSizeChart || []); %>
+        <% const sizeFilter=Array.isArray(sizesToShow) ? sizesToShow : []; %>
+        <% let filteredChart=baseChart; %>
+        <% let stockNote=''; %>
+        <% if (sizeFilter.length) { %>
+          <% const matches=baseChart.filter(row => sizeFilter.includes(row.size)); %>
+          <% if (matches.length) { %>
+            <% filteredChart=matches; %>
+            <% if (matches.length !== baseChart.length) { stockNote='Stock may vary by size.'; } %>
+          <% } else { %>
+            <% stockNote='Stock may vary by size.'; %>
+          <% } %>
+        <% } %>
+
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 mb-3">
           <div>
             <h3 class="mb-1">Size guide</h3>
             <p class="text-muted mb-0">Measurements shown in cm with inches in parentheses.</p>
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-modern align-middle mb-0">
-            <thead>
-              <tr>
-                <th scope="col">Size</th>
-                <th scope="col">Chest width</th>
-                <th scope="col">Shoulder</th>
-                <th scope="col">Length</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% (sizeChart || []).forEach(function(row) { %>
+
+        <% if (resolvedType === 'pants') { %>
+          <div class="table-responsive">
+            <table class="table table-modern align-middle mb-0">
+              <thead>
                 <tr>
-                  <td class="fw-semibold">
-                    <%= row.size %>
-                  </td>
-                  <td>
-                    <%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)
-                  </td>
-                  <td>
-                    <%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)
-                  </td>
-                  <td>
-                    <%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)
-                  </td>
+                  <th scope="col">Size</th>
+                  <th scope="col">Waist</th>
+                  <th scope="col">Hip</th>
+                  <th scope="col">Inseam</th>
                 </tr>
+              </thead>
+              <tbody>
+                <% (filteredChart || []).forEach(function(row) { %>
+                  <tr>
+                    <td class="fw-semibold"><%= row.size %></td>
+                    <td><%= row.waistMin %>-<%= row.waistMax %> cm (<%= cmToIn(row.waistMin) %>-<%= cmToIn(row.waistMax) %> in)</td>
+                    <td><%= row.hipMin %>-<%= row.hipMax %> cm (<%= cmToIn(row.hipMin) %>-<%= cmToIn(row.hipMax) %> in)</td>
+                    <td><%= row.inseam %> cm (<%= cmToIn(row.inseam) %> in)</td>
+                  </tr>
                 <% }); %>
-            </tbody>
-          </table>
-        </div>
-        <p class="text-muted small mb-0 mt-2">
-          <%= sizeGuideDisclaimer %>
-        </p>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <% const fitTabs=[{ key: 'regular', label: 'Regular' }, { key: 'slimming', label: 'Slimming' }, { key: 'relaxed', label: 'Relaxed' }, { key: 'dry-fit', label: 'Dry-fit' }]; %>
+          <% const activeFit=defaultFitType || 'regular'; %>
+          <ul class="nav nav-pills size-guide-tabs" role="tablist">
+            <% fitTabs.forEach(function(tab) { %>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link <%= tab.key === activeFit ? 'active' : '' %>" id="size-tab-<%= tab.key %>"
+                  data-bs-toggle="tab" data-bs-target="#size-pane-<%= tab.key %>" type="button" role="tab">
+                  <%= tab.label %>
+                </button>
+              </li>
+            <% }); %>
+          </ul>
+          <div class="tab-content mt-3">
+            <% fitTabs.forEach(function(tab) { %>
+              <div class="tab-pane fade <%= tab.key === activeFit ? 'show active' : '' %>" id="size-pane-<%= tab.key %>" role="tabpanel">
+                <p class="text-muted small mb-3"><%= fitNotes && fitNotes[tab.key] ? fitNotes[tab.key] : '' %></p>
+                <div class="table-responsive">
+                  <table class="table table-modern align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Size</th>
+                        <th scope="col">Chest width</th>
+                        <th scope="col">Shoulder</th>
+                        <th scope="col">Length</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% (filteredChart || []).forEach(function(row) { %>
+                        <tr>
+                          <td class="fw-semibold"><%= row.size %></td>
+                          <td><%= row.garmentChestWidth %> cm (<%= cmToIn(row.garmentChestWidth) %> in)</td>
+                          <td><%= row.garmentShoulder %> cm (<%= cmToIn(row.garmentShoulder) %> in)</td>
+                          <td><%= row.garmentLength %> cm (<%= cmToIn(row.garmentLength) %> in)</td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+
+        <% if (stockNote) { %>
+          <p class="text-muted small mb-0 mt-2"><%= stockNote %></p>
+        <% } %>
+        <p class="text-muted small mb-0 mt-2"><%= sizeGuideDisclaimer %></p>
       </div>
 
       <div class="review-section mt-5">
